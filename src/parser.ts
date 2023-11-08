@@ -7,6 +7,10 @@ export class CelParser extends CstParser {
 
     const $ = this
 
+    $.RULE('expression', () => {
+      $.SUBRULE($.comparisonExpression)
+    })
+
     $.RULE('atomicExpression', () => {
       $.OR([
         { ALT: () => $.CONSUME(Integer) },
@@ -14,19 +18,17 @@ export class CelParser extends CstParser {
       ])
     })
 
-    $.RULE('relationalOperator', () => {
+    $.RULE('comparisonOperator', () => {
       $.OR([
         { ALT: () => $.CONSUME(GreaterThan) },
         { ALT: () => $.CONSUME(LessThan) },
       ])
     })
 
-    $.RULE('expression', () => {
+    $.RULE('comparisonExpression', () => {
       $.SUBRULE($.atomicExpression, { LABEL: 'lhs' })
-      $.SUBRULE($.relationalOperator)
-      $.SUBRULE2($.atomicExpression, { LABEL: 'rhs' }) // note the '2' suffix to distinguish
-      // from the 'SUBRULE(atomicExpression)'
-      // 2 lines above.
+      $.SUBRULE($.comparisonOperator)
+      $.SUBRULE2($.atomicExpression, { LABEL: 'rhs' })
     })
 
     this.performSelfAnalysis()

@@ -1,23 +1,32 @@
 import { CELLexer } from './tokens'
 import { CelParser } from './parser'
+import { CelVisitor } from './visitor'
 
-const parser = new CelParser()
+// A new parser instance with CST output enabled.
+const parserInstance = new CelParser([], { outputCst: true })
+// Our visitor has no state, so a single instance is sufficient.
+const toAstVisitorInstance = new CelVisitor()
 
-function parseInput(text: string) {
-  const lexingResult = CELLexer.tokenize(text)
+function toAst(inputText: string) {
+  // Lex
+  const lexResult = CELLexer.tokenize(inputText)
+  parserInstance.input = lexResult.tokens
 
-  // "input" is a setter which will reset the parser's state.
-  parser.input = lexingResult.tokens
-  const res = parser.expression()
-  console.log('res:', res)
-  
-  if (parser.errors.length > 0) {
-    console.log(parser.errors)
-    throw new Error('sad sad panda, Parsing errors detected')
+  // Automatic CST created when parsing
+  const cst = parserInstance.expression()
+  console.log('cst:', cst.children)
+  // console.log('cst:', cst)
+  if (parserInstance.errors.length > 0) {
+    throw Error(
+      'Sad sad panda, parsing errors detected!\n' +
+        parserInstance.errors[0].message
+    )
   }
+
+  // Visit
+  const ast = toAstVisitorInstance.visit(cst)
+  return ast
 }
 
-const inputText = '1 > 2'
-
-// const lexingResult = CELLexer.tokenize(inputText)
-const output = parseInput(inputText)
+const result = toAst('1 > 2')
+console.log('result:', result)
