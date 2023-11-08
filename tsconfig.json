@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "module": "ES2022",
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "paths": {
+      "*": ["*", "src/*"]
+    }
+  },
+  "include": ["src/index.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}

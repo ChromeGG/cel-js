@@ -1,0 +1,20 @@
+{
+  "name": "cel-js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": ""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "chevrotain": "^11.0.3"
+  }
+}
