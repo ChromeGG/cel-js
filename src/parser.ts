@@ -1,5 +1,5 @@
 import { CstParser } from 'chevrotain'
-import { GreaterThan, Integer, LessThan, allTokens } from './tokens'
+import { GreaterThan, Identifier, Integer, LessThan, allTokens } from './tokens'
 
 export class CelParser extends CstParser {
   constructor() {
@@ -7,15 +7,14 @@ export class CelParser extends CstParser {
 
     const $ = this
 
-    $.RULE('expression', () => {
+    $.RULE('celExpression', () => {
       $.SUBRULE($.comparisonExpression)
     })
 
-    $.RULE('atomicExpression', () => {
-      $.OR([
-        { ALT: () => $.CONSUME(Integer) },
-        // { ALT: () => $.CONSUME(Identifier) },
-      ])
+    $.RULE('comparisonExpression', () => {
+      $.SUBRULE($.atomicExpression, { LABEL: 'lhs' })
+      $.SUBRULE($.comparisonOperator)
+      $.SUBRULE2($.atomicExpression, { LABEL: 'rhs' })
     })
 
     $.RULE('comparisonOperator', () => {
@@ -25,10 +24,11 @@ export class CelParser extends CstParser {
       ])
     })
 
-    $.RULE('comparisonExpression', () => {
-      $.SUBRULE($.atomicExpression, { LABEL: 'lhs' })
-      $.SUBRULE($.comparisonOperator)
-      $.SUBRULE2($.atomicExpression, { LABEL: 'rhs' })
+    $.RULE('atomicExpression', () => {
+      $.OR([
+        { ALT: () => $.CONSUME(Integer) },
+        { ALT: () => $.CONSUME(Identifier) },
+      ])
     })
 
     this.performSelfAnalysis()

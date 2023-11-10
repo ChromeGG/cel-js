@@ -1,5 +1,7 @@
 import { createToken, Lexer } from 'chevrotain'
 
+export const Identifier = createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
+
 export const WhiteSpace = createToken({
   name: 'WhiteSpace',
   pattern: /\s+/,
@@ -17,8 +19,22 @@ export const CloseParenthesis = createToken({
 })
 
 export const Equals = createToken({ name: 'Equals', pattern: /=/ })
-export const GreaterThan = createToken({ name: "GreaterThan", pattern: />/ });
-export const LessThan = createToken({ name: "LessThan", pattern: /</ });
+
+const ComparisonOperator = createToken({
+  name: 'ComparisonOperator',
+  pattern: Lexer.NA,
+})
+
+export const GreaterThan = createToken({
+  name: 'GreaterThan',
+  pattern: />/,
+  categories: ComparisonOperator,
+})
+export const LessThan = createToken({
+  name: 'LessThan',
+  pattern: /</,
+  categories: ComparisonOperator,
+})
 
 export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
 
@@ -31,11 +47,13 @@ export const allTokens = [
   OpenParenthesis,
   CloseParenthesis,
   Equals,
-  GreaterThan,
-  LessThan,
+  // keywords must be before Identifier
+  Identifier, 
   Integer,
   Plus,
   Minus,
+  GreaterThan,
+  LessThan,
 ]
 
 export const CELLexer = new Lexer(allTokens)

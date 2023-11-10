@@ -3,7 +3,7 @@ import { CelParser } from './parser'
 import { CelVisitor } from './visitor'
 
 // A new parser instance with CST output enabled.
-const parserInstance = new CelParser([], { outputCst: true })
+const parserInstance = new CelParser()
 // Our visitor has no state, so a single instance is sufficient.
 const toAstVisitorInstance = new CelVisitor()
 
@@ -13,8 +13,7 @@ function toAst(inputText: string) {
   parserInstance.input = lexResult.tokens
 
   // Automatic CST created when parsing
-  const cst = parserInstance.expression()
-  console.log('cst:', cst.children)
+  const cst = parserInstance.celExpression()
   // console.log('cst:', cst)
   if (parserInstance.errors.length > 0) {
     throw Error(
@@ -28,5 +27,5 @@ function toAst(inputText: string) {
   return ast
 }
 
-const result = toAst('1 > 2')
+const result = toAst('1 < 2')
 console.log('result:', result)

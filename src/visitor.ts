@@ -1,7 +1,7 @@
 // BaseVisitor constructors are accessed via a parser instance.
 import { tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser'
-import { GreaterThan } from 'tokens'
+import { GreaterThan, LessThan } from 'tokens'
 
 const parserInstance = new CelParser()
 
@@ -13,32 +13,21 @@ export class CelVisitor extends BaseCelVisitor {
     this.validateVisitor()
   }
 
-  expression(ctx) {
-    // visiting an array is equivalent to visiting its first element.
+  celExpression(ctx) {
     return this.visit(ctx.comparisonExpression)
   }
 
-  // The Ctx argument is the current CSTNode's children.
-  comparisonExpression(ctx) {
-    let result = this.visit(ctx.lhs)
-    console.log('resultVIS:', result)
+  comparisonExpression(ctx): boolean {
+    let left = this.visit(ctx.lhs)
+    let right = this.visit(ctx.rhs)
 
-    // "rhs" key may be undefined as the grammar defines it as optional (MANY === zero or more).
-    if (ctx.rhs) {
-      ctx.rhs.forEach((rhsOperand, idx) => {
-        // there will be one operator for each rhs operand
-        let rhsValue = this.visit(rhsOperand)
-        let operator = ctx.comparisonOperator[idx]
+    let operator = this.visit(ctx.comparisonOperator)
 
-        if (tokenMatcher(operator, GreaterThan)) {
-          return result > rhsValue
-        } else {
-          return result < rhsValue
-        }
-      })
+    if (tokenMatcher(operator, GreaterThan)) {
+      return left > right
+    } else {
+      return left < right
     }
-
-    return result
   }
 
   // these two visitor methods will return a string.
@@ -52,11 +41,9 @@ export class CelVisitor extends BaseCelVisitor {
 
   comparisonOperator(ctx) {
     if (ctx.GreaterThan) {
-      return ctx.GreaterThan[0].image
+      return GreaterThan
     } else {
-      return ctx.LessThan[0].image
+      return LessThan
     }
   }
 }
-
-const myVisitorInstance = new CelVisitor()
