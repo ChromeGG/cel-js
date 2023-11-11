@@ -2,22 +2,32 @@
 import { tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser'
 import { GreaterThan, LessThan } from 'tokens'
+import {
+  AtomicExpressionCstChildren,
+  CelExpressionCstChildren,
+  ComparisonExpressionCstChildren,
+  ComparisonOperatorCstChildren,
+  ICstNodeVisitor,
+} from 'cst-definitions'
 
 const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
-export class CelVisitor extends BaseCelVisitor {
+export class CelVisitor
+  extends BaseCelVisitor
+  implements ICstNodeVisitor<void, boolean>
+{
   constructor() {
     super()
     this.validateVisitor()
   }
 
-  celExpression(ctx) {
+  celExpression(ctx: CelExpressionCstChildren) {
     return this.visit(ctx.comparisonExpression)
   }
 
-  comparisonExpression(ctx): boolean {
+  comparisonExpression(ctx: ComparisonExpressionCstChildren): boolean {
     let left = this.visit(ctx.lhs)
     let right = this.visit(ctx.rhs)
 
@@ -31,15 +41,16 @@ export class CelVisitor extends BaseCelVisitor {
   }
 
   // these two visitor methods will return a string.
-  atomicExpression(ctx) {
+  atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Integer) {
       return ctx.Integer[0].image
-    } else {
+    }
+    if (ctx.Identifier) {
       return ctx.Identifier[0].image
     }
   }
 
-  comparisonOperator(ctx) {
+  comparisonOperator(ctx: ComparisonOperatorCstChildren) {
     if (ctx.GreaterThan) {
       return GreaterThan
     } else {
