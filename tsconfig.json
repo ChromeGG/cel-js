@@ -18,6 +18,6 @@
       "*": ["*", "src/*"]
     }
   },
-  "include": ["src/index.ts"],
+  "include": ["src/**/*", ".eslintrc.cjs"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }

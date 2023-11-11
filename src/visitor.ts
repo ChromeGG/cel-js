@@ -1,5 +1,5 @@
 // BaseVisitor constructors are accessed via a parser instance.
-import { tokenMatcher } from 'chevrotain'
+import { IToken, tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser'
 import { GreaterThan, LessThan } from 'tokens'
 import {
@@ -24,14 +24,16 @@ export class CelVisitor
   }
 
   celExpression(ctx: CelExpressionCstChildren) {
-    return this.visit(ctx.comparisonExpression)
+    return this.visit(ctx.comparisonExpression) as unknown
   }
 
   comparisonExpression(ctx: ComparisonExpressionCstChildren): boolean {
-    let left = this.visit(ctx.lhs)
-    let right = this.visit(ctx.rhs)
+    const left = this.visit(ctx.lhs) as number
+    const right = this.visit(ctx.rhs) as number
+    console.log('right:', right)
+    console.log('right:', typeof right)
 
-    let operator = this.visit(ctx.comparisonOperator)
+    const operator = this.visit(ctx.comparisonOperator) as IToken
 
     if (tokenMatcher(operator, GreaterThan)) {
       return left > right
@@ -43,7 +45,7 @@ export class CelVisitor
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Integer) {
-      return ctx.Integer[0].image
+      return parseInt(ctx.Integer[0].image)
     }
     if (ctx.Identifier) {
       return ctx.Identifier[0].image

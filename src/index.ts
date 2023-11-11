@@ -19,7 +19,7 @@ function toAst(inputText: string) {
     )
   }
 
-  return toAstVisitorInstance.visit(cst)
+  return toAstVisitorInstance.visit(cst) as unknown
 }
 
 const result = toAst('1 < 2')
