@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "",
+    "test": "tsx ./src/index.spec.ts",
     "lint": "eslint --ext .ts src"
   },
   "keywords": [],

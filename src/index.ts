@@ -6,8 +6,8 @@ const parserInstance = new CelParser()
 // Our visitor has no state, so a single instance is sufficient.
 const toAstVisitorInstance = new CelVisitor()
 
-function toAst(inputText: string) {
-  const lexResult = CELLexer.tokenize(inputText)
+export function parse(expression: string) {
+  const lexResult = CELLexer.tokenize(expression)
   parserInstance.input = lexResult.tokens
 
   const cst = parserInstance.celExpression()
@@ -21,6 +21,3 @@ function toAst(inputText: string) {
 
   return toAstVisitorInstance.visit(cst) as unknown
 }
-
-const result = toAst('1 < 2')
-console.log('result:', result)
