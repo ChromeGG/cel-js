@@ -1,16 +1,33 @@
 {
   "name": "cel-js",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "Common Expression Language (CEL) runner for JavaScript",
+  "homepage": "https://github.com/ChromeGG/cel-js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChromeGG/cel-js.git"
+  },
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "tsx ./src/index.spec.ts",
-    "lint": "eslint --ext .ts src"
+    "lint": "eslint --ext .ts src",
+    "generate-types": "tsx ./ts-signatures-generator"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "CEL",
+    "Common Expression Language",
+    "interpreter",
+    "evaluator",
+    "runner",
+    "javascript",
+    "typescript"
+  ],
+  "author": "Adam Tkaczyk",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "20.9.0",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
