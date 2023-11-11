@@ -16,7 +16,7 @@ const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
 export class CelVisitor
   extends BaseCelVisitor
-  implements ICstNodeVisitor<void, boolean>
+  implements ICstNodeVisitor<void, unknown>
 {
   constructor() {
     super()
@@ -48,6 +48,8 @@ export class CelVisitor
     if (ctx.Identifier) {
       return ctx.Identifier[0].image
     }
+
+    throw new Error('Atomic expression not recognized')
   }
 
   comparisonOperator(ctx: ComparisonOperatorCstChildren) {
