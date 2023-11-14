@@ -1,13 +1,13 @@
 {
   "name": "cel-js",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Common Expression Language (CEL) runner for JavaScript",
   "homepage": "https://github.com/ChromeGG/cel-js",
   "repository": {
     "type": "git",
     "url": "https://github.com/ChromeGG/cel-js.git"
   },
-  "main": "index.js",
+  "exports": "./src/index.js",
   "type": "module",
   "scripts": {
     "test": "tsx ./src/index.spec.ts",
@@ -15,7 +15,7 @@
     "generate-types": "tsx ./ts-signatures-generator"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "keywords": [
     "CEL",
@@ -29,16 +29,18 @@
   "author": "Adam Tkaczyk",
   "license": "MIT",
   "devDependencies": {
+    "@types/lodash.get": "4.4.9",
     "@types/node": "20.9.0",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
-    "@typescript-eslint/parser": "^6.10.0",
+    "@typescript-eslint/eslint-plugin": "6.10.0",
+    "@typescript-eslint/parser": "6.10.0",
     "eslint": "8.53.0",
-    "eslint-plugin-sonarjs": "^0.23.0",
+    "eslint-plugin-sonarjs": "0.23.0",
     "prettier": "3.0.3",
-    "tsx": "^3.14.0",
-    "typescript": "^5.2.2"
+    "tsx": "3.14.0",
+    "typescript": "5.2.2"
   },
   "dependencies": {
-    "chevrotain": "^11.0.3"
+    "chevrotain": "11.0.3",
+    "lodash.get": "4.4.2"
   }
 }

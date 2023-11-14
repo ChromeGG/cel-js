@@ -1,6 +1,19 @@
 import { createToken, Lexer } from 'chevrotain'
 
-export const Identifier = createToken({ name: "Identifier", pattern: /[a-zA-Z]\w*/ });
+export const Identifier = createToken({
+  name: 'Identifier',
+  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
+})
+export const Dot = createToken({ name: 'Dot', pattern: /\./ })
+
+export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
+
+export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
+
+export const StringLiteral = createToken({
+  name: 'StringLiteral',
+  pattern: /"(?:[^"\\]|\\.)*"/,
+})
 
 export const WhiteSpace = createToken({
   name: 'WhiteSpace',
@@ -48,7 +61,11 @@ export const allTokens = [
   CloseParenthesis,
   Equals,
   // keywords must be before Identifier
-  Identifier, 
+  Identifier,
+  Dot,
+  OpenBracket,
+  CloseBracket,
+  StringLiteral,
   Integer,
   Plus,
   Minus,

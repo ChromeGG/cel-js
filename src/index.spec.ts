@@ -20,4 +20,21 @@ describe('CEL', () => {
       assert.strictEqual(result, false)
     })
   })
+
+  describe('identifiers', () => {
+    it.only('should parse identifiers', () => {
+      const expr = 'a > 1'
+      const context = { a: { b: 2 } }
+
+      const result = parse(expr, context)
+
+      assert.strictEqual(result, true)
+    })
+
+    it('should throw if identifier is not in context', () => {
+      const expr = 'a < 1'
+
+      assert.throws(() => parse(expr))
+    })
+  })
 })

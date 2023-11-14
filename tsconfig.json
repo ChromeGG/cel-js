@@ -4,8 +4,9 @@
     "target": "ES2022",
     "moduleResolution": "node",
     "strict": true,
-    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noImplicitAny": true,
@@ -18,6 +19,6 @@
       "*": ["*", "src/*"]
     }
   },
-  "include": ["src/**/*", ".eslintrc.cjs"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": ["src/**/*", ".eslintrc.cjs", "src/tokens.ts"],
+  "exclude": ["node_modules"]
 }

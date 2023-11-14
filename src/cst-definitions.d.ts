@@ -30,6 +30,19 @@ export type ComparisonOperatorCstChildren = {
   LessThan?: IToken[];
 };
 
+export interface IdentifierCstNode extends CstNode {
+  name: "identifier";
+  children: IdentifierCstChildren;
+}
+
+export type IdentifierCstChildren = {
+  Identifier: (IToken)[];
+  Dot?: IToken[];
+  OpenBracket?: IToken[];
+  StringLiteral?: IToken[];
+  CloseBracket?: IToken[];
+};
+
 export interface AtomicExpressionCstNode extends CstNode {
   name: "atomicExpression";
   children: AtomicExpressionCstChildren;
@@ -37,12 +50,13 @@ export interface AtomicExpressionCstNode extends CstNode {
 
 export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
-  Identifier?: IToken[];
+  identifier?: IdentifierCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   celExpression(children: CelExpressionCstChildren, param?: IN): OUT;
   comparisonExpression(children: ComparisonExpressionCstChildren, param?: IN): OUT;
   comparisonOperator(children: ComparisonOperatorCstChildren, param?: IN): OUT;
+  identifier(children: IdentifierCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

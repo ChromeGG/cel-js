@@ -1,5 +1,15 @@
 import { CstParser } from 'chevrotain'
-import { GreaterThan, Identifier, Integer, LessThan, allTokens } from './tokens'
+import {
+  GreaterThan,
+  Identifier,
+  Integer,
+  LessThan,
+  allTokens,
+  Dot,
+  OpenBracket,
+  CloseBracket,
+  StringLiteral,
+} from './tokens.js'
 
 export class CelParser extends CstParser {
   constructor() {
@@ -24,10 +34,33 @@ export class CelParser extends CstParser {
     ])
   })
 
+  private identifier = this.RULE('identifier', () => {
+    this.CONSUME(Identifier)
+    this.MANY(() => {
+      this.OR([
+        {
+          ALT: () => {
+            this.CONSUME1(Dot), this.CONSUME2(Identifier)
+          },
+        },
+        {
+          ALT: () => {
+            this.CONSUME3(OpenBracket)
+            this.OR1([
+              { ALT: () => this.CONSUME4(StringLiteral) },
+              { ALT: () => this.CONSUME5(Identifier) },
+            ])
+            this.CONSUME6(CloseBracket)
+          },
+        },
+      ])
+    })
+  })
+
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
       { ALT: () => this.CONSUME(Integer) },
-      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.SUBRULE(this.identifier) },
     ])
   })
 }
