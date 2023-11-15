@@ -1,0 +1,9 @@
+{
+  "name": "cel-js",
+  "version": "1.0.0",
+  "description": "A simple usage of the CEL library",
+  "type": "module",
+  "dependencies": {
+    "cel-js": "0.0.1"
+  }
+}
