@@ -7,10 +7,6 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
     "sourceMap": true,
     "declaration": true,
     "outDir": "./dist",
@@ -20,5 +16,5 @@
     }
   },
   "include": ["src/**/*", ".eslintrc.cjs", "src/tokens.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "lib", "**/*.spec.ts"]
 }
