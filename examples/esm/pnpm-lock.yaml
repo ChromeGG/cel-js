@@ -39,7 +39,7 @@ packages:
     dev: false
 
   /cel-js@0.0.1:
-    resolution: {integrity: sha512-PD1neTuM7l9OBcurzjTJrAeFUQnM8HU7q62k01a2XnAfjrIeCeHZe1lCH9vLHY9b1QRVeihiKO3rRPV5IQCHMA==}
+    resolution: {integrity: sha512-XJ9FTXAjkuXMQYDlgmqjBIZRxJ2crCfoueSIaNHKTlSPB8LU4LA/T+s8rDDNKoZmDuY5E52j76nn41Uv+e12Og==}
     engines: {node: '>=18.0.0'}
     dependencies:
       chevrotain: 11.0.3

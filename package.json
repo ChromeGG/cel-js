@@ -17,26 +17,12 @@
   "license": "MIT",
   "author": "Adam Tkaczyk",
   "type": "module",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./lib/esm/types/index.d.ts",
-        "default": "./lib/esm/index.mjs"
-      },
-      "require": {
-        "types": "./lib/cjs/types/index.d.ts",
-        "default": "./lib/cjs/index.js"
-      }
-    }
-  },
-  "main": "./lib/cjs/index.js",
-  "types": "./lib/cjs/types/index.d.ts",
+  "exports": "./lib/esm/index.mjs",
   "files": [
     "lib/**/*"
   ],
   "scripts": {
-    "build": "npm run clean && npm run build:esm && npm run build:cjs",
-    "build:cjs": "tsc -p ./tsconfig.cjs.json",
+    "build": "npm run clean && npm run build:esm",
     "build:esm": "tsc -p ./tsconfig.esm.json && mv lib/esm/index.js lib/esm/index.mjs",
     "clean": "rm -rf ./lib",
     "generate-types": "tsx ./ts-signatures-generator",

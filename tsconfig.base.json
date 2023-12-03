@@ -15,6 +15,6 @@
       "*": ["*", "src/*"]
     }
   },
-  "include": ["src/**/*", ".eslintrc.cjs", "src/tokens.ts"],
+  "include": ["src/**/*", "src/tokens.ts"],
   "exclude": ["node_modules", "lib", "**/*.spec.ts"]
 }
