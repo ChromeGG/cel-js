@@ -1,0 +1,9 @@
+{
+  "github": {
+    "release": true
+  },
+  "npm": {
+    "publish": true
+  },
+  "packageManager": "pnpm"
+}
