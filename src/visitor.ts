@@ -44,9 +44,11 @@ export class CelVisitor
       return left <= right
     } else if (tokenMatcher(operator, GreaterThan)) {
       return left > right
-    } else {
+    } else if (tokenMatcher(operator, LessThan)) {
       return left < right
     }
+
+    throw new Error('Comparison operator not recognized')
   }
 
   // these two visitor methods will return a string.
@@ -72,11 +74,7 @@ export class CelVisitor
 
   identifier(ctx: IdentifierCstChildren): unknown {
     const identifier = ctx.Identifier[0].image
-    console.log('identifier:', identifier)
     const value = get(this?.context, identifier)
-    console.log('identifier:', identifier)
-    console.log('this?.context:', this?.context)
-    console.log('value:', value)
 
     if (value === undefined) {
       throw new Error(`Identifier ${identifier} not found in context`)

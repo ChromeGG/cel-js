@@ -1,5 +1,5 @@
-import { describe, it } from 'node:test'
-import assert from 'node:assert'
+import { expect, test, describe, it } from 'vitest'
+
 import { parse } from './index.js'
 
 describe('CEL', () => {
@@ -9,7 +9,7 @@ describe('CEL', () => {
 
       const result = parse(expr)
 
-      assert.strictEqual(result, true)
+      expect(result).toBe(true)
     })
 
     it('should parse less than operator', () => {
@@ -17,7 +17,7 @@ describe('CEL', () => {
 
       const result = parse(expr)
 
-      assert.strictEqual(result, false)
+      expect(result).toBe(false)
     })
 
     it('should parse greater than or equal operator', () => {
@@ -25,7 +25,7 @@ describe('CEL', () => {
 
       const result = parse(expr)
 
-      assert.strictEqual(result, true)
+      expect(result).toBe(true)
     })
 
     it('should parse less than or equal operator', () => {
@@ -33,7 +33,7 @@ describe('CEL', () => {
 
       const result = parse(expr)
 
-      assert.strictEqual(result, false)
+      expect(result).toBe(false)
     })
   })
 
@@ -44,13 +44,13 @@ describe('CEL', () => {
 
       const result = parse(expr, context)
 
-      assert.strictEqual(result, true)
+      expect(result).toBe(true)
     })
 
     it('should throw if identifier is not in context', () => {
       const expr = 'a < 1'
 
-      assert.throws(() => parse(expr))
+      expect(() => parse(expr)).toThrow()
     })
   })
 })
