@@ -19,12 +19,28 @@ describe('CEL', () => {
 
       assert.strictEqual(result, false)
     })
+
+    it('should parse greater than or equal operator', () => {
+      const expr = '2 >= 1'
+
+      const result = parse(expr)
+
+      assert.strictEqual(result, true)
+    })
+
+    it('should parse less than or equal operator', () => {
+      const expr = '2 <= 1'
+
+      const result = parse(expr)
+
+      assert.strictEqual(result, false)
+    })
   })
 
   describe('identifiers', () => {
-    it.only('should parse identifiers', () => {
+    it('should parse identifiers', () => {
       const expr = 'a > 1'
-      const context = { a: { b: 2 } }
+      const context = { a: 2 }
 
       const result = parse(expr, context)
 

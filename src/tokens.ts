@@ -43,9 +43,19 @@ export const GreaterThan = createToken({
   pattern: />/,
   categories: ComparisonOperator,
 })
+export const GreaterOrEqualThan = createToken({
+  name: 'GreaterThan',
+  pattern: />=/,
+  categories: ComparisonOperator,
+})
 export const LessThan = createToken({
   name: 'LessThan',
   pattern: /</,
+  categories: ComparisonOperator,
+})
+export const LessOrEqualThan = createToken({
+  name: 'LessThan',
+  pattern: /<=/,
   categories: ComparisonOperator,
 })
 
@@ -69,7 +79,9 @@ export const allTokens = [
   Integer,
   Plus,
   Minus,
+  GreaterOrEqualThan,
   GreaterThan,
+  LessOrEqualThan,
   LessThan,
 ]
 

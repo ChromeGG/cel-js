@@ -9,6 +9,8 @@ import {
   OpenBracket,
   CloseBracket,
   StringLiteral,
+  GreaterOrEqualThan,
+  LessOrEqualThan,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -29,8 +31,10 @@ export class CelParser extends CstParser {
 
   private comparisonOperator = this.RULE('comparisonOperator', () => {
     this.OR([
-      { ALT: () => this.CONSUME(GreaterThan) },
-      { ALT: () => this.CONSUME(LessThan) },
+      { ALT: () => this.CONSUME(GreaterOrEqualThan) },
+      { ALT: () => this.CONSUME1(GreaterThan) },
+      { ALT: () => this.CONSUME2(LessOrEqualThan) },
+      { ALT: () => this.CONSUME3(LessThan) },
     ])
   })
 

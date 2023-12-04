@@ -1,7 +1,7 @@
 // BaseVisitor constructors are accessed via a parser instance.
 import { IToken, tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser.js'
-import { GreaterThan, LessThan } from './tokens.js'
+import { GreaterOrEqualThan, GreaterThan, LessOrEqualThan, LessThan } from './tokens.js'
 import {
   AtomicExpressionCstChildren,
   CelExpressionCstChildren,
@@ -38,7 +38,11 @@ export class CelVisitor
 
     const operator = this.visit(ctx.comparisonOperator) as IToken
 
-    if (tokenMatcher(operator, GreaterThan)) {
+    if (tokenMatcher(operator, GreaterOrEqualThan)) {
+      return left >= right
+    } else if (tokenMatcher(operator, LessOrEqualThan)) {
+      return left <= right
+    } else if (tokenMatcher(operator, GreaterThan)) {
       return left > right
     } else {
       return left < right

@@ -14,7 +14,7 @@ export function parse(expression: string, context?: Record<string, unknown>) {
   const toAstVisitorInstance = new CelVisitor(context)
   if (parserInstance.errors.length > 0) {
     throw Error(
-      'Sad sad panda, parsing errors detected!\n' +
+      'Cannot parse CEL expression\n' +
         parserInstance.errors[0].message
     )
   }
