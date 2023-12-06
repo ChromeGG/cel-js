@@ -36,6 +36,8 @@
     "lodash.get": "4.4.2"
   },
   "devDependencies": {
+    "@commitlint/cli": "18.4.3",
+    "@commitlint/config-conventional": "18.4.3",
     "@types/lodash.get": "4.4.9",
     "@types/node": "20.9.0",
     "@typescript-eslint/eslint-plugin": "6.10.0",
