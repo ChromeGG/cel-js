@@ -27,7 +27,7 @@ describe('CEL', () => {
       expect(result).toBe(true)
     })
 
-    it.only('should parse less than or equal operator', () => {
+    it('should parse less than or equal operator', () => {
       const expr = '1 <= 1'
 
       const result = parse(expr)
