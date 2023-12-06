@@ -32,9 +32,9 @@ export class CelParser extends CstParser {
   private comparisonOperator = this.RULE('comparisonOperator', () => {
     this.OR([
       { ALT: () => this.CONSUME(GreaterOrEqualThan) },
-      { ALT: () => this.CONSUME1(GreaterThan) },
-      { ALT: () => this.CONSUME2(LessOrEqualThan) },
-      { ALT: () => this.CONSUME3(LessThan) },
+      { ALT: () => this.CONSUME(LessOrEqualThan) },
+      { ALT: () => this.CONSUME(GreaterThan) },
+      { ALT: () => this.CONSUME(LessThan) },
     ])
   })
 

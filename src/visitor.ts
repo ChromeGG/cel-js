@@ -65,9 +65,13 @@ export class CelVisitor
   }
 
   comparisonOperator(ctx: ComparisonOperatorCstChildren) {
-    if (ctx.GreaterThan) {
+    if (ctx.GreaterOrEqualThan) {
+      return GreaterOrEqualThan
+    } else if (ctx.LessOrEqualThan) {
+      return LessOrEqualThan
+    } else if (ctx.GreaterThan) {
       return GreaterThan
-    } else {
+    } else if (ctx.LessThan) {
       return LessThan
     }
   }

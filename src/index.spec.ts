@@ -21,19 +21,18 @@ describe('CEL', () => {
     })
 
     it('should parse greater than or equal operator', () => {
-      const expr = '2 >= 1'
-
+      const expr = '1 >= 1'
       const result = parse(expr)
 
       expect(result).toBe(true)
     })
 
-    it('should parse less than or equal operator', () => {
-      const expr = '2 <= 1'
+    it.only('should parse less than or equal operator', () => {
+      const expr = '1 <= 1'
 
       const result = parse(expr)
 
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 

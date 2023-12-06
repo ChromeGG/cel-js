@@ -26,6 +26,8 @@ export interface ComparisonOperatorCstNode extends CstNode {
 }
 
 export type ComparisonOperatorCstChildren = {
+  GreaterOrEqualThan?: IToken[];
+  LessOrEqualThan?: IToken[];
   GreaterThan?: IToken[];
   LessThan?: IToken[];
 };
