@@ -1,8 +1,8 @@
-import { expect, test, describe, it } from 'vitest'
+import { expect, describe, it } from 'vitest'
 
 import { parse } from './index.js'
 
-describe('CEL', () => {
+describe('specification of CEL', () => {
   describe('comparisons', () => {
     it('should parse greater than operator', () => {
       const expr = '2 > 1'
@@ -49,7 +49,17 @@ describe('CEL', () => {
     it('should throw if identifier is not in context', () => {
       const expr = 'a < 1'
 
-      expect(() => parse(expr)).toThrow()
+      const result = () => parse(expr)
+
+      expect(result).toThrow(`Identifier "a" not found in context: undefined`)
+    })
+
+    it('should throw if identifier is not in context', () => {
+      const expr = 'a < 1'
+
+      const result = () => parse(expr, { b: 2 })
+
+      expect(result).toThrow(`Identifier "a" not found in context: {"b":2}`)
     })
   })
 })

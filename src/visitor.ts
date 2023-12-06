@@ -1,7 +1,12 @@
 // BaseVisitor constructors are accessed via a parser instance.
 import { IToken, tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser.js'
-import { GreaterOrEqualThan, GreaterThan, LessOrEqualThan, LessThan } from './tokens.js'
+import {
+  GreaterOrEqualThan,
+  GreaterThan,
+  LessOrEqualThan,
+  LessThan,
+} from './tokens.js'
 import {
   AtomicExpressionCstChildren,
   CelExpressionCstChildren,
@@ -81,7 +86,10 @@ export class CelVisitor
     const value = get(this?.context, identifier)
 
     if (value === undefined) {
-      throw new Error(`Identifier ${identifier} not found in context`)
+      const context = JSON.stringify(this?.context)
+      throw new Error(
+        `Identifier "${identifier}" not found in context: ${context}`
+      )
     }
 
     return value
