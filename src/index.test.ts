@@ -47,15 +47,7 @@ describe('specification of CEL', () => {
       expect(result).toBe(true)
     })
 
-    it('should throw if identifier is not in context', () => {
-      const expr = 'a < 1'
-
-      const result = () => parse(expr)
-
-      expect(result).toThrow(`Identifier "a" not found in context: undefined`)
-    })
-
-    it('should throw if identifier is not in context', () => {
+    it('should throw and print context if identifier is not in the context', () => {
       const expr = 'a < 1'
 
       const result = () => parse(expr, { b: 2 })

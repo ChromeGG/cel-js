@@ -61,8 +61,39 @@ export const LessOrEqualThan = createToken({
 
 export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
 
-export const Plus = createToken({ name: 'Plus', pattern: /\+/ })
-export const Minus = createToken({ name: 'Minus', pattern: /-/ })
+const AdditionOperator = createToken({
+  name: 'AdditionOperator',
+  pattern: Lexer.NA,
+})
+export const Plus = createToken({
+  name: 'Plus',
+  pattern: /\+/,
+  categories: AdditionOperator,
+})
+export const Minus = createToken({
+  name: 'Minus',
+  pattern: /-/,
+  categories: AdditionOperator,
+})
+export const MultiplicationOperator = createToken({
+  name: 'MultiplicationOperator',
+  pattern: Lexer.NA,
+})
+export const Multiplier = createToken({
+  name: 'Minus',
+  pattern: /\*/,
+  categories: MultiplicationOperator,
+})
+export const Divider = createToken({
+  name: 'Minus',
+  pattern: /\//,
+  categories: MultiplicationOperator,
+})
+export const Remainder = createToken({
+  name: 'Remainder',
+  pattern: /%/,
+  categories: MultiplicationOperator,
+})
 
 export const reservedIdentifiers = [
   'as',
