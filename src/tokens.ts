@@ -97,6 +97,7 @@ export const allTokens = [
   OpenParenthesis,
   CloseParenthesis,
   Equals,
+  // ReservedIdentifiers must be before Identifiers
   ReservedIdentifiers,
   Identifier,
   Dot,
