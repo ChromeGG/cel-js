@@ -66,6 +66,10 @@ export class CelVisitor
       return this.visit(ctx.identifier)
     }
 
+    if (ctx.ReservedIdentifiers) {
+      throw new Error('Detected reserved identifier. This is not allowed')
+    }
+
     throw new Error('Atomic expression not recognized')
   }
 

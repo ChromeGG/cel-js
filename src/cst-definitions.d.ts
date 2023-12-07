@@ -53,6 +53,7 @@ export interface AtomicExpressionCstNode extends CstNode {
 export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
   identifier?: IdentifierCstNode[];
+  ReservedIdentifiers?: IToken[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {

@@ -1,6 +1,7 @@
 import { expect, describe, it } from 'vitest'
 
 import { parse } from './index.js'
+import { reservedIdentifiers } from './tokens.js'
 
 describe('specification of CEL', () => {
   describe('comparisons', () => {
@@ -61,5 +62,20 @@ describe('specification of CEL', () => {
 
       expect(result).toThrow(`Identifier "a" not found in context: {"b":2}`)
     })
+  })
+
+  describe('reserved identifiers', () => {
+    it.each(reservedIdentifiers)(
+      'should throw if reserved identifier "%s" is used',
+      (identifier) => {
+        const expr = `${identifier} < 1`
+
+        const result = () => parse(expr)
+
+        expect(result).toThrow(
+          `Detected reserved identifier. This is not allowed`
+        )
+      }
+    )
   })
 })

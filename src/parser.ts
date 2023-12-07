@@ -11,6 +11,7 @@ import {
   StringLiteral,
   GreaterOrEqualThan,
   LessOrEqualThan,
+  ReservedIdentifiers,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -65,6 +66,7 @@ export class CelParser extends CstParser {
     this.OR([
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.SUBRULE(this.identifier) },
+      { ALT: () => this.CONSUME(ReservedIdentifiers) },
     ])
   })
 }

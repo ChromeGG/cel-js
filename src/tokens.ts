@@ -64,13 +64,41 @@ export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
 export const Plus = createToken({ name: 'Plus', pattern: /\+/ })
 export const Minus = createToken({ name: 'Minus', pattern: /-/ })
 
+export const reservedIdentifiers = [
+  'as',
+  'break',
+  'const',
+  'continue',
+  'else',
+  'for',
+  'function',
+  'if',
+  'import',
+  'let',
+  'loop',
+  'package',
+  'namespace',
+  'return',
+  'var',
+  'void',
+  'while',
+]
+
+const reserverIdentifiersPattern = reservedIdentifiers.join('|')
+
+export const ReservedIdentifiers = createToken({
+  name: 'ReservedIdentifiers',
+  pattern: new RegExp(reserverIdentifiersPattern),
+})
+
 // The order of tokens is important
 export const allTokens = [
   WhiteSpace,
   OpenParenthesis,
   CloseParenthesis,
   Equals,
-  // keywords must be before Identifier
+  // ReservedIdentifiers must be before Identifiers
+  ReservedIdentifiers,
   Identifier,
   Dot,
   OpenBracket,
