@@ -107,8 +107,8 @@ export class CelVisitor
     throw new Error('Atomic expression not recognized')
   }
 
-  identifier(ctx): unknown {
-    const identifier = ctx.Identifier[0].image
+  identifier(ctx: AtomicExpressionCstChildren): unknown {
+    const identifier = ctx.Identifier![0].image // must be defined if we are in this method
     const value = this.context[identifier]
 
     if (value === undefined) {
