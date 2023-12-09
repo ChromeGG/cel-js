@@ -1,14 +1,9 @@
 import { CstParser } from 'chevrotain'
 import {
   GreaterThan,
-  Identifier,
   Integer,
   LessThan,
   allTokens,
-  Dot,
-  OpenBracket,
-  CloseBracket,
-  StringLiteral,
   GreaterOrEqualThan,
   LessOrEqualThan,
   ReservedIdentifiers,
@@ -20,52 +15,30 @@ export class CelParser extends CstParser {
     this.performSelfAnalysis()
   }
 
-  public celExpression = this.RULE('celExpression', () => {
-    this.SUBRULE(this.comparisonExpression)
+  public expr = this.RULE('expr', () => {
+    this.SUBRULE(this.relation)
   })
 
-  private comparisonExpression = this.RULE('comparisonExpression', () => {
+  private relation = this.RULE('relation', () => {
     this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' })
-    this.SUBRULE(this.comparisonOperator)
-    this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
-  })
-
-  private comparisonOperator = this.RULE('comparisonOperator', () => {
-    this.OR([
-      { ALT: () => this.CONSUME(GreaterOrEqualThan) },
-      { ALT: () => this.CONSUME(LessOrEqualThan) },
-      { ALT: () => this.CONSUME(GreaterThan) },
-      { ALT: () => this.CONSUME(LessThan) },
-    ])
-  })
-
-  private identifier = this.RULE('identifier', () => {
-    this.CONSUME(Identifier)
-    this.MANY(() => {
-      this.OR([
-        {
-          ALT: () => {
-            this.CONSUME1(Dot), this.CONSUME2(Identifier)
-          },
-        },
-        {
-          ALT: () => {
-            this.CONSUME3(OpenBracket)
-            this.OR1([
-              { ALT: () => this.CONSUME4(StringLiteral) },
-              { ALT: () => this.CONSUME5(Identifier) },
-            ])
-            this.CONSUME6(CloseBracket)
-          },
-        },
-      ])
+    this.OPTION(() => {
+      this.SUBRULE(this.relOp)
+      this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
     })
+  })
+
+  private relOp = this.RULE('relOp', () => {
+    this.OR([
+      { ALT: () => this.CONSUME(GreaterOrEqualThan, { LABEL: 'gte' }) },
+      { ALT: () => this.CONSUME(LessOrEqualThan, { LABEL: 'lte' }) },
+      { ALT: () => this.CONSUME(GreaterThan, { LABEL: 'gt' }) },
+      { ALT: () => this.CONSUME(LessThan, { LABEL: 'lt' }) },
+    ])
   })
 
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
       { ALT: () => this.CONSUME(Integer) },
-      { ALT: () => this.SUBRULE(this.identifier) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
     ])
   })
