@@ -5,6 +5,7 @@ import { CelVisitor } from './visitor.js'
 const parserInstance = new CelParser()
 // Our visitor has no state, so a single instance is sufficient.
 
+// TODO mention about this library in other Google's CEL repos
 export function parse(expression: string, context?: Record<string, unknown>) {
   const lexResult = CELLexer.tokenize(expression)
   parserInstance.input = lexResult.tokens

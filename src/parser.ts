@@ -7,6 +7,9 @@ import {
   GreaterOrEqualThan,
   LessOrEqualThan,
   ReservedIdentifiers,
+  Minus,
+  Plus,
+  Identifier,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -20,10 +23,10 @@ export class CelParser extends CstParser {
   })
 
   private relation = this.RULE('relation', () => {
-    this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' })
+    this.SUBRULE(this.addition, { LABEL: 'lhs' })
     this.OPTION(() => {
       this.SUBRULE(this.relOp)
-      this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
+      this.SUBRULE2(this.addition, { LABEL: 'rhs' })
     })
   })
 
@@ -36,10 +39,23 @@ export class CelParser extends CstParser {
     ])
   })
 
+  private addition = this.RULE('addition', () => {
+    this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' })
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.CONSUME(Plus, { LABEL: 'plus' }) },
+        { ALT: () => this.CONSUME(Minus, { LABEL: 'minus' }) },
+      ])
+      this.SUBRULE2(this.addition, { LABEL: 'rhs' })
+    })
+  })
+
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
+      { ALT: () => this.CONSUME(Identifier) },
+      // { ALT: () => this.SUBRULE(this.expr)}
     ])
   })
 }

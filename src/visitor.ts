@@ -2,6 +2,7 @@
 import { CelParser } from './parser.js'
 
 import {
+  AdditionCstChildren,
   AtomicExpressionCstChildren,
   ExprCstChildren,
   ICstNodeVisitor,
@@ -33,10 +34,11 @@ export class CelVisitor
   }
 
   relation(ctx: RelationCstChildren): boolean {
-    if (ctx.lhs && ctx.rhs) {
-      const left = this.visit(ctx.lhs)
+    const left = this.visit(ctx.lhs)
+
+    if (ctx.rhs) {
       const right = this.visit(ctx.rhs)
-      const operator: RelOps = this.visit(ctx.relOp!)
+      const operator: RelOps = this.visit(ctx.relOp!) // relOp must be defined if rhs is defined
 
       switch (operator) {
         case '<':
@@ -50,9 +52,9 @@ export class CelVisitor
         default:
           throw new Error('Comparison operator not recognized')
       }
-    } else {
-      return this.visit(ctx.lhs)
     }
+
+    return left
   }
 
   relOp(ctx: RelOpCstChildren): RelOps {
@@ -67,6 +69,26 @@ export class CelVisitor
     }
 
     throw new Error('Comparison operator not recognized')
+  }
+
+  addition(ctx: AdditionCstChildren): unknown {
+    const left = this.visit(ctx.lhs)
+
+    if (ctx.rhs) {
+      const right = this.visit(ctx.rhs)
+      const operator = ctx.plus ? '+' : '-'
+
+      switch (operator) {
+        case '+':
+          return left + right
+        case '-':
+          return left - right
+        default:
+          throw new Error('Addition operator not recognized')
+      }
+    }
+
+    return left
   }
 
   // these two visitor methods will return a string.

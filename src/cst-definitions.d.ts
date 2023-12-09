@@ -15,9 +15,9 @@ export interface RelationCstNode extends CstNode {
 }
 
 export type RelationCstChildren = {
-  lhs: AtomicExpressionCstNode[];
+  lhs: AdditionCstNode[];
   relOp?: RelOpCstNode[];
-  rhs?: AtomicExpressionCstNode[];
+  rhs?: AdditionCstNode[];
 };
 
 export interface RelOpCstNode extends CstNode {
@@ -30,6 +30,18 @@ export type RelOpCstChildren = {
   lte?: IToken[];
   gt?: IToken[];
   lt?: IToken[];
+};
+
+export interface AdditionCstNode extends CstNode {
+  name: "addition";
+  children: AdditionCstChildren;
+}
+
+export type AdditionCstChildren = {
+  lhs: AtomicExpressionCstNode[];
+  plus?: IToken[];
+  minus?: IToken[];
+  rhs?: AtomicExpressionCstNode[];
 };
 
 export interface AtomicExpressionCstNode extends CstNode {
@@ -46,5 +58,6 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   expr(children: ExprCstChildren, param?: IN): OUT;
   relation(children: RelationCstChildren, param?: IN): OUT;
   relOp(children: RelOpCstChildren, param?: IN): OUT;
+  addition(children: AdditionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }
