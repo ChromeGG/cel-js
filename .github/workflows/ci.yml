@@ -30,7 +30,7 @@ jobs:
         run: pnpm run lint
 
       - name: Commit lint
-        run: pnpm commitlint --from=HEAD~1 --to=HEAD --verbose
+        run: echo ${{ github.event.pull_request.title }} | pnpm commitlint --verbose
 
   test:
     runs-on: ubuntu-latest
