@@ -28,8 +28,8 @@
     "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
     "prepack": "npm run build",
-    "test": "vitest ./**/*.test.ts --run",
-    "test:watch": "vitest ./**/*.test.ts",
+    "test": "vitest ./src --run",
+    "test:watch": "vitest ./src",
     "release": "release-it"
   },
   "dependencies": {
