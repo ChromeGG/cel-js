@@ -41,7 +41,7 @@ export type AdditionCstChildren = {
   lhs: AtomicExpressionCstNode[];
   plus?: IToken[];
   minus?: IToken[];
-  rhs?: AtomicExpressionCstNode[];
+  rhs?: AdditionCstNode[];
 };
 
 export interface AtomicExpressionCstNode extends CstNode {
@@ -52,6 +52,7 @@ export interface AtomicExpressionCstNode extends CstNode {
 export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
+  Identifier?: IToken[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {

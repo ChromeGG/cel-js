@@ -9,7 +9,6 @@ import {
   RelOpCstChildren,
   RelationCstChildren,
 } from './cst-definitions.js'
-import get from 'lodash.get'
 
 const parserInstance = new CelParser()
 
@@ -23,11 +22,11 @@ export class CelVisitor
 {
   constructor(context?: Record<string, unknown>) {
     super()
-    this.context = context
+    this.context = context || {}
     this.validateVisitor()
   }
 
-  private context?: Record<string, unknown>
+  private context: Record<string, unknown>
 
   public expr(ctx: ExprCstChildren) {
     return this.visit(ctx.relation) as unknown
@@ -101,15 +100,25 @@ export class CelVisitor
       throw new Error('Detected reserved identifier. This is not allowed')
     }
 
+    if (ctx.Identifier) {
+      return this.identifier(ctx)
+    }
+
     throw new Error('Atomic expression not recognized')
   }
 
   identifier(ctx): unknown {
     const identifier = ctx.Identifier[0].image
-    const value = get(this?.context, identifier)
+    const value = this.context[identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
+
+      if (context === '{}') {
+        throw new Error(
+          `Identifier "${identifier}" not found, no context passed`
+        )
+      }
       throw new Error(
         `Identifier "${identifier}" not found in context: ${context}`
       )
