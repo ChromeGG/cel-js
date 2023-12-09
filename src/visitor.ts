@@ -1,25 +1,20 @@
 // BaseVisitor constructors are accessed via a parser instance.
-import { IToken, tokenMatcher } from 'chevrotain'
 import { CelParser } from './parser.js'
+
 import {
-  GreaterOrEqualThan,
-  GreaterThan,
-  LessOrEqualThan,
-  LessThan,
-} from './tokens.js'
-import {
+  AdditionCstChildren,
   AtomicExpressionCstChildren,
-  CelExpressionCstChildren,
-  ComparisonExpressionCstChildren,
-  ComparisonOperatorCstChildren,
+  ExprCstChildren,
   ICstNodeVisitor,
-  IdentifierCstChildren,
+  RelOpCstChildren,
+  RelationCstChildren,
 } from './cst-definitions.js'
-import get from 'lodash.get'
 
 const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
+
+type RelOps = '>=' | '<=' | '>' | '<'
 
 export class CelVisitor
   extends BaseCelVisitor
@@ -27,33 +22,72 @@ export class CelVisitor
 {
   constructor(context?: Record<string, unknown>) {
     super()
-    this.context = context
+    this.context = context || {}
     this.validateVisitor()
   }
 
-  private context?: Record<string, unknown>
+  private context: Record<string, unknown>
 
-  celExpression(ctx: CelExpressionCstChildren) {
-    return this.visit(ctx.comparisonExpression) as unknown
+  public expr(ctx: ExprCstChildren) {
+    return this.visit(ctx.relation) as unknown
   }
 
-  comparisonExpression(ctx: ComparisonExpressionCstChildren): boolean {
-    const left = this.visit(ctx.lhs) as number
-    const right = this.visit(ctx.rhs) as number
+  relation(ctx: RelationCstChildren): boolean {
+    const left = this.visit(ctx.lhs)
 
-    const operator = this.visit(ctx.comparisonOperator) as IToken
+    if (ctx.rhs) {
+      const right = this.visit(ctx.rhs)
+      const operator: RelOps = this.visit(ctx.relOp!) // relOp must be defined if rhs is defined
 
-    if (tokenMatcher(operator, GreaterOrEqualThan)) {
-      return left >= right
-    } else if (tokenMatcher(operator, LessOrEqualThan)) {
-      return left <= right
-    } else if (tokenMatcher(operator, GreaterThan)) {
-      return left > right
-    } else if (tokenMatcher(operator, LessThan)) {
-      return left < right
+      switch (operator) {
+        case '<':
+          return left < right
+        case '<=':
+          return left <= right
+        case '>':
+          return left > right
+        case '>=':
+          return left >= right
+        default:
+          throw new Error('Comparison operator not recognized')
+      }
+    }
+
+    return left
+  }
+
+  relOp(ctx: RelOpCstChildren): RelOps {
+    if (ctx.gte) {
+      return '>='
+    } else if (ctx.lte) {
+      return '<='
+    } else if (ctx.gt) {
+      return '>'
+    } else if (ctx.lt) {
+      return '<'
     }
 
     throw new Error('Comparison operator not recognized')
+  }
+
+  addition(ctx: AdditionCstChildren): unknown {
+    const left = this.visit(ctx.lhs)
+
+    if (ctx.rhs) {
+      const right = this.visit(ctx.rhs)
+      const operator = ctx.plus ? '+' : '-'
+
+      switch (operator) {
+        case '+':
+          return left + right
+        case '-':
+          return left - right
+        default:
+          throw new Error('Addition operator not recognized')
+      }
+    }
+
+    return left
   }
 
   // these two visitor methods will return a string.
@@ -62,35 +96,29 @@ export class CelVisitor
       return parseInt(ctx.Integer[0].image)
     }
 
-    if (ctx.identifier) {
-      return this.visit(ctx.identifier)
-    }
-
     if (ctx.ReservedIdentifiers) {
       throw new Error('Detected reserved identifier. This is not allowed')
+    }
+
+    if (ctx.Identifier) {
+      return this.identifier(ctx)
     }
 
     throw new Error('Atomic expression not recognized')
   }
 
-  comparisonOperator(ctx: ComparisonOperatorCstChildren) {
-    if (ctx.GreaterOrEqualThan) {
-      return GreaterOrEqualThan
-    } else if (ctx.LessOrEqualThan) {
-      return LessOrEqualThan
-    } else if (ctx.GreaterThan) {
-      return GreaterThan
-    } else if (ctx.LessThan) {
-      return LessThan
-    }
-  }
-
-  identifier(ctx: IdentifierCstChildren): unknown {
-    const identifier = ctx.Identifier[0].image
-    const value = get(this?.context, identifier)
+  identifier(ctx: AtomicExpressionCstChildren): unknown {
+    const identifier = ctx.Identifier![0].image // must be defined if we are in this method
+    const value = this.context[identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
+
+      if (context === '{}') {
+        throw new Error(
+          `Identifier "${identifier}" not found, no context passed`
+        )
+      }
       throw new Error(
         `Identifier "${identifier}" not found in context: ${context}`
       )

@@ -11,11 +11,12 @@ module.exports = {
   root: true,
   overrides: [
     {
-      files: ['*.test.ts'],
+      files: ['*.spec.ts'],
       rules: {
         'vitest/prefer-to-be-truthy': 'off',
         'vitest/prefer-to-be-falsy': 'off',
         'vitest/no-focused-tests': 'error',
+        'vitest/consistent-test-filename': 'off',
       },
     },
   ],

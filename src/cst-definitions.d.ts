@@ -1,48 +1,47 @@
 import type { CstNode, ICstVisitor, IToken } from "chevrotain";
 
-export interface CelExpressionCstNode extends CstNode {
-  name: "celExpression";
-  children: CelExpressionCstChildren;
+export interface ExprCstNode extends CstNode {
+  name: "expr";
+  children: ExprCstChildren;
 }
 
-export type CelExpressionCstChildren = {
-  comparisonExpression: ComparisonExpressionCstNode[];
+export type ExprCstChildren = {
+  relation: RelationCstNode[];
 };
 
-export interface ComparisonExpressionCstNode extends CstNode {
-  name: "comparisonExpression";
-  children: ComparisonExpressionCstChildren;
+export interface RelationCstNode extends CstNode {
+  name: "relation";
+  children: RelationCstChildren;
 }
 
-export type ComparisonExpressionCstChildren = {
+export type RelationCstChildren = {
+  lhs: AdditionCstNode[];
+  relOp?: RelOpCstNode[];
+  rhs?: AdditionCstNode[];
+};
+
+export interface RelOpCstNode extends CstNode {
+  name: "relOp";
+  children: RelOpCstChildren;
+}
+
+export type RelOpCstChildren = {
+  gte?: IToken[];
+  lte?: IToken[];
+  gt?: IToken[];
+  lt?: IToken[];
+};
+
+export interface AdditionCstNode extends CstNode {
+  name: "addition";
+  children: AdditionCstChildren;
+}
+
+export type AdditionCstChildren = {
   lhs: AtomicExpressionCstNode[];
-  comparisonOperator: ComparisonOperatorCstNode[];
-  rhs: AtomicExpressionCstNode[];
-};
-
-export interface ComparisonOperatorCstNode extends CstNode {
-  name: "comparisonOperator";
-  children: ComparisonOperatorCstChildren;
-}
-
-export type ComparisonOperatorCstChildren = {
-  GreaterOrEqualThan?: IToken[];
-  LessOrEqualThan?: IToken[];
-  GreaterThan?: IToken[];
-  LessThan?: IToken[];
-};
-
-export interface IdentifierCstNode extends CstNode {
-  name: "identifier";
-  children: IdentifierCstChildren;
-}
-
-export type IdentifierCstChildren = {
-  Identifier: (IToken)[];
-  Dot?: IToken[];
-  OpenBracket?: IToken[];
-  StringLiteral?: IToken[];
-  CloseBracket?: IToken[];
+  plus?: IToken[];
+  minus?: IToken[];
+  rhs?: AdditionCstNode[];
 };
 
 export interface AtomicExpressionCstNode extends CstNode {
@@ -52,14 +51,14 @@ export interface AtomicExpressionCstNode extends CstNode {
 
 export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
-  identifier?: IdentifierCstNode[];
   ReservedIdentifiers?: IToken[];
+  Identifier?: IToken[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
-  celExpression(children: CelExpressionCstChildren, param?: IN): OUT;
-  comparisonExpression(children: ComparisonExpressionCstChildren, param?: IN): OUT;
-  comparisonOperator(children: ComparisonOperatorCstChildren, param?: IN): OUT;
-  identifier(children: IdentifierCstChildren, param?: IN): OUT;
+  expr(children: ExprCstChildren, param?: IN): OUT;
+  relation(children: RelationCstChildren, param?: IN): OUT;
+  relOp(children: RelOpCstChildren, param?: IN): OUT;
+  addition(children: AdditionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

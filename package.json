@@ -25,16 +25,15 @@
     "build": "npm run clean && npm run build:esm",
     "build:esm": "tsc -p ./tsconfig.esm.json && mv lib/esm/index.js lib/esm/index.mjs",
     "clean": "rm -rf ./lib",
-    "generate-types": "tsx ./ts-signatures-generator",
+    "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
     "prepack": "npm run build",
-    "test": "vitest ./**/*.test.ts --run",
-    "test:watch": "vitest ./**/*.test.ts",
+    "test": "vitest ./src --run",
+    "test:watch": "vitest ./src",
     "release": "release-it"
   },
   "dependencies": {
-    "chevrotain": "11.0.3",
-    "lodash.get": "4.4.2"
+    "chevrotain": "11.0.3"
   },
   "devDependencies": {
     "@commitlint/cli": "18.4.3",

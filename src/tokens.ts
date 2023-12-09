@@ -33,6 +33,7 @@ export const CloseParenthesis = createToken({
 
 export const Equals = createToken({ name: 'Equals', pattern: /=/ })
 
+// TODO: add "==", "!=", "in"
 const ComparisonOperator = createToken({
   name: 'ComparisonOperator',
   pattern: Lexer.NA,
