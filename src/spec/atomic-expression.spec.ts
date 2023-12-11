@@ -10,4 +10,28 @@ describe('atomic expressions', () => {
 
     expect(result).toBe(1)
   })
+
+  it('should parse a true boolean literal', () => {
+    const expr = 'true'
+
+    const result = parse(expr)
+
+    expect(result).toBe(true)
+  })
+
+  it('should parse a false boolean literal', () => {
+    const expr = 'false'
+
+    const result = parse(expr)
+
+    expect(result).toBe(false)
+  })
+
+  it('should parse null literal', () => {
+    const expr = 'null'
+
+    const result = parse(expr)
+
+    expect(result).toBe(null)
+  })
 })

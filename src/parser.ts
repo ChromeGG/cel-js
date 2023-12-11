@@ -10,6 +10,8 @@ import {
   AdditionOperator,
   MultiplicationOperator,
   Identifier,
+  BooleanLiteral,
+  Null,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -57,6 +59,8 @@ export class CelParser extends CstParser {
 
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
+      { ALT: () => this.CONSUME(BooleanLiteral) },
+      { ALT: () => this.CONSUME(Null) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.CONSUME(Identifier) },

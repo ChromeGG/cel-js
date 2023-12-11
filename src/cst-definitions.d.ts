@@ -60,6 +60,8 @@ export interface AtomicExpressionCstNode extends CstNode {
 }
 
 export type AtomicExpressionCstChildren = {
+  BooleanLiteral?: IToken[];
+  Null?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   Identifier?: IToken[];
