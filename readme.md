@@ -33,20 +33,3 @@ parse('2 + 2') // => 4
 
 parse('a > 4', { a: 5 }) // => true
 ```
-
-## Contributing
-
-Here are steps to contribute to this project:
-
-1. Fork this repository.
-2. Create a branch: `git checkout -b <branch_name>`.
-3. Make your changes
-4. Run Verdaccio locally
-```zsh
-docker run -it --rm --name verdaccio -p 4873:4873 verdaccio/verdaccio
-```
-5. Create user for local registry: `pnpm adduser --registry http://localhost:4873` (any username and password will work)
-6. Publish changes to the local registry using verdaccio: `pnpm run publish:local`
-7. Go to `./examples/esm`, run `pnpm i` and test your changes.
-
-I know this is not the best way to test your changes and it could be automated, but I'm still learning how to do it properly. If you have any suggestions, please let me know.

@@ -11,6 +11,14 @@ describe('addition', () => {
     expect(result).toBe(2)
   })
 
+  it('should parse subtraction', () => {
+    const expr = '1 - 1'
+
+    const result = parse(expr)
+
+    expect(result).toBe(0)
+  })
+
   it('should parse addition with multiple terms', () => {
     const expr = '1 + 1 + 1'
 
