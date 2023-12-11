@@ -31,6 +31,24 @@ export const CloseParenthesis = createToken({
   pattern: /\)/,
 })
 
+export const BooleanLiteral = createToken({
+  name: 'BooleanLiteral',
+  pattern: /true|false/,
+})
+
+export const True = createToken({
+  name: 'True',
+  pattern: /true/,
+  categories: BooleanLiteral,
+})
+export const False = createToken({
+  name: 'False',
+  pattern: /false/,
+  categories: BooleanLiteral,
+})
+
+export const Null = createToken({ name: 'Null', pattern: /null/ })
+
 export const Equals = createToken({ name: 'Equals', pattern: /=/ })
 
 // TODO: add "==", "!=", "in"
@@ -132,6 +150,9 @@ export const allTokens = [
   CloseParenthesis,
   Equals,
   // ReservedIdentifiers must be before Identifiers
+  True,
+  False,
+  Null,
   ReservedIdentifiers,
   Identifier,
   Dot,

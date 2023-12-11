@@ -116,6 +116,14 @@ export class CelVisitor
 
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
+    if (ctx.Null) {
+      return null
+    }
+
+    if (ctx.BooleanLiteral) {
+      return ctx.BooleanLiteral[0].image === 'true'
+    }
+
     if (ctx.Integer) {
       return parseInt(ctx.Integer[0].image)
     }
