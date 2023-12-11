@@ -7,8 +7,8 @@ import {
   GreaterOrEqualThan,
   LessOrEqualThan,
   ReservedIdentifiers,
-  Minus,
-  Plus,
+  AdditionOperator,
+  MultiplicationOperator,
   Identifier,
 } from './tokens.js'
 
@@ -40,13 +40,18 @@ export class CelParser extends CstParser {
   })
 
   private addition = this.RULE('addition', () => {
+    this.SUBRULE(this.multiplication, { LABEL: 'lhs' })
+    this.MANY(() => {
+      this.CONSUME(AdditionOperator)
+      this.SUBRULE2(this.multiplication, { LABEL: 'rhs' })
+    })
+  })
+
+  private multiplication = this.RULE('multiplication', () => {
     this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' })
     this.MANY(() => {
-      this.OR([
-        { ALT: () => this.CONSUME(Plus, { LABEL: 'plus' }) },
-        { ALT: () => this.CONSUME(Minus, { LABEL: 'minus' }) },
-      ])
-      this.SUBRULE2(this.addition, { LABEL: 'rhs' })
+      this.CONSUME(MultiplicationOperator)
+      this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
     })
   })
 
@@ -55,7 +60,6 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.CONSUME(Identifier) },
-      // { ALT: () => this.SUBRULE(this.expr)}
     ])
   })
 }

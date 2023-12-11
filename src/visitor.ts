@@ -6,9 +6,13 @@ import {
   AtomicExpressionCstChildren,
   ExprCstChildren,
   ICstNodeVisitor,
+  MultiplicationCstChildren,
   RelOpCstChildren,
   RelationCstChildren,
 } from './cst-definitions.js'
+
+import { tokenMatcher } from 'chevrotain'
+import { Division, MultiplicationToken, Plus } from './tokens.js'
 
 const parserInstance = new CelParser()
 
@@ -71,20 +75,40 @@ export class CelVisitor
   }
 
   addition(ctx: AdditionCstChildren): unknown {
-    const left = this.visit(ctx.lhs)
+    let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
-      const right = this.visit(ctx.rhs)
-      const operator = ctx.plus ? '+' : '-'
+      ctx.rhs.forEach((rhsOperand, idx) => {
+        const rhsValue = this.visit(rhsOperand)
+        const operator = ctx.AdditionOperator![idx]
 
-      switch (operator) {
-        case '+':
-          return left + right
-        case '-':
-          return left - right
-        default:
-          throw new Error('Addition operator not recognized')
-      }
+        if (tokenMatcher(operator, Plus)) {
+          left += rhsValue
+        } else {
+          left -= rhsValue
+        }
+      })
+    }
+
+    return left
+  }
+
+  multiplication(ctx: MultiplicationCstChildren) {
+    let left = this.visit(ctx.lhs)
+
+    if (ctx.rhs) {
+      ctx.rhs.forEach((rhsOperand, idx) => {
+        const rhsValue = this.visit(rhsOperand)
+        const operator = ctx.MultiplicationOperator![idx]
+
+        if (tokenMatcher(operator, MultiplicationToken)) {
+          left *= rhsValue
+        } else if (tokenMatcher(operator, Division)) {
+          left /= rhsValue
+        } else {
+          left %= rhsValue
+        }
+      })
     }
 
     return left
