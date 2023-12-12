@@ -16,6 +16,7 @@ import {
   CloseParenthesis,
   Equals,
   NotEquals,
+  StringLiteral,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -74,6 +75,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.SUBRULE(this.parenthesisExpression) },
       { ALT: () => this.CONSUME(BooleanLiteral) },
       { ALT: () => this.CONSUME(Null) },
+      { ALT: () => this.CONSUME(StringLiteral) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.CONSUME(Identifier) },

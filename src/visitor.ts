@@ -137,6 +137,10 @@ export class CelVisitor
       return this.visit(ctx.parenthesisExpression)
     }
 
+    if (ctx.StringLiteral) {
+      return ctx.StringLiteral[0].image.slice(1, -1)
+    }
+
     if (ctx.BooleanLiteral) {
       return ctx.BooleanLiteral[0].image === 'true'
     }
