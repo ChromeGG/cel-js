@@ -12,6 +12,8 @@ import {
   Identifier,
   BooleanLiteral,
   Null,
+  OpenParenthesis,
+  CloseParenthesis,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -57,8 +59,15 @@ export class CelParser extends CstParser {
     })
   })
 
+  private parenthesisExpression = this.RULE('parenthesisExpression', () => {
+    this.CONSUME(OpenParenthesis, { LABEL: 'open' })
+    this.SUBRULE(this.expr)
+    this.CONSUME(CloseParenthesis, { LABEL: 'close' })
+  })
+
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
+      { ALT: () => this.SUBRULE(this.parenthesisExpression) },
       { ALT: () => this.CONSUME(BooleanLiteral) },
       { ALT: () => this.CONSUME(Null) },
       { ALT: () => this.CONSUME(Integer) },

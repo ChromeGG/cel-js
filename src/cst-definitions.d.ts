@@ -54,12 +54,24 @@ export type MultiplicationCstChildren = {
   rhs?: AtomicExpressionCstNode[];
 };
 
+export interface ParenthesisExpressionCstNode extends CstNode {
+  name: "parenthesisExpression";
+  children: ParenthesisExpressionCstChildren;
+}
+
+export type ParenthesisExpressionCstChildren = {
+  open: IToken[];
+  expr: ExprCstNode[];
+  close: IToken[];
+};
+
 export interface AtomicExpressionCstNode extends CstNode {
   name: "atomicExpression";
   children: AtomicExpressionCstChildren;
 }
 
 export type AtomicExpressionCstChildren = {
+  parenthesisExpression?: ParenthesisExpressionCstNode[];
   BooleanLiteral?: IToken[];
   Null?: IToken[];
   Integer?: IToken[];
@@ -73,5 +85,6 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   relOp(children: RelOpCstChildren, param?: IN): OUT;
   addition(children: AdditionCstChildren, param?: IN): OUT;
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
+  parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

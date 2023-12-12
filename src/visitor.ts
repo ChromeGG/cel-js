@@ -7,6 +7,7 @@ import {
   ExprCstChildren,
   ICstNodeVisitor,
   MultiplicationCstChildren,
+  ParenthesisExpressionCstChildren,
   RelOpCstChildren,
   RelationCstChildren,
 } from './cst-definitions.js'
@@ -114,10 +115,18 @@ export class CelVisitor
     return left
   }
 
+  parenthesisExpression(ctx: ParenthesisExpressionCstChildren) {
+    return this.visit(ctx.expr)
+  }
+
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Null) {
       return null
+    }
+
+    if (ctx.parenthesisExpression) {
+      return this.visit(ctx.parenthesisExpression)
     }
 
     if (ctx.BooleanLiteral) {
