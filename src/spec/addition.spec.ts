@@ -34,4 +34,12 @@ describe('addition', () => {
 
     expect(result).toBe(1)
   })
+
+  it('should parse float addition', () => {
+    const expr = '0.333 + 0.333'
+
+    const result = parse(expr)
+
+    expect(result).toBe(0.666)
+  })
 })

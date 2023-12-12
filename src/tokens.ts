@@ -85,6 +85,10 @@ export const LessOrEqualThan = createToken({
   categories: ComparisonOperator,
 })
 
+export const Float = createToken({
+  name: 'Float',
+  pattern: /-?\d+\.\d+/,
+})
 export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
 
 export const AdditionOperator = createToken({
@@ -172,6 +176,7 @@ export const allTokens = [
   Modulo,
   Plus,
   Minus,
+  Float,
   Integer,
   AdditionOperator,
   MultiplicationOperator,

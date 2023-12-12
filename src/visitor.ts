@@ -145,6 +145,10 @@ export class CelVisitor
       return ctx.BooleanLiteral[0].image === 'true'
     }
 
+    if (ctx.Float) {
+      return parseFloat(ctx.Float[0].image)
+    }
+
     if (ctx.Integer) {
       return parseInt(ctx.Integer[0].image)
     }

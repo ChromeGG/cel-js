@@ -77,6 +77,7 @@ export type AtomicExpressionCstChildren = {
   BooleanLiteral?: IToken[];
   Null?: IToken[];
   StringLiteral?: IToken[];
+  Float?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   Identifier?: IToken[];

@@ -42,4 +42,12 @@ describe('atomic expressions', () => {
 
     expect(result).toBe('foo')
   })
+
+  it('should parse a float', () => {
+    const expr = '1.2'
+
+    const result = parse(expr)
+
+    expect(result).toBe(1.2)
+  })
 })
