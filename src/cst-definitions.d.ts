@@ -76,6 +76,7 @@ export type AtomicExpressionCstChildren = {
   parenthesisExpression?: ParenthesisExpressionCstNode[];
   BooleanLiteral?: IToken[];
   Null?: IToken[];
+  StringLiteral?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   Identifier?: IToken[];

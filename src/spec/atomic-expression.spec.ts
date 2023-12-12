@@ -34,4 +34,12 @@ describe('atomic expressions', () => {
 
     expect(result).toBe(null)
   })
+
+  it('should parse a string literal', () => {
+    const expr = '"foo"'
+
+    const result = parse(expr)
+
+    expect(result).toBe('foo')
+  })
 })
