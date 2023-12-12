@@ -49,7 +49,6 @@ export const False = createToken({
 
 export const Null = createToken({ name: 'Null', pattern: /null/ })
 
-// TODO: add "==", "!=", "in"
 const ComparisonOperator = createToken({
   name: 'ComparisonOperator',
   pattern: Lexer.NA,
