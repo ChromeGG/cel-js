@@ -26,6 +26,8 @@ export interface RelOpCstNode extends CstNode {
 }
 
 export type RelOpCstChildren = {
+  eq?: IToken[];
+  neq?: IToken[];
   gte?: IToken[];
   lte?: IToken[];
   gt?: IToken[];

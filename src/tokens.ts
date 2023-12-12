@@ -49,14 +49,22 @@ export const False = createToken({
 
 export const Null = createToken({ name: 'Null', pattern: /null/ })
 
-export const Equals = createToken({ name: 'Equals', pattern: /=/ })
-
 // TODO: add "==", "!=", "in"
 const ComparisonOperator = createToken({
   name: 'ComparisonOperator',
   pattern: Lexer.NA,
 })
 
+export const Equals = createToken({
+  name: 'Equals',
+  pattern: /==/,
+  categories: ComparisonOperator,
+})
+export const NotEquals = createToken({
+  name: 'NotEquals',
+  pattern: /!=/,
+  categories: ComparisonOperator,
+})
 export const GreaterThan = createToken({
   name: 'GreaterThan',
   pattern: />/,
@@ -149,6 +157,7 @@ export const allTokens = [
   OpenParenthesis,
   CloseParenthesis,
   Equals,
+  NotEquals,
   // ReservedIdentifiers must be before Identifiers
   True,
   False,

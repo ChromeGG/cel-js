@@ -33,4 +33,20 @@ describe('comparisons', () => {
 
     expect(result).toBe(true)
   })
+
+  it('should parse equal operator', () => {
+    const expr = '1 == 1'
+
+    const result = parse(expr)
+
+    expect(result).toBe(true)
+  })
+
+  it('should parse not equal operator', () => {
+    const expr = '1 != 1'
+
+    const result = parse(expr)
+
+    expect(result).toBe(false)
+  })
 })

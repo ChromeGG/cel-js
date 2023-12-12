@@ -14,6 +14,8 @@ import {
   Null,
   OpenParenthesis,
   CloseParenthesis,
+  Equals,
+  NotEquals,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -36,6 +38,8 @@ export class CelParser extends CstParser {
 
   private relOp = this.RULE('relOp', () => {
     this.OR([
+      { ALT: () => this.CONSUME(Equals, { LABEL: 'eq' }) },
+      { ALT: () => this.CONSUME(NotEquals, { LABEL: 'neq' }) },
       { ALT: () => this.CONSUME(GreaterOrEqualThan, { LABEL: 'gte' }) },
       { ALT: () => this.CONSUME(LessOrEqualThan, { LABEL: 'lte' }) },
       { ALT: () => this.CONSUME(GreaterThan, { LABEL: 'gt' }) },

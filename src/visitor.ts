@@ -19,7 +19,7 @@ const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
-type RelOps = '>=' | '<=' | '>' | '<'
+type RelOps = '==' | '!=' | '>=' | '<=' | '>' | '<'
 
 export class CelVisitor
   extends BaseCelVisitor
@@ -53,6 +53,10 @@ export class CelVisitor
           return left > right
         case '>=':
           return left >= right
+        case '==':
+          return left === right
+        case '!=':
+          return left !== right
         default:
           throw new Error('Comparison operator not recognized')
       }
@@ -70,6 +74,10 @@ export class CelVisitor
       return '>'
     } else if (ctx.lt) {
       return '<'
+    } else if (ctx.eq) {
+      return '=='
+    } else if (ctx.neq) {
+      return '!='
     }
 
     throw new Error('Comparison operator not recognized')
