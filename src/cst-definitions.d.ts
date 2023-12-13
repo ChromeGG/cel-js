@@ -6,7 +6,7 @@ export interface ExprCstNode extends CstNode {
 }
 
 export type ExprCstChildren = {
-  conditionalAnd: ConditionalAndCstNode[];
+  conditionalOr: ConditionalOrCstNode[];
 };
 
 export interface ConditionalAndCstNode extends CstNode {
@@ -16,8 +16,19 @@ export interface ConditionalAndCstNode extends CstNode {
 
 export type ConditionalAndCstChildren = {
   lhs: RelationCstNode[];
-  LogicalAndOperator?: IToken[];
+  logicalAnd?: IToken[];
   rhs?: RelationCstNode[];
+};
+
+export interface ConditionalOrCstNode extends CstNode {
+  name: "conditionalOr";
+  children: ConditionalOrCstChildren;
+}
+
+export type ConditionalOrCstChildren = {
+  lhs: ConditionalAndCstNode[];
+  logicalOr?: IToken[];
+  rhs?: ConditionalAndCstNode[];
 };
 
 export interface RelationCstNode extends CstNode {
@@ -97,6 +108,7 @@ export type AtomicExpressionCstChildren = {
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   expr(children: ExprCstChildren, param?: IN): OUT;
   conditionalAnd(children: ConditionalAndCstChildren, param?: IN): OUT;
+  conditionalOr(children: ConditionalOrCstChildren, param?: IN): OUT;
   relation(children: RelationCstChildren, param?: IN): OUT;
   relOp(children: RelOpCstChildren, param?: IN): OUT;
   addition(children: AdditionCstChildren, param?: IN): OUT;

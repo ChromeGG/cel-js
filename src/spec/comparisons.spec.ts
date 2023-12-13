@@ -85,7 +85,7 @@ describe('comparisons', () => {
       })
     })
 
-    describe.todo('OR', () => {
+    describe('OR', () => {
       it('should return true if at least one expression is true', () => {
         const expr = 'true || false'
 
@@ -101,6 +101,22 @@ describe('comparisons', () => {
 
         expect(result).toBe(false)
       })
+
+      it('should return true if at least expression is true', () => {
+        const expr = 'false || true || false'
+
+        const result = parse(expr)
+
+        expect(result).toBe(true)
+      })
+    })
+
+    it('should be able to combine AND and OR', () => {
+      const expr = 'true && true || false'
+
+      const result = parse(expr)
+
+      expect(result).toBe(true)
     })
   })
 })
