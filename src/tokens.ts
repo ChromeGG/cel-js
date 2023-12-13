@@ -10,6 +10,11 @@ export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
 
 export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
+export const LogicalAndOperator = createToken({
+  name: 'LogicalAndOperator',
+  pattern: /&&/,
+})
+
 export const StringLiteral = createToken({
   name: 'StringLiteral',
   pattern: /"(?:[^"\\]|\\.)*"/,
@@ -162,6 +167,7 @@ export const allTokens = [
   Equals,
   NotEquals,
   // ReservedIdentifiers must be before Identifiers
+  LogicalAndOperator,
   True,
   False,
   Null,

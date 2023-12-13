@@ -4,6 +4,7 @@ import { CelParser } from './parser.js'
 import {
   AdditionCstChildren,
   AtomicExpressionCstChildren,
+  ConditionalAndCstChildren,
   ExprCstChildren,
   ICstNodeVisitor,
   MultiplicationCstChildren,
@@ -13,7 +14,12 @@ import {
 } from './cst-definitions.js'
 
 import { tokenMatcher } from 'chevrotain'
-import { Division, MultiplicationToken, Plus } from './tokens.js'
+import {
+  Division,
+  MultiplicationToken,
+  Plus,
+  LogicalAndOperator,
+} from './tokens.js'
 
 const parserInstance = new CelParser()
 
@@ -34,7 +40,22 @@ export class CelVisitor
   private context: Record<string, unknown>
 
   public expr(ctx: ExprCstChildren) {
-    return this.visit(ctx.relation) as unknown
+    return this.visit(ctx.conditionalAnd) as unknown
+  }
+
+  conditionalAnd(ctx: ConditionalAndCstChildren): boolean {
+    let left = this.visit(ctx.lhs)
+
+    if (ctx.rhs) {
+      ctx.rhs.forEach((rhsOperand) => {
+        const rhsValue = this.visit(rhsOperand)
+
+        // TODO - implement Logical OR
+        left = left && rhsValue
+      })
+    }
+
+    return left
   }
 
   relation(ctx: RelationCstChildren): boolean {

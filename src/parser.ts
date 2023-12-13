@@ -18,6 +18,7 @@ import {
   NotEquals,
   StringLiteral,
   Float,
+  LogicalAndOperator,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -27,7 +28,15 @@ export class CelParser extends CstParser {
   }
 
   public expr = this.RULE('expr', () => {
-    this.SUBRULE(this.relation)
+    this.SUBRULE(this.conditionalAnd)
+  })
+
+  private conditionalAnd = this.RULE('conditionalAnd', () => {
+    this.SUBRULE(this.relation, { LABEL: 'lhs' })
+    this.MANY(() => {
+      this.CONSUME(LogicalAndOperator, { LABEL: 'logicalAnd' })
+      this.SUBRULE2(this.relation, { LABEL: 'rhs' })
+    })
   })
 
   private relation = this.RULE('relation', () => {

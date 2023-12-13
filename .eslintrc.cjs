@@ -17,6 +17,7 @@ module.exports = {
         'vitest/prefer-to-be-falsy': 'off',
         'vitest/no-focused-tests': 'error',
         'vitest/consistent-test-filename': 'off',
+        'vitest/prefer-lowercase-title': 'off',
       },
     },
   ],
