@@ -42,4 +42,34 @@ describe('addition', () => {
 
     expect(result).toBe(0.666)
   })
+
+  it('should concatenate strings', () => {
+    const expr = '"a" + "b"'
+
+    const result = parse(expr)
+
+    expect(result).toBe('ab')
+  })
+
+  describe('should throw when', () => {
+    it('is a boolean', () => {
+      const expr = 'true + 1'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(
+        `Cannot do addition operation on types (bool, int)`
+      )
+    })
+
+    it('is a null', () => {
+      const expr = 'null + 1'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(
+        `Cannot do addition operation on types (null, int)`
+      )
+    })
+  })
 })

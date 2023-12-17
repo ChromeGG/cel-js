@@ -22,8 +22,8 @@ import {
   LessThan,
   MultiplicationToken,
   NotEquals,
-  Plus,
 } from './tokens.js'
+import { additionOperations as additionOperation } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -109,11 +109,7 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.AdditionOperator![idx]
 
-        if (tokenMatcher(operator, Plus)) {
-          left += right
-        } else {
-          left -= right
-        }
+        left = additionOperation(left, right, operator)
       })
     }
 
