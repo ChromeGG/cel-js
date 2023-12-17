@@ -1,34 +1,14 @@
 import { createToken, Lexer } from 'chevrotain'
 
-export const Identifier = createToken({
-  name: 'Identifier',
-  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
-})
-export const Dot = createToken({ name: 'Dot', pattern: /\./ })
-
-export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
-
-export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
-
-export const LogicalOrOperator = createToken({
-  name: 'LogicalOrOperator',
-  pattern: /\|\|/,
-})
-
-export const LogicalAndOperator = createToken({
-  name: 'LogicalAndOperator',
-  pattern: /&&/,
-})
-
-export const StringLiteral = createToken({
-  name: 'StringLiteral',
-  pattern: /"(?:[^"\\]|\\.)*"/,
-})
-
 export const WhiteSpace = createToken({
   name: 'WhiteSpace',
   pattern: /\s+/,
   group: Lexer.SKIPPED,
+})
+
+export const CloseParenthesis = createToken({
+  name: 'CloseParenthesis',
+  pattern: /\)/,
 })
 
 export const OpenParenthesis = createToken({
@@ -36,10 +16,18 @@ export const OpenParenthesis = createToken({
   pattern: /\(/,
 })
 
-export const CloseParenthesis = createToken({
-  name: 'CloseParenthesis',
-  pattern: /\)/,
+export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
+
+export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
+
+export const Dot = createToken({ name: 'Dot', pattern: /\./ })
+
+export const Float = createToken({
+  name: 'Float',
+  pattern: /-?\d+\.\d+/,
 })
+
+export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
 
 export const BooleanLiteral = createToken({
   name: 'BooleanLiteral',
@@ -51,6 +39,7 @@ export const True = createToken({
   pattern: /true/,
   categories: BooleanLiteral,
 })
+
 export const False = createToken({
   name: 'False',
   pattern: /false/,
@@ -59,82 +48,9 @@ export const False = createToken({
 
 export const Null = createToken({ name: 'Null', pattern: /null/ })
 
-const ComparisonOperator = createToken({
-  name: 'ComparisonOperator',
-  pattern: Lexer.NA,
-})
-
-export const Equals = createToken({
-  name: 'Equals',
-  pattern: /==/,
-  categories: ComparisonOperator,
-})
-export const NotEquals = createToken({
-  name: 'NotEquals',
-  pattern: /!=/,
-  categories: ComparisonOperator,
-})
-export const GreaterThan = createToken({
-  name: 'GreaterThan',
-  pattern: />/,
-  categories: ComparisonOperator,
-})
-export const GreaterOrEqualThan = createToken({
-  name: 'GreaterOrEqualThan',
-  pattern: />=/,
-  categories: ComparisonOperator,
-})
-export const LessThan = createToken({
-  name: 'LessThan',
-  pattern: /</,
-  categories: ComparisonOperator,
-})
-export const LessOrEqualThan = createToken({
-  name: 'LessOrEqualThan',
-  pattern: /<=/,
-  categories: ComparisonOperator,
-})
-
-export const Float = createToken({
-  name: 'Float',
-  pattern: /-?\d+\.\d+/,
-})
-export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
-
-export const AdditionOperator = createToken({
-  name: 'AdditionOperator',
-  pattern: Lexer.NA,
-})
-export const Plus = createToken({
-  name: 'Plus',
-  pattern: /\+/,
-  categories: AdditionOperator,
-})
-export const Minus = createToken({
-  name: 'Minus',
-  pattern: /-/,
-  categories: AdditionOperator,
-})
-
-export const MultiplicationOperator = createToken({
-  name: 'MultiplicationOperator',
-  pattern: Lexer.NA,
-})
-
-export const MultiplicationToken = createToken({
-  name: 'MultiplicationToken',
-  pattern: /\*/,
-  categories: MultiplicationOperator,
-})
-export const Division = createToken({
-  name: 'Division',
-  pattern: /\//,
-  categories: MultiplicationOperator,
-})
-export const Modulo = createToken({
-  name: 'Modulo',
-  pattern: /%/,
-  categories: MultiplicationOperator,
+export const StringLiteral = createToken({
+  name: 'StringLiteral',
+  pattern: /"(?:[^"\\]|\\.)*"/,
 })
 
 export const reservedIdentifiers = [
@@ -164,38 +80,141 @@ export const ReservedIdentifiers = createToken({
   pattern: new RegExp(reserverIdentifiersPattern),
 })
 
+export const LogicalOrOperator = createToken({
+  name: 'LogicalOrOperator',
+  pattern: /\|\|/,
+})
+
+export const LogicalAndOperator = createToken({
+  name: 'LogicalAndOperator',
+  pattern: /&&/,
+})
+
+export const ComparisonOperator = createToken({
+  name: 'ComparisonOperator',
+  pattern: Lexer.NA,
+})
+
+export const Equals = createToken({
+  name: 'Equals',
+  pattern: /==/,
+  categories: ComparisonOperator,
+})
+
+export const NotEquals = createToken({
+  name: 'NotEquals',
+  pattern: /!=/,
+  categories: ComparisonOperator,
+})
+
+export const GreaterOrEqualThan = createToken({
+  name: 'GreaterOrEqualThan',
+  pattern: />=/,
+  categories: ComparisonOperator,
+})
+
+export const LessOrEqualThan = createToken({
+  name: 'LessOrEqualThan',
+  pattern: /<=/,
+  categories: ComparisonOperator,
+})
+
+export const GreaterThan = createToken({
+  name: 'GreaterThan',
+  pattern: />/,
+  categories: ComparisonOperator,
+})
+
+export const LessThan = createToken({
+  name: 'LessThan',
+  pattern: /</,
+  categories: ComparisonOperator,
+})
+
+export const MultiplicationOperator = createToken({
+  name: 'MultiplicationOperator',
+  pattern: Lexer.NA,
+})
+
+export const MultiplicationToken = createToken({
+  name: 'MultiplicationToken',
+  pattern: /\*/,
+  categories: MultiplicationOperator,
+})
+
+export const Division = createToken({
+  name: 'Division',
+  pattern: /\//,
+  categories: MultiplicationOperator,
+})
+
+export const Modulo = createToken({
+  name: 'Modulo',
+  pattern: /%/,
+  categories: MultiplicationOperator,
+})
+
+export const AdditionOperator = createToken({
+  name: 'AdditionOperator',
+  pattern: Lexer.NA,
+})
+
+export const Plus = createToken({
+  name: 'Plus',
+  pattern: /\+/,
+  categories: AdditionOperator,
+})
+
+export const Minus = createToken({
+  name: 'Minus',
+  pattern: /-/,
+  categories: AdditionOperator,
+})
+
+export const Identifier = createToken({
+  name: 'Identifier',
+  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
+})
+
 // The order of tokens is important
 export const allTokens = [
   WhiteSpace,
-  OpenParenthesis,
+
   CloseParenthesis,
-  Equals,
-  NotEquals,
-  // ReservedIdentifiers must be before Identifiers
-  LogicalOrOperator,
-  LogicalAndOperator,
+  OpenParenthesis,
+  OpenBracket,
+  CloseBracket,
+  Dot,
+
+  Float,
+  Integer,
   True,
   False,
   Null,
-  ReservedIdentifiers,
   StringLiteral,
-  Identifier,
-  Dot,
-  OpenBracket,
-  CloseBracket,
-  MultiplicationToken,
-  Division,
-  Modulo,
-  Plus,
-  Minus,
-  Float,
-  Integer,
-  AdditionOperator,
-  MultiplicationOperator,
+  ReservedIdentifiers,
+
+  LogicalOrOperator,
+  LogicalAndOperator,
+
+  ComparisonOperator,
+  Equals,
+  NotEquals,
   GreaterOrEqualThan,
   LessOrEqualThan,
   GreaterThan,
   LessThan,
+  
+  MultiplicationOperator,
+  MultiplicationToken,
+  Division,
+  Modulo,
+
+  AdditionOperator,
+  Plus,
+  Minus,
+
+  Identifier,
 ]
 
 export const CELLexer = new Lexer(allTokens)

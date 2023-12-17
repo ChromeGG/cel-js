@@ -1,11 +1,7 @@
 import { CstParser } from 'chevrotain'
 import {
-  GreaterThan,
   Integer,
-  LessThan,
   allTokens,
-  GreaterOrEqualThan,
-  LessOrEqualThan,
   ReservedIdentifiers,
   AdditionOperator,
   MultiplicationOperator,
@@ -14,12 +10,11 @@ import {
   Null,
   OpenParenthesis,
   CloseParenthesis,
-  Equals,
-  NotEquals,
   StringLiteral,
   Float,
   LogicalAndOperator,
   LogicalOrOperator,
+  ComparisonOperator,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -35,7 +30,7 @@ export class CelParser extends CstParser {
   private conditionalAnd = this.RULE('conditionalAnd', () => {
     this.SUBRULE(this.relation, { LABEL: 'lhs' })
     this.MANY(() => {
-      this.CONSUME(LogicalAndOperator, { LABEL: 'logicalAnd' })
+      this.CONSUME(LogicalAndOperator)
       this.SUBRULE2(this.relation, { LABEL: 'rhs' })
     })
   })
@@ -43,7 +38,7 @@ export class CelParser extends CstParser {
   private conditionalOr = this.RULE('conditionalOr', () => {
     this.SUBRULE(this.conditionalAnd, { LABEL: 'lhs' })
     this.MANY(() => {
-      this.CONSUME(LogicalOrOperator, { LABEL: 'logicalOr' })
+      this.CONSUME(LogicalOrOperator)
       this.SUBRULE2(this.conditionalAnd, { LABEL: 'rhs' })
     })
   })
@@ -51,20 +46,9 @@ export class CelParser extends CstParser {
   private relation = this.RULE('relation', () => {
     this.SUBRULE(this.addition, { LABEL: 'lhs' })
     this.OPTION(() => {
-      this.SUBRULE(this.relOp)
+      this.CONSUME(ComparisonOperator)
       this.SUBRULE2(this.addition, { LABEL: 'rhs' })
     })
-  })
-
-  private relOp = this.RULE('relOp', () => {
-    this.OR([
-      { ALT: () => this.CONSUME(Equals, { LABEL: 'eq' }) },
-      { ALT: () => this.CONSUME(NotEquals, { LABEL: 'neq' }) },
-      { ALT: () => this.CONSUME(GreaterOrEqualThan, { LABEL: 'gte' }) },
-      { ALT: () => this.CONSUME(LessOrEqualThan, { LABEL: 'lte' }) },
-      { ALT: () => this.CONSUME(GreaterThan, { LABEL: 'gt' }) },
-      { ALT: () => this.CONSUME(LessThan, { LABEL: 'lt' }) },
-    ])
   })
 
   private addition = this.RULE('addition', () => {

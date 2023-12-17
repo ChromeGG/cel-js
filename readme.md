@@ -10,8 +10,8 @@
 - 🌍 Isomorphic: Ready for server and browser
 - 📦 ESM support
 - 📚 Supported CEL Features:
+  - [x] Conditional Operators (`&&`, `||`)
   - [x] Comparison Operators (`==`, `!=`, `<`, `<=`, `>`, `>=`)
-  - [ ] Logical Operators (`&&`, `||`, `!`)
   - [ ] Identifiers (Variables, `foo == bar`)
   - [ ] Selectors (`foo.bar[0].baz`)
   - [ ] Macros (`exists`, `has`, `size`, etc.)
@@ -29,7 +29,7 @@ npm i cel-js
 ```ts
 import { parse } from 'cel-js'
 
-parse('2 + 2') // => 4
+parse('2 + 2 * 2') // => 6
 
-parse('a > 4', { a: 5 }) // => true
+parse('a > 1', { a: 2 }) // => true
 ```
