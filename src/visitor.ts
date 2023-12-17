@@ -78,8 +78,7 @@ export class CelVisitor
 
     if (ctx.rhs) {
       const right = this.visit(ctx.rhs)
-      const operator = ctx.op![0]
-      console.log('operator:', operator)
+      const operator = ctx.ComparisonOperator![0]
 
       switch (true) {
         case tokenMatcher(operator, LessThan):

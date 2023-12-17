@@ -30,7 +30,7 @@ export class CelParser extends CstParser {
   private conditionalAnd = this.RULE('conditionalAnd', () => {
     this.SUBRULE(this.relation, { LABEL: 'lhs' })
     this.MANY(() => {
-      this.CONSUME(LogicalAndOperator, { LABEL: 'logicalAnd' })
+      this.CONSUME(LogicalAndOperator)
       this.SUBRULE2(this.relation, { LABEL: 'rhs' })
     })
   })
@@ -38,7 +38,7 @@ export class CelParser extends CstParser {
   private conditionalOr = this.RULE('conditionalOr', () => {
     this.SUBRULE(this.conditionalAnd, { LABEL: 'lhs' })
     this.MANY(() => {
-      this.CONSUME(LogicalOrOperator, { LABEL: 'logicalOr' })
+      this.CONSUME(LogicalOrOperator)
       this.SUBRULE2(this.conditionalAnd, { LABEL: 'rhs' })
     })
   })
@@ -46,7 +46,7 @@ export class CelParser extends CstParser {
   private relation = this.RULE('relation', () => {
     this.SUBRULE(this.addition, { LABEL: 'lhs' })
     this.OPTION(() => {
-      this.CONSUME(ComparisonOperator, { LABEL: 'op' })
+      this.CONSUME(ComparisonOperator)
       this.SUBRULE2(this.addition, { LABEL: 'rhs' })
     })
   })

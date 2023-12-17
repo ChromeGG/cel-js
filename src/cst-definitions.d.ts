@@ -16,7 +16,7 @@ export interface ConditionalAndCstNode extends CstNode {
 
 export type ConditionalAndCstChildren = {
   lhs: RelationCstNode[];
-  logicalAnd?: IToken[];
+  LogicalAndOperator?: IToken[];
   rhs?: RelationCstNode[];
 };
 
@@ -27,7 +27,7 @@ export interface ConditionalOrCstNode extends CstNode {
 
 export type ConditionalOrCstChildren = {
   lhs: ConditionalAndCstNode[];
-  logicalOr?: IToken[];
+  LogicalOrOperator?: IToken[];
   rhs?: ConditionalAndCstNode[];
 };
 
@@ -38,7 +38,7 @@ export interface RelationCstNode extends CstNode {
 
 export type RelationCstChildren = {
   lhs: AdditionCstNode[];
-  op?: IToken[];
+  ComparisonOperator?: IToken[];
   rhs?: AdditionCstNode[];
 };
 
