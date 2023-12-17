@@ -59,7 +59,7 @@ export const False = createToken({
 
 export const Null = createToken({ name: 'Null', pattern: /null/ })
 
-const ComparisonOperator = createToken({
+export const ComparisonOperator = createToken({
   name: 'ComparisonOperator',
   pattern: Lexer.NA,
 })
@@ -171,7 +171,6 @@ export const allTokens = [
   CloseParenthesis,
   Equals,
   NotEquals,
-  // ReservedIdentifiers must be before Identifiers
   LogicalOrOperator,
   LogicalAndOperator,
   True,

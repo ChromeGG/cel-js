@@ -38,22 +38,8 @@ export interface RelationCstNode extends CstNode {
 
 export type RelationCstChildren = {
   lhs: AdditionCstNode[];
-  relOp?: RelOpCstNode[];
+  op?: IToken[];
   rhs?: AdditionCstNode[];
-};
-
-export interface RelOpCstNode extends CstNode {
-  name: "relOp";
-  children: RelOpCstChildren;
-}
-
-export type RelOpCstChildren = {
-  eq?: IToken[];
-  neq?: IToken[];
-  gte?: IToken[];
-  lte?: IToken[];
-  gt?: IToken[];
-  lt?: IToken[];
 };
 
 export interface AdditionCstNode extends CstNode {
@@ -110,7 +96,6 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   conditionalAnd(children: ConditionalAndCstChildren, param?: IN): OUT;
   conditionalOr(children: ConditionalOrCstChildren, param?: IN): OUT;
   relation(children: RelationCstChildren, param?: IN): OUT;
-  relOp(children: RelOpCstChildren, param?: IN): OUT;
   addition(children: AdditionCstChildren, param?: IN): OUT;
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;

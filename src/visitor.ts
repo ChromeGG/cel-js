@@ -1,4 +1,3 @@
-// BaseVisitor constructors are accessed via a parser instance.
 import { CelParser } from './parser.js'
 
 import {
@@ -10,18 +9,25 @@ import {
   ICstNodeVisitor,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
-  RelOpCstChildren,
   RelationCstChildren,
 } from './cst-definitions.js'
 
 import { tokenMatcher } from 'chevrotain'
-import { Division, MultiplicationToken, Plus } from './tokens.js'
+import {
+  Division,
+  Equals,
+  GreaterOrEqualThan,
+  GreaterThan,
+  LessOrEqualThan,
+  LessThan,
+  MultiplicationToken,
+  NotEquals,
+  Plus,
+} from './tokens.js'
 
 const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
-
-type RelOps = '==' | '!=' | '>=' | '<=' | '>' | '<'
 
 export class CelVisitor
   extends BaseCelVisitor
@@ -72,20 +78,21 @@ export class CelVisitor
 
     if (ctx.rhs) {
       const right = this.visit(ctx.rhs)
-      const operator: RelOps = this.visit(ctx.relOp!) // relOp must be defined if rhs is defined
+      const operator = ctx.op![0]
+      console.log('operator:', operator)
 
-      switch (operator) {
-        case '<':
+      switch (true) {
+        case tokenMatcher(operator, LessThan):
           return left < right
-        case '<=':
+        case tokenMatcher(operator, LessOrEqualThan):
           return left <= right
-        case '>':
+        case tokenMatcher(operator, GreaterThan):
           return left > right
-        case '>=':
+        case tokenMatcher(operator, GreaterOrEqualThan):
           return left >= right
-        case '==':
+        case tokenMatcher(operator, Equals):
           return left === right
-        case '!=':
+        case tokenMatcher(operator, NotEquals):
           return left !== right
         default:
           throw new Error('Comparison operator not recognized')
@@ -95,36 +102,18 @@ export class CelVisitor
     return left
   }
 
-  relOp(ctx: RelOpCstChildren): RelOps {
-    if (ctx.gte) {
-      return '>='
-    } else if (ctx.lte) {
-      return '<='
-    } else if (ctx.gt) {
-      return '>'
-    } else if (ctx.lt) {
-      return '<'
-    } else if (ctx.eq) {
-      return '=='
-    } else if (ctx.neq) {
-      return '!='
-    }
-
-    throw new Error('Comparison operator not recognized')
-  }
-
   addition(ctx: AdditionCstChildren): unknown {
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand, idx) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
         const operator = ctx.AdditionOperator![idx]
 
         if (tokenMatcher(operator, Plus)) {
-          left += rhsValue
+          left += right
         } else {
-          left -= rhsValue
+          left -= right
         }
       })
     }
