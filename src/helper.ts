@@ -1,5 +1,6 @@
 import { IToken, tokenMatcher } from 'chevrotain'
 import { Minus, Plus } from './tokens'
+import { CelTypeError } from './errors/CelTypeError'
 
 export enum CelType {
   int = 'int',
@@ -14,13 +15,17 @@ export enum CelType {
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
 
-const isCalculable = (value: unknown): value is number => {
+export const isCalculable = (value: unknown): value is number => {
   const type = getCelType(value)
   return calculableTypes.includes(type)
 }
 
 const isString = (value: unknown): value is string => {
   return getCelType(value) === CelType.string
+}
+
+const isArray = (value: unknown): value is unknown[] => {
+  return getCelType(value) === CelType.list
 }
 
 export const getCelType = (value: unknown): CelType => {
@@ -51,7 +56,11 @@ export const getCelType = (value: unknown): CelType => {
   throw new Error(`Unknown type: ${typeof value}`)
 }
 
-export const additionOperations = (lhs: unknown, rhs: unknown, operator: IToken) => {
+export const additionOperation = (
+  lhs: unknown,
+  rhs: unknown,
+  operator: IToken
+) => {
   if (tokenMatcher(operator, Plus)) {
     if (isCalculable(lhs) && isCalculable(rhs)) {
       return lhs + rhs
@@ -61,7 +70,7 @@ export const additionOperations = (lhs: unknown, rhs: unknown, operator: IToken)
       return lhs + rhs
     }
 
-    if (Array.isArray(lhs) && Array.isArray(rhs)) {
+    if (isArray(lhs) && isArray(rhs)) {
       return lhs.concat(rhs)
     }
   }
@@ -70,10 +79,5 @@ export const additionOperations = (lhs: unknown, rhs: unknown, operator: IToken)
     return lhs - rhs
   }
 
-  const lhsType = getCelType(lhs)
-  const rhsType = getCelType(rhs)
-
-  throw new Error(
-    `Cannot do addition operation on types (${lhsType}, ${rhsType})`
-  )
+  throw new CelTypeError('addition', lhs, rhs)
 }

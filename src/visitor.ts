@@ -23,7 +23,8 @@ import {
   MultiplicationToken,
   NotEquals,
 } from './tokens.js'
-import { additionOperations as additionOperation } from './helper.js'
+import { additionOperation, isCalculable } from './helper.js'
+import { CelTypeError } from './errors/CelTypeError.js'
 
 const parserInstance = new CelParser()
 
@@ -123,6 +124,10 @@ export class CelVisitor
       ctx.rhs.forEach((rhsOperand, idx) => {
         const rhsValue = this.visit(rhsOperand)
         const operator = ctx.MultiplicationOperator![idx]
+
+        if (!isCalculable(left) || !isCalculable(rhsValue)) {
+          throw new CelTypeError('multiplication', left, rhsValue)
+        }
 
         if (tokenMatcher(operator, MultiplicationToken)) {
           left *= rhsValue

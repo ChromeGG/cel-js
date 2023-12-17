@@ -1,6 +1,7 @@
 import { expect, describe, it } from 'vitest'
 
 import { parse } from '..'
+import { CelTypeError } from '../errors/CelTypeError'
 
 describe('addition', () => {
   it('should parse addition', () => {
@@ -57,9 +58,7 @@ describe('addition', () => {
 
       const result = () => parse(expr)
 
-      expect(result).toThrow(
-        `Cannot do addition operation on types (bool, int)`
-      )
+      expect(result).toThrow(new CelTypeError('addition', true, 1))
     })
 
     it('is a null', () => {
@@ -67,9 +66,7 @@ describe('addition', () => {
 
       const result = () => parse(expr)
 
-      expect(result).toThrow(
-        `Cannot do addition operation on types (null, int)`
-      )
+      expect(result).toThrow(new CelTypeError('addition', null, 1))
     })
   })
 })

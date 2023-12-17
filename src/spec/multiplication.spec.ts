@@ -1,6 +1,7 @@
 import { expect, describe, it } from 'vitest'
 
 import { parse } from '..'
+import { CelTypeError } from '../errors'
 
 describe('multiplication', () => {
   it('should parse multiplication', () => {
@@ -41,5 +42,23 @@ describe('multiplication', () => {
     const result = parse(expr)
 
     expect(result).toBe(2)
+  })
+
+  describe('should throw when', () => {
+    it('is a boolean', () => {
+      const expr = 'true * 1'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(new CelTypeError('multiplication', true, 1))
+    })
+
+    it('is a null', () => {
+      const expr = 'null / 1'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(new CelTypeError('multiplication', null, 1))
+    })
   })
 })
