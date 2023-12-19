@@ -1,11 +1,17 @@
 import { IToken, tokenMatcher } from 'chevrotain'
 import {
   Division,
+  Equals,
+  GreaterOrEqualThan,
+  GreaterThan,
+  LessOrEqualThan,
+  LessThan,
   LogicalAndOperator,
   LogicalOrOperator,
   Minus,
   Modulo,
   MultiplicationToken,
+  NotEquals,
   Plus,
 } from './tokens'
 import { CelTypeError } from './errors/CelTypeError'
@@ -122,6 +128,12 @@ export enum Operations {
   modulo = 'modulo',
   logicalAnd = 'logicalAnd',
   logicalOr = 'logicalOr',
+  lessThan = 'lessThan',
+  lessOrEqualThan = 'lessOrEqualThan',
+  greaterThan = 'greaterThan',
+  greaterOrEqualThan = 'greaterOrEqualThan',
+  equals = 'equals',
+  notEquals = 'notEquals',
 }
 
 const additionOperation = (left: unknown, right: unknown) => {
@@ -198,6 +210,38 @@ const logicalOrOperation = (left: unknown, right: unknown) => {
   throw new CelTypeError(Operations.logicalOr, left, right)
 }
 
+const comparisonOperation = (
+  operation: Operations,
+  left: unknown,
+  right: unknown
+) => {
+  if (
+    (isCalculable(left) && isCalculable(right)) ||
+    (isString(left) && isString(right))
+  ) {
+    switch (operation) {
+      case Operations.lessThan:
+        return left < right
+      case Operations.lessOrEqualThan:
+        return left <= right
+      case Operations.greaterThan:
+        return left > right
+      case Operations.greaterOrEqualThan:
+        return left >= right
+    }
+  }
+
+  if (operation === Operations.equals) {
+    return left === right
+  }
+
+  if (operation === Operations.notEquals) {
+    return left !== right
+  }
+
+  throw new CelTypeError(operation, left, right)
+}
+
 export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   switch (true) {
     case tokenMatcher(operator, Plus):
@@ -214,6 +258,18 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
       return logicalAndOperation(left, right)
     case tokenMatcher(operator, LogicalOrOperator):
       return logicalOrOperation(left, right)
+    case tokenMatcher(operator, LessThan):
+      return comparisonOperation(Operations.lessThan, left, right)
+    case tokenMatcher(operator, LessOrEqualThan):
+      return comparisonOperation(Operations.lessOrEqualThan, left, right)
+    case tokenMatcher(operator, GreaterThan):
+      return comparisonOperation(Operations.greaterThan, left, right)
+    case tokenMatcher(operator, GreaterOrEqualThan):
+      return comparisonOperation(Operations.greaterOrEqualThan, left, right)
+    case tokenMatcher(operator, Equals):
+      return comparisonOperation(Operations.equals, left, right)
+    case tokenMatcher(operator, NotEquals):
+      return comparisonOperation(Operations.notEquals, left, right)
     default:
       throw new Error('Operator not recognized')
   }

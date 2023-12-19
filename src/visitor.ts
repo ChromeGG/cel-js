@@ -12,15 +12,6 @@ import {
   RelationCstChildren,
 } from './cst-definitions.js'
 
-import { tokenMatcher } from 'chevrotain'
-import {
-  Equals,
-  GreaterOrEqualThan,
-  GreaterThan,
-  LessOrEqualThan,
-  LessThan,
-  NotEquals,
-} from './tokens.js'
 import { getResult } from './helper.js'
 
 const parserInstance = new CelParser()
@@ -51,7 +42,6 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.LogicalOrOperator![0]
 
-        // TODO handle it, JS is allowing it on multiple operands
         left = getResult(operator, left, right)
       })
     }
@@ -81,23 +71,8 @@ export class CelVisitor
       const right = this.visit(ctx.rhs)
       const operator = ctx.ComparisonOperator![0]
 
-      // TODO handle it, JS is allowing it on multiple operands
-      switch (true) {
-        case tokenMatcher(operator, LessThan):
-          return left < right
-        case tokenMatcher(operator, LessOrEqualThan):
-          return left <= right
-        case tokenMatcher(operator, GreaterThan):
-          return left > right
-        case tokenMatcher(operator, GreaterOrEqualThan):
-          return left >= right
-        case tokenMatcher(operator, Equals):
-          return left === right
-        case tokenMatcher(operator, NotEquals):
-          return left !== right
-        default:
-          throw new Error('Comparison operator not recognized')
-      }
+      // todo fix type assertion
+      return getResult(operator, left, right) as boolean
     }
 
     return left
