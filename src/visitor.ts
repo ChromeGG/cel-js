@@ -21,7 +21,7 @@ import {
   LessThan,
   NotEquals,
 } from './tokens.js'
-import { additionOperationDeprecated, getOperation } from './helper.js'
+import { getResult } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -110,10 +110,7 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.AdditionOperator![idx]
 
-        const operation = getOperation(operator, left, right)
-
-        // ! NEXT: fix it
-        left = operation(left, right)
+        left = getResult(operator, left, right)
       })
     }
 
@@ -128,10 +125,7 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.MultiplicationOperator![idx]
 
-        const operation = getOperation(operator, left, right)
-
-        // ! NEXT: fix it
-        left = operation(left, right)
+        left = getResult(operator, left, right)
       })
     }
 

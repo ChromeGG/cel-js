@@ -74,29 +74,33 @@ export const getCelType = (value: unknown): CelType => {
 }
 
 export const additionOperationDeprecated = (
-  lhs: unknown,
-  rhs: unknown,
+  left: unknown,
+  right: unknown,
   operator: IToken
 ) => {
   if (tokenMatcher(operator, Plus)) {
-    if (isCalculable(lhs) && isCalculable(rhs)) {
-      return lhs + rhs
+    if (isCalculable(left) && isCalculable(right)) {
+      return left + right
     }
 
-    if (isString(lhs) && isString(rhs)) {
-      return lhs + rhs
+    if (isString(left) && isString(right)) {
+      return left + right
     }
 
-    if (isArray(lhs) && isArray(rhs)) {
-      return lhs.concat(rhs)
+    if (isArray(left) && isArray(right)) {
+      return left.concat(right)
     }
   }
 
-  if (tokenMatcher(operator, Minus) && isCalculable(lhs) && isCalculable(rhs)) {
-    return lhs - rhs
+  if (
+    tokenMatcher(operator, Minus) &&
+    isCalculable(left) &&
+    isCalculable(right)
+  ) {
+    return left - right
   }
 
-  throw new CelTypeError('addition', lhs, rhs)
+  throw new CelTypeError(Operations.addition, left, right)
 }
 
 export enum Operations {
@@ -124,69 +128,65 @@ export const getOperationName = (operator: IToken): Operations => {
   }
 }
 
-const additionOperation = (lhs: unknown, rhs: unknown) => {
-  if (isCalculable(lhs) && isCalculable(rhs)) {
-    return (left: typeof lhs, right: typeof rhs) => left + right
+const additionOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left + right
   }
 
-  if (isString(lhs) && isString(rhs)) {
-    return (left: typeof lhs, right: typeof rhs) => left + right
+  if (isString(left) && isString(right)) {
+    return left + right
   }
 
-  if (isArray(lhs) && isArray(rhs)) {
-    return (left: typeof lhs, right: typeof rhs) => [...left, ...right]
+  if (isArray(left) && isArray(right)) {
+    return [...left, ...right]
   }
 
-  throw new CelTypeError(Operations.addition, lhs, rhs)
+  throw new CelTypeError(Operations.addition, left, right)
 }
 
-const subtractionOperation = (lhs: unknown, rhs: unknown) => {
-  if (isCalculable(lhs) && isCalculable(rhs)) {
-    return (left: typeof lhs, right: typeof rhs) => left - right
+const subtractionOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left - right
   }
 
-  throw new CelTypeError(Operations.subtraction, lhs, rhs)
+  throw new CelTypeError(Operations.subtraction, left, right)
 }
 
-const multiplicationOperation = (lhs: unknown, rhs: unknown) => {
-  if (isCalculable(lhs) && isCalculable(rhs)) {
-    return (left: typeof lhs, right: typeof rhs) => left * right
+const multiplicationOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left * right
   }
 
-  throw new CelTypeError(Operations.multiplication, lhs, rhs)
+  throw new CelTypeError(Operations.multiplication, left, right)
 }
 
-const divisionOperation = (lhs: unknown, rhs: unknown) => {
-  if (rhs === 0) {
+const divisionOperation = (left: unknown, right: unknown) => {
+  if (right === 0) {
     throw new CelEvaluationError('Division by zero')
   }
 
   // CEL does not support float division
-  if ((isInt(lhs) || isUint(lhs)) && (isInt(rhs) || isUint(rhs))) {
-    return (left: typeof lhs, right: typeof rhs) => left / right
+  if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+    return left / right
   }
 
-  throw new CelTypeError(Operations.division, lhs, rhs)
+  throw new CelTypeError(Operations.division, left, right)
 }
 
-const moduloOperation = (lhs: unknown, rhs: unknown) => {
-  if (rhs === 0) {
+const moduloOperation = (left: unknown, right: unknown) => {
+  if (right === 0) {
     throw new CelEvaluationError('Modulus by zero')
   }
 
   // CEL does not support float modulus
-  if ((isInt(lhs) || isUint(lhs)) && (isInt(rhs) || isUint(rhs))) {
-    return (left: typeof lhs, right: typeof rhs) => left % right
+  if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+    return left % right
   }
 
-  throw new CelTypeError(Operations.modulo, lhs, rhs)
+  throw new CelTypeError(Operations.modulo, left, right)
 }
 
-export const getOperation = (
-  operator: IToken,
-  left: unknown,
-  right: unknown
-) => {
+export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   const operationName = getOperationName(operator)
 
   switch (operationName) {
