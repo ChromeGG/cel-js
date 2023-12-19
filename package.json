@@ -1,6 +1,6 @@
 {
   "name": "cel-js",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Common Expression Language (CEL) evaluator for JavaScript",
   "keywords": [
     "Common Expression Language",
