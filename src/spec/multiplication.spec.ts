@@ -1,7 +1,9 @@
 import { expect, describe, it } from 'vitest'
 
 import { parse } from '..'
-import { CelTypeError } from '../errors'
+import { CelTypeError } from '../errors/CelTypeError'
+import { Operations } from '../helper'
+import { CelEvaluationError } from '../errors/CelEvaluationError'
 
 describe('multiplication', () => {
   it('should parse multiplication', () => {
@@ -50,7 +52,9 @@ describe('multiplication', () => {
 
       const result = () => parse(expr)
 
-      expect(result).toThrow(new CelTypeError('multiplication', true, 1))
+      expect(result).toThrow(
+        new CelTypeError(Operations.multiplication, true, 1)
+      )
     })
 
     it('is a null', () => {
@@ -58,7 +62,23 @@ describe('multiplication', () => {
 
       const result = () => parse(expr)
 
-      expect(result).toThrow(new CelTypeError('multiplication', null, 1))
+      expect(result).toThrow(new CelTypeError(Operations.division, null, 1))
+    })
+
+    it('is dividing by 0', () => {
+      const expr = '1 / 0'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(new CelEvaluationError('Division by zero'))
+    })
+
+    it('is modulo by 0', () => {
+      const expr = '1 % 0'
+
+      const result = () => parse(expr)
+
+      expect(result).toThrow(new CelEvaluationError('Modulus by zero'))
     })
   })
 })

@@ -12,19 +12,7 @@ import {
   RelationCstChildren,
 } from './cst-definitions.js'
 
-import { tokenMatcher } from 'chevrotain'
-import {
-  Division,
-  Equals,
-  GreaterOrEqualThan,
-  GreaterThan,
-  LessOrEqualThan,
-  LessThan,
-  MultiplicationToken,
-  NotEquals,
-} from './tokens.js'
-import { additionOperation, isCalculable } from './helper.js'
-import { CelTypeError } from './errors/CelTypeError.js'
+import { getResult } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -51,9 +39,10 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
+        const operator = ctx.LogicalOrOperator![0]
 
-        left = left || rhsValue
+        left = getResult(operator, left, right)
       })
     }
 
@@ -65,9 +54,10 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
+        const operator = ctx.LogicalAndOperator![0]
 
-        left = left && rhsValue
+        left = getResult(operator, left, right)
       })
     }
 
@@ -81,22 +71,8 @@ export class CelVisitor
       const right = this.visit(ctx.rhs)
       const operator = ctx.ComparisonOperator![0]
 
-      switch (true) {
-        case tokenMatcher(operator, LessThan):
-          return left < right
-        case tokenMatcher(operator, LessOrEqualThan):
-          return left <= right
-        case tokenMatcher(operator, GreaterThan):
-          return left > right
-        case tokenMatcher(operator, GreaterOrEqualThan):
-          return left >= right
-        case tokenMatcher(operator, Equals):
-          return left === right
-        case tokenMatcher(operator, NotEquals):
-          return left !== right
-        default:
-          throw new Error('Comparison operator not recognized')
-      }
+      // todo fix type assertion
+      return getResult(operator, left, right) as boolean
     }
 
     return left
@@ -110,7 +86,7 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.AdditionOperator![idx]
 
-        left = additionOperation(left, right, operator)
+        left = getResult(operator, left, right)
       })
     }
 
@@ -122,20 +98,10 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand, idx) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
         const operator = ctx.MultiplicationOperator![idx]
 
-        if (!isCalculable(left) || !isCalculable(rhsValue)) {
-          throw new CelTypeError('multiplication', left, rhsValue)
-        }
-
-        if (tokenMatcher(operator, MultiplicationToken)) {
-          left *= rhsValue
-        } else if (tokenMatcher(operator, Division)) {
-          left /= rhsValue
-        } else {
-          left %= rhsValue
-        }
+        left = getResult(operator, left, right)
       })
     }
 

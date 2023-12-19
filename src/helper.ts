@@ -1,6 +1,21 @@
 import { IToken, tokenMatcher } from 'chevrotain'
-import { Minus, Plus } from './tokens'
-import { CelTypeError } from './errors/CelTypeError'
+import {
+  Division,
+  Equals,
+  GreaterOrEqualThan,
+  GreaterThan,
+  LessOrEqualThan,
+  LessThan,
+  LogicalAndOperator,
+  LogicalOrOperator,
+  Minus,
+  Modulo,
+  MultiplicationToken,
+  NotEquals,
+  Plus,
+} from './tokens.js'
+import { CelTypeError } from './errors/CelTypeError.js'
+import { CelEvaluationError } from './errors/CelEvaluationError.js'
 
 export enum CelType {
   int = 'int',
@@ -20,13 +35,20 @@ export const isCalculable = (value: unknown): value is number => {
   return calculableTypes.includes(type)
 }
 
-const isString = (value: unknown): value is string => {
-  return getCelType(value) === CelType.string
-}
+const isInt = (value: unknown): value is number =>
+  getCelType(value) === CelType.int
 
-const isArray = (value: unknown): value is unknown[] => {
-  return getCelType(value) === CelType.list
-}
+const isUint = (value: unknown): value is number =>
+  getCelType(value) === CelType.uint
+
+const isString = (value: unknown): value is string =>
+  getCelType(value) === CelType.string
+
+const isArray = (value: unknown): value is unknown[] =>
+  getCelType(value) === CelType.list
+
+const isBoolean = (value: unknown): value is boolean =>
+  getCelType(value) === CelType.bool
 
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
@@ -34,7 +56,19 @@ export const getCelType = (value: unknown): CelType => {
   }
 
   if (typeof value === 'number') {
-    return Number.isInteger(value) ? CelType.int : CelType.float
+    if (Number.isInteger(value) && value > 0) {
+      return CelType.uint
+    }
+
+    if (Number.isInteger(value) && value < 0) {
+      return CelType.int
+    }
+
+    if (value % 1) {
+      return CelType.float
+    }
+
+    throw new Error(`Unknown number type: ${value}`)
   }
 
   if (typeof value === 'string') {
@@ -56,28 +90,187 @@ export const getCelType = (value: unknown): CelType => {
   throw new Error(`Unknown type: ${typeof value}`)
 }
 
-export const additionOperation = (
-  lhs: unknown,
-  rhs: unknown,
+export const additionOperationDeprecated = (
+  left: unknown,
+  right: unknown,
   operator: IToken
 ) => {
   if (tokenMatcher(operator, Plus)) {
-    if (isCalculable(lhs) && isCalculable(rhs)) {
-      return lhs + rhs
+    if (isCalculable(left) && isCalculable(right)) {
+      return left + right
     }
 
-    if (isString(lhs) && isString(rhs)) {
-      return lhs + rhs
+    if (isString(left) && isString(right)) {
+      return left + right
     }
 
-    if (isArray(lhs) && isArray(rhs)) {
-      return lhs.concat(rhs)
+    if (isArray(left) && isArray(right)) {
+      return left.concat(right)
     }
   }
 
-  if (tokenMatcher(operator, Minus) && isCalculable(lhs) && isCalculable(rhs)) {
-    return lhs - rhs
+  if (
+    tokenMatcher(operator, Minus) &&
+    isCalculable(left) &&
+    isCalculable(right)
+  ) {
+    return left - right
   }
 
-  throw new CelTypeError('addition', lhs, rhs)
+  throw new CelTypeError(Operations.addition, left, right)
+}
+
+export enum Operations {
+  addition = 'addition',
+  subtraction = 'subtraction',
+  multiplication = 'multiplication',
+  division = 'division',
+  modulo = 'modulo',
+  logicalAnd = 'logicalAnd',
+  logicalOr = 'logicalOr',
+  lessThan = 'lessThan',
+  lessOrEqualThan = 'lessOrEqualThan',
+  greaterThan = 'greaterThan',
+  greaterOrEqualThan = 'greaterOrEqualThan',
+  equals = 'equals',
+  notEquals = 'notEquals',
+}
+
+const additionOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left + right
+  }
+
+  if (isString(left) && isString(right)) {
+    return left + right
+  }
+
+  if (isArray(left) && isArray(right)) {
+    return [...left, ...right]
+  }
+
+  throw new CelTypeError(Operations.addition, left, right)
+}
+
+const subtractionOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left - right
+  }
+
+  throw new CelTypeError(Operations.subtraction, left, right)
+}
+
+const multiplicationOperation = (left: unknown, right: unknown) => {
+  if (isCalculable(left) && isCalculable(right)) {
+    return left * right
+  }
+
+  throw new CelTypeError(Operations.multiplication, left, right)
+}
+
+const divisionOperation = (left: unknown, right: unknown) => {
+  if (right === 0) {
+    throw new CelEvaluationError('Division by zero')
+  }
+
+  // CEL does not support float division
+  if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+    return left / right
+  }
+
+  throw new CelTypeError(Operations.division, left, right)
+}
+
+const moduloOperation = (left: unknown, right: unknown) => {
+  if (right === 0) {
+    throw new CelEvaluationError('Modulus by zero')
+  }
+
+  // CEL does not support float modulus
+  if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+    return left % right
+  }
+
+  throw new CelTypeError(Operations.modulo, left, right)
+}
+
+const logicalAndOperation = (left: unknown, right: unknown) => {
+  if (isBoolean(left) && isBoolean(right)) {
+    return left && right
+  }
+
+  throw new CelTypeError(Operations.logicalAnd, left, right)
+}
+
+const logicalOrOperation = (left: unknown, right: unknown) => {
+  if (isBoolean(left) && isBoolean(right)) {
+    return left || right
+  }
+
+  throw new CelTypeError(Operations.logicalOr, left, right)
+}
+
+const comparisonOperation = (
+  operation: Operations,
+  left: unknown,
+  right: unknown
+) => {
+  if (
+    (isCalculable(left) && isCalculable(right)) ||
+    (isString(left) && isString(right))
+  ) {
+    switch (operation) {
+      case Operations.lessThan:
+        return left < right
+      case Operations.lessOrEqualThan:
+        return left <= right
+      case Operations.greaterThan:
+        return left > right
+      case Operations.greaterOrEqualThan:
+        return left >= right
+    }
+  }
+
+  if (operation === Operations.equals) {
+    return left === right
+  }
+
+  if (operation === Operations.notEquals) {
+    return left !== right
+  }
+
+  throw new CelTypeError(operation, left, right)
+}
+
+export const getResult = (operator: IToken, left: unknown, right: unknown) => {
+  switch (true) {
+    case tokenMatcher(operator, Plus):
+      return additionOperation(left, right)
+    case tokenMatcher(operator, Minus):
+      return subtractionOperation(left, right)
+    case tokenMatcher(operator, MultiplicationToken):
+      return multiplicationOperation(left, right)
+    case tokenMatcher(operator, Division):
+      return divisionOperation(left, right)
+    case tokenMatcher(operator, Modulo):
+      return moduloOperation(left, right)
+    case tokenMatcher(operator, LogicalAndOperator):
+      return logicalAndOperation(left, right)
+    case tokenMatcher(operator, LogicalOrOperator):
+      return logicalOrOperation(left, right)
+    case tokenMatcher(operator, LessThan):
+      return comparisonOperation(Operations.lessThan, left, right)
+    case tokenMatcher(operator, LessOrEqualThan):
+      return comparisonOperation(Operations.lessOrEqualThan, left, right)
+    case tokenMatcher(operator, GreaterThan):
+      return comparisonOperation(Operations.greaterThan, left, right)
+    case tokenMatcher(operator, GreaterOrEqualThan):
+      return comparisonOperation(Operations.greaterOrEqualThan, left, right)
+    case tokenMatcher(operator, Equals):
+      return comparisonOperation(Operations.equals, left, right)
+    case tokenMatcher(operator, NotEquals):
+      return comparisonOperation(Operations.notEquals, left, right)
+    default:
+      throw new Error('Operator not recognized')
+  }
 }
