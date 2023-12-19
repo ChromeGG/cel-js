@@ -13,9 +13,9 @@ import {
   MultiplicationToken,
   NotEquals,
   Plus,
-} from './tokens'
-import { CelTypeError } from './errors/CelTypeError'
-import { CelEvaluationError } from './errors/CelEvaluationError'
+} from './tokens.js'
+import { CelTypeError } from './errors/CelTypeError.js'
+import { CelEvaluationError } from './errors/CelEvaluationError.js'
 
 export enum CelType {
   int = 'int',
