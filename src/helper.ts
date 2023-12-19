@@ -1,5 +1,13 @@
 import { IToken, tokenMatcher } from 'chevrotain'
-import { Division, Minus, Modulo, MultiplicationToken, Plus } from './tokens'
+import {
+  Division,
+  LogicalAndOperator,
+  LogicalOrOperator,
+  Minus,
+  Modulo,
+  MultiplicationToken,
+  Plus,
+} from './tokens'
 import { CelTypeError } from './errors/CelTypeError'
 import { CelEvaluationError } from './errors/CelEvaluationError'
 
@@ -32,6 +40,9 @@ const isString = (value: unknown): value is string =>
 
 const isArray = (value: unknown): value is unknown[] =>
   getCelType(value) === CelType.list
+
+const isBoolean = (value: unknown): value is boolean =>
+  getCelType(value) === CelType.bool
 
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
@@ -109,23 +120,8 @@ export enum Operations {
   multiplication = 'multiplication',
   division = 'division',
   modulo = 'modulo',
-}
-
-export const getOperationName = (operator: IToken): Operations => {
-  switch (true) {
-    case tokenMatcher(operator, Plus):
-      return Operations.addition
-    case tokenMatcher(operator, Minus):
-      return Operations.subtraction
-    case tokenMatcher(operator, MultiplicationToken):
-      return Operations.multiplication
-    case tokenMatcher(operator, Division):
-      return Operations.division
-    case tokenMatcher(operator, Modulo):
-      return Operations.modulo
-    default:
-      throw new Error('Operator not recognized')
-  }
+  logicalAnd = 'logicalAnd',
+  logicalOr = 'logicalOr',
 }
 
 const additionOperation = (left: unknown, right: unknown) => {
@@ -186,20 +182,38 @@ const moduloOperation = (left: unknown, right: unknown) => {
   throw new CelTypeError(Operations.modulo, left, right)
 }
 
-export const getResult = (operator: IToken, left: unknown, right: unknown) => {
-  const operationName = getOperationName(operator)
+const logicalAndOperation = (left: unknown, right: unknown) => {
+  if (isBoolean(left) && isBoolean(right)) {
+    return left && right
+  }
 
-  switch (operationName) {
-    case Operations.addition:
+  throw new CelTypeError(Operations.logicalAnd, left, right)
+}
+
+const logicalOrOperation = (left: unknown, right: unknown) => {
+  if (isBoolean(left) && isBoolean(right)) {
+    return left || right
+  }
+
+  throw new CelTypeError(Operations.logicalOr, left, right)
+}
+
+export const getResult = (operator: IToken, left: unknown, right: unknown) => {
+  switch (true) {
+    case tokenMatcher(operator, Plus):
       return additionOperation(left, right)
-    case Operations.subtraction:
+    case tokenMatcher(operator, Minus):
       return subtractionOperation(left, right)
-    case Operations.multiplication:
+    case tokenMatcher(operator, MultiplicationToken):
       return multiplicationOperation(left, right)
-    case Operations.division:
+    case tokenMatcher(operator, Division):
       return divisionOperation(left, right)
-    case Operations.modulo:
+    case tokenMatcher(operator, Modulo):
       return moduloOperation(left, right)
+    case tokenMatcher(operator, LogicalAndOperator):
+      return logicalAndOperation(left, right)
+    case tokenMatcher(operator, LogicalOrOperator):
+      return logicalOrOperation(left, right)
     default:
       throw new Error('Operator not recognized')
   }

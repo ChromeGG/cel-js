@@ -48,10 +48,11 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
+        const operator = ctx.LogicalOrOperator![0]
 
         // TODO handle it, JS is allowing it on multiple operands
-        left = left || rhsValue
+        left = getResult(operator, left, right)
       })
     }
 
@@ -63,10 +64,10 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
+        const operator = ctx.LogicalAndOperator![0]
 
-        // TODO handle it, JS is allowing it on multiple operands
-        left = left && rhsValue
+        left = getResult(operator, left, right)
       })
     }
 
