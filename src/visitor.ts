@@ -14,17 +14,14 @@ import {
 
 import { tokenMatcher } from 'chevrotain'
 import {
-  Division,
   Equals,
   GreaterOrEqualThan,
   GreaterThan,
   LessOrEqualThan,
   LessThan,
-  MultiplicationToken,
   NotEquals,
 } from './tokens.js'
-import { additionOperation, isCalculable } from './helper.js'
-import { CelTypeError } from './errors/CelTypeError.js'
+import { additionOperationDeprecated, getOperation } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -53,6 +50,7 @@ export class CelVisitor
       ctx.rhs.forEach((rhsOperand) => {
         const rhsValue = this.visit(rhsOperand)
 
+        // TODO handle it, JS is allowing it on multiple operands
         left = left || rhsValue
       })
     }
@@ -67,6 +65,7 @@ export class CelVisitor
       ctx.rhs.forEach((rhsOperand) => {
         const rhsValue = this.visit(rhsOperand)
 
+        // TODO handle it, JS is allowing it on multiple operands
         left = left && rhsValue
       })
     }
@@ -81,6 +80,7 @@ export class CelVisitor
       const right = this.visit(ctx.rhs)
       const operator = ctx.ComparisonOperator![0]
 
+      // TODO handle it, JS is allowing it on multiple operands
       switch (true) {
         case tokenMatcher(operator, LessThan):
           return left < right
@@ -110,7 +110,10 @@ export class CelVisitor
         const right = this.visit(rhsOperand)
         const operator = ctx.AdditionOperator![idx]
 
-        left = additionOperation(left, right, operator)
+        const operation = getOperation(operator, left, right)
+
+        // ! NEXT: fix it
+        left = operation(left, right)
       })
     }
 
@@ -122,20 +125,13 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand, idx) => {
-        const rhsValue = this.visit(rhsOperand)
+        const right = this.visit(rhsOperand)
         const operator = ctx.MultiplicationOperator![idx]
 
-        if (!isCalculable(left) || !isCalculable(rhsValue)) {
-          throw new CelTypeError('multiplication', left, rhsValue)
-        }
+        const operation = getOperation(operator, left, right)
 
-        if (tokenMatcher(operator, MultiplicationToken)) {
-          left *= rhsValue
-        } else if (tokenMatcher(operator, Division)) {
-          left /= rhsValue
-        } else {
-          left %= rhsValue
-        }
+        // ! NEXT: fix it
+        left = operation(left, right)
       })
     }
 
