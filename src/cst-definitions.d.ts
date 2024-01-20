@@ -59,9 +59,19 @@ export interface MultiplicationCstNode extends CstNode {
 }
 
 export type MultiplicationCstChildren = {
-  lhs: AtomicExpressionCstNode[];
+  lhs: UnaryExpressionCstNode[];
   MultiplicationOperator?: IToken[];
   rhs?: AtomicExpressionCstNode[];
+};
+
+export interface UnaryExpressionCstNode extends CstNode {
+  name: "unaryExpression";
+  children: UnaryExpressionCstChildren;
+}
+
+export type UnaryExpressionCstChildren = {
+  UnaryOperator?: IToken[];
+  atomicExpression: AtomicExpressionCstNode[];
 };
 
 export interface ParenthesisExpressionCstNode extends CstNode {
@@ -98,6 +108,7 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   relation(children: RelationCstChildren, param?: IN): OUT;
   addition(children: AdditionCstChildren, param?: IN): OUT;
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
+  unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }
