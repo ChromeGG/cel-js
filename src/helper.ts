@@ -7,6 +7,7 @@ import {
   LessOrEqualThan,
   LessThan,
   LogicalAndOperator,
+  LogicalNotOperator,
   LogicalOrOperator,
   Minus,
   Modulo,
@@ -273,4 +274,31 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
     default:
       throw new Error('Operator not recognized')
   }
+}
+
+export const getUnaryResult = (operators: IToken[], operand: unknown) => {
+  if (
+    isCalculable(operand) &&
+    operators.every((operator) => tokenMatcher(operator, Minus))
+  ) {
+    if (operators.length % 2 === 0) {
+      return operand
+    }
+
+    return -operand
+  }
+
+  if (
+    isBoolean(operand) &&
+    operators.every((operator) => tokenMatcher(operator, LogicalNotOperator))
+  ) {
+    if (operators.length % 2 === 0) {
+      return operand
+    }
+
+    return !operand
+  }
+
+  // TODO this error message is not correct
+  throw new CelTypeError(Operations.addition, operand, null)
 }

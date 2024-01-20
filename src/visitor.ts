@@ -10,9 +10,10 @@ import {
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
+  UnaryExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { getResult } from './helper.js'
+import { getResult, getUnaryResult } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -106,6 +107,17 @@ export class CelVisitor
     }
 
     return left
+  }
+
+  unaryExpression(children: UnaryExpressionCstChildren): unknown {
+    if (children.UnaryOperator) {
+      const operator = children.UnaryOperator
+      const operand = this.visit(children.atomicExpression)
+
+      return getUnaryResult(operator, operand)
+    }
+
+    return this.visit(children.atomicExpression)
   }
 
   parenthesisExpression(ctx: ParenthesisExpressionCstChildren) {

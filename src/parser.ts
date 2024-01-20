@@ -15,6 +15,7 @@ import {
   LogicalAndOperator,
   LogicalOrOperator,
   ComparisonOperator,
+  UnaryOperator,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -60,11 +61,18 @@ export class CelParser extends CstParser {
   })
 
   private multiplication = this.RULE('multiplication', () => {
-    this.SUBRULE(this.atomicExpression, { LABEL: 'lhs' })
+    this.SUBRULE(this.unaryExpression, { LABEL: 'lhs' })
     this.MANY(() => {
       this.CONSUME(MultiplicationOperator)
       this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
     })
+  })
+
+  private unaryExpression = this.RULE('unaryExpression', () => {
+    this.MANY(() => {
+      this.CONSUME(UnaryOperator)
+    })
+    this.SUBRULE(this.atomicExpression)
   })
 
   private parenthesisExpression = this.RULE('parenthesisExpression', () => {

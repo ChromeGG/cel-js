@@ -90,6 +90,17 @@ export const LogicalAndOperator = createToken({
   pattern: /&&/,
 })
 
+export const UnaryOperator = createToken({
+  name: 'UnaryOperator',
+  pattern: Lexer.NA,
+})
+
+export const LogicalNotOperator = createToken({
+  name: 'LogicalNotOperator',
+  pattern: /!/,
+  categories: UnaryOperator,
+})
+
 export const ComparisonOperator = createToken({
   name: 'ComparisonOperator',
   pattern: Lexer.NA,
@@ -168,7 +179,7 @@ export const Plus = createToken({
 export const Minus = createToken({
   name: 'Minus',
   pattern: /-/,
-  categories: AdditionOperator,
+  categories: [AdditionOperator, UnaryOperator],
 })
 
 export const Identifier = createToken({
@@ -204,7 +215,10 @@ export const allTokens = [
   LessOrEqualThan,
   GreaterThan,
   LessThan,
-  
+
+  UnaryOperator,
+  LogicalNotOperator,
+
   MultiplicationOperator,
   MultiplicationToken,
   Division,
