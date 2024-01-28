@@ -1,6 +1,7 @@
 import { expect, describe, it } from 'vitest'
 
 import { Success, evaluate, parse } from '..'
+import { CelParseError } from '../errors/CelParseError'
 
 describe('index.ts', () => {
   describe('parse', () => {
@@ -33,7 +34,8 @@ describe('index.ts', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow('Given string is not a valid CEL expression')
+      expect(result).toThrow(CelParseError)
+      expect(result).toThrow('Given string is not a valid CEL expression: ')
     })
   })
 

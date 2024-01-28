@@ -2,6 +2,7 @@ import { CELLexer } from './tokens.js'
 import { CelParser } from './parser.js'
 import { CelVisitor } from './visitor.js'
 import { CstNode } from 'chevrotain'
+import { CelParseError } from './errors/CelParseError.js'
 
 const parserInstance = new CelParser()
 
@@ -11,8 +12,8 @@ export type Success = {
 }
 
 export type Failure = {
-isSuccess: false
-errors: string[]
+  isSuccess: false
+  errors: string[]
 }
 
 export type ParseResult = Success | Failure
@@ -37,15 +38,15 @@ export function evaluate(
   expression: string | CstNode,
   context?: Record<string, unknown>
 ) {
-  const result: ParseResult =
+  const result =
     typeof expression === 'string'
       ? parse(expression)
-      : { isSuccess: true, cst: expression }
+      : <Success>{ isSuccess: true, cst: expression }
   const toAstVisitorInstance = new CelVisitor(context)
 
   if (!result.isSuccess) {
-    throw new Error(
-      'Given string is not a valid CEL expression' + result.errors.join(', ')
+    throw new CelParseError(
+      'Given string is not a valid CEL expression: ' + result.errors.join(', ')
     )
   }
 

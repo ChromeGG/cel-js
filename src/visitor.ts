@@ -205,13 +205,13 @@ export class CelVisitor
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
-    if (typeof identifier !== 'string') {
-      // TODO make this error more specific
-      throw new Error('Identifier must be a string')
+    if (typeof searchContext !== 'object' || searchContext === null) {
+      throw new Error(
+        `Cannot obtain "${identifier}" from non-object context: ${searchContext}`
+      )
     }
 
-    // TODO make it type safe
-    const value = searchContext![identifier] as unknown
+    const value: unknown = searchContext[identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
