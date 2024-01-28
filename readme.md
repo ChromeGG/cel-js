@@ -35,3 +35,6 @@ parse('2 + 2 * 2') // => 6
 
 parse('a > 1', { a: 2 }) // => true
 ```
+## Known Issues
+
+- Errors types and messages are not 100% consistent with the cel-go implementation

@@ -166,27 +166,24 @@ export class CelVisitor
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
-    const data = this.context // todo copy data using JSON.parse(JSON.stringify(this.context))?
+    const data = this.context
     let result = this.getIdentifier(data, ctx.Identifier[0].image)
 
+    // ctx is an object with Dot and Index expressions grouped, but not sorted
+    // for this reason we need to sort them by position, to handle `a.b["c"].d`
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...(ctx.identifierIndexExpression || []),
     ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
 
-    expressions.forEach((expression) => {
+    result = expressions.reduce((acc, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        result = this.getIdentifier(
-          result,
-          expression.children.Identifier[0].image
-        )
+        return this.getIdentifier(acc, expression.children.Identifier[0].image)
       }
 
-      if (expression.name === 'identifierIndexExpression') {
-        const index = this.visit(expression.children.expr[0])
-        result = this.getIdentifier(result, index)
-      }
-    })
+      const index = this.visit(expression.children.expr[0])
+      return this.getIdentifier(acc, index)
+    }, result)
 
     return result
   }

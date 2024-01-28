@@ -52,6 +52,16 @@ describe('identifiers', () => {
     expect(result).toBe(2)
   })
 
+  it('should parse identifiers - multiple usage of the same identifiers', () => {
+  const expr = 'a.b["c"].d + a.b["c"].d'
+
+    const context = { a: { b: { c: { d: 2 } } } }
+
+    const result = parse(expr, context)
+
+    expect(result).toBe(4)
+  })
+
   it('should return object if identifier is object', () => {
     const expr = 'a'
     const context = { a: { b: 2 } }
