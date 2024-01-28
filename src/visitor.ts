@@ -211,7 +211,7 @@ export class CelVisitor
       )
     }
 
-    const value: unknown = searchContext[identifier]
+    const value = (searchContext as Record<string, unknown>)[identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
