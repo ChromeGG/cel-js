@@ -7,13 +7,16 @@ import {
   ConditionalOrCstChildren,
   ExprCstChildren,
   ICstNodeVisitor,
+  IdentifierDotExpressionCstChildren,
+  IdentifierExpressionCstChildren,
+  IdentifierIndexExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
   UnaryExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { getResult, getUnaryResult } from './helper.js'
+import { getPosition, getResult, getUnaryResult } from './helper.js'
 
 const parserInstance = new CelParser()
 
@@ -109,15 +112,15 @@ export class CelVisitor
     return left
   }
 
-  unaryExpression(children: UnaryExpressionCstChildren): unknown {
-    if (children.UnaryOperator) {
-      const operator = children.UnaryOperator
-      const operand = this.visit(children.atomicExpression)
+  unaryExpression(ctx: UnaryExpressionCstChildren): unknown {
+    if (ctx.UnaryOperator) {
+      const operator = ctx.UnaryOperator
+      const operand = this.visit(ctx.atomicExpression)
 
       return getUnaryResult(operator, operand)
     }
 
-    return this.visit(children.atomicExpression)
+    return this.visit(ctx.atomicExpression)
   }
 
   parenthesisExpression(ctx: ParenthesisExpressionCstChildren) {
@@ -154,16 +157,64 @@ export class CelVisitor
       throw new Error('Detected reserved identifier. This is not allowed')
     }
 
-    if (ctx.Identifier) {
-      return this.identifier(ctx)
+    if (ctx.identifierExpression) {
+      return this.visit(ctx.identifierExpression)
+      // return this.identifier(ctx)
     }
 
     throw new Error('Atomic expression not recognized')
   }
 
-  identifier(ctx: AtomicExpressionCstChildren): unknown {
-    const identifier = ctx.Identifier![0].image // must be defined if we are in this method
-    const value = this.context[identifier]
+  identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
+    const data = this.context // todo copy data using JSON.parse(JSON.stringify(this.context))?
+    let result = this.getIdentifier(data, ctx.Identifier[0].image)
+
+    const expressions = [
+      ...(ctx.identifierDotExpression || []),
+      ...(ctx.identifierIndexExpression || []),
+    ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
+
+    expressions.forEach((expression) => {
+      if (expression.name === 'identifierDotExpression') {
+        result = this.getIdentifier(
+          result,
+          expression.children.Identifier[0].image
+        )
+      }
+
+      if (expression.name === 'identifierIndexExpression') {
+        const index = this.visit(expression.children.expr[0])
+        result = this.getIdentifier(result, index)
+      }
+    })
+
+    return result
+  }
+
+  identifierDotExpression(
+    ctx: IdentifierDotExpressionCstChildren,
+    param: unknown
+  ): unknown {
+    const identifierName = ctx.Identifier[0].image
+    return this.getIdentifier(param, identifierName)
+  }
+
+  identifierIndexExpression(
+    ctx: IdentifierIndexExpressionCstChildren,
+    param: unknown
+  ): unknown {
+    const index = this.visit(ctx.expr)
+    return this.getIdentifier(param, index)
+  }
+
+  getIdentifier(searchContext: unknown, identifier: string): unknown {
+    if (typeof identifier !== 'string') {
+      // TODO make this error more specific
+      throw new Error('Identifier must be a string')
+    }
+
+    //@ts-expect-error TODO make it safe
+    const value = searchContext[identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)

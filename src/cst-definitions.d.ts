@@ -61,7 +61,7 @@ export interface MultiplicationCstNode extends CstNode {
 export type MultiplicationCstChildren = {
   lhs: UnaryExpressionCstNode[];
   MultiplicationOperator?: IToken[];
-  rhs?: AtomicExpressionCstNode[];
+  rhs?: UnaryExpressionCstNode[];
 };
 
 export interface UnaryExpressionCstNode extends CstNode {
@@ -85,6 +85,38 @@ export type ParenthesisExpressionCstChildren = {
   close: IToken[];
 };
 
+export interface IdentifierExpressionCstNode extends CstNode {
+  name: "identifierExpression";
+  children: IdentifierExpressionCstChildren;
+}
+
+export type IdentifierExpressionCstChildren = {
+  Identifier: IToken[];
+  identifierDotExpression?: IdentifierDotExpressionCstNode[];
+  identifierIndexExpression?: IdentifierIndexExpressionCstNode[];
+};
+
+export interface IdentifierDotExpressionCstNode extends CstNode {
+  name: "identifierDotExpression";
+  children: IdentifierDotExpressionCstChildren;
+}
+
+export type IdentifierDotExpressionCstChildren = {
+  Dot: IToken[];
+  Identifier: IToken[];
+};
+
+export interface IdentifierIndexExpressionCstNode extends CstNode {
+  name: "identifierIndexExpression";
+  children: IdentifierIndexExpressionCstChildren;
+}
+
+export type IdentifierIndexExpressionCstChildren = {
+  OpenBracket: IToken[];
+  expr: ExprCstNode[];
+  CloseBracket: IToken[];
+};
+
 export interface AtomicExpressionCstNode extends CstNode {
   name: "atomicExpression";
   children: AtomicExpressionCstChildren;
@@ -98,7 +130,7 @@ export type AtomicExpressionCstChildren = {
   Float?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
-  Identifier?: IToken[];
+  identifierExpression?: IdentifierExpressionCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
@@ -110,5 +142,8 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
+  identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
+  identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
+  identifierIndexExpression(children: IdentifierIndexExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }
