@@ -1,52 +1,52 @@
 import { expect, describe, it } from 'vitest'
 
-import { parse } from '..'
+import { evaluate } from '..'
 
 describe('atomic expressions', () => {
-  it('should parse a number', () => {
+  it('should evaluate a number', () => {
     const expr = '1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(1)
   })
 
-  it('should parse a true boolean literal', () => {
+  it('should evaluate a true boolean literal', () => {
     const expr = 'true'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(true)
   })
 
-  it('should parse a false boolean literal', () => {
+  it('should evaluate a false boolean literal', () => {
     const expr = 'false'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(false)
   })
 
-  it('should parse null literal', () => {
+  it('should evaluate null literal', () => {
     const expr = 'null'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(null)
   })
 
-  it('should parse a string literal', () => {
+  it('should evaluate a string literal', () => {
     const expr = '"foo"'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe('foo')
   })
 
-  it('should parse a float', () => {
+  it('should evaluate a float', () => {
     const expr = '1.2'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(1.2)
   })

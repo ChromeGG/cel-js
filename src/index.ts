@@ -1,23 +1,53 @@
 import { CELLexer } from './tokens.js'
 import { CelParser } from './parser.js'
 import { CelVisitor } from './visitor.js'
+import { CstNode } from 'chevrotain'
 
 const parserInstance = new CelParser()
-// Our visitor has no state, so a single instance is sufficient.
 
-// TODO mention about this library in other Google's CEL repos
-export function parse(expression: string, context?: Record<string, unknown>) {
+export type Success = {
+  isSuccess: true
+  cst: CstNode
+}
+
+export type Failure = {
+isSuccess: false
+errors: string[]
+}
+
+export type ParseResult = Success | Failure
+
+export function parse(expression: string): ParseResult {
   const lexResult = CELLexer.tokenize(expression)
   parserInstance.input = lexResult.tokens
-
   const cst = parserInstance.expr()
 
-  const toAstVisitorInstance = new CelVisitor(context)
   if (parserInstance.errors.length > 0) {
-    throw Error(
-      'Cannot parse CEL expression\n' + parserInstance.errors[0].message
+    return {
+      isSuccess: false,
+      errors: parserInstance.errors.map((e) => e.message),
+    }
+  }
+
+  return { isSuccess: true, cst }
+}
+
+// TODO mention about this library in other Google's CEL repos
+export function evaluate(
+  expression: string | CstNode,
+  context?: Record<string, unknown>
+) {
+  const result: ParseResult =
+    typeof expression === 'string'
+      ? parse(expression)
+      : { isSuccess: true, cst: expression }
+  const toAstVisitorInstance = new CelVisitor(context)
+
+  if (!result.isSuccess) {
+    throw new Error(
+      'Given string is not a valid CEL expression' + result.errors.join(', ')
     )
   }
 
-  return toAstVisitorInstance.visit(cst) as unknown
+  return toAstVisitorInstance.visit(result.cst) as unknown
 }

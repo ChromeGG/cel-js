@@ -30,6 +30,7 @@
     "prepack": "npm run build",
     "test": "vitest ./src --run",
     "test:watch": "vitest ./src",
+    "type-check": "tsc src/index.ts --noEmit",
     "release": "release-it"
   },
   "dependencies": {

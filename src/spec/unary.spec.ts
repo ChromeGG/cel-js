@@ -1,11 +1,11 @@
 import { expect, describe, it } from 'vitest'
-import { parse } from '..'
+import { evaluate } from '..'
 
 describe('unary', () => {
   it('should handle negative number expression', () => {
     const expr = '-1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(-1)
   })
@@ -14,7 +14,7 @@ describe('unary', () => {
   it('should handle multiple negative number expressions', () => {
     const expr = '--1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(1)
   })
@@ -22,7 +22,7 @@ describe('unary', () => {
   it('should handle logical not expression', () => {
     const expr = '!true'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(false)
   })
@@ -30,7 +30,7 @@ describe('unary', () => {
   it('should handle multiple logical not expressions', () => {
     const expr = '!!true'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(true)
   })

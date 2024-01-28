@@ -1,6 +1,6 @@
 import { expect, describe, it } from 'vitest'
 
-import { parse } from '..'
+import { evaluate } from '..'
 import { reservedIdentifiers } from '../tokens.js'
 
 describe('reserved identifiers', () => {
@@ -9,7 +9,7 @@ describe('reserved identifiers', () => {
     (identifier) => {
       const expr = `${identifier} < 1`
 
-      const result = () => parse(expr)
+      const result = () => evaluate(expr)
 
       expect(result).toThrow(
         `Detected reserved identifier. This is not allowed`

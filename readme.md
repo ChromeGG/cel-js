@@ -17,6 +17,7 @@
   - [x] Identifiers (Variables, `foo == bar`)
   - [x] Selectors (`foo.bar["baz"]`)
   - [ ] Macros (`exists`, `has`, `size`, etc.)
+  - [ ] Object and arrays literals (`{"foo": 1}`, `[1,2,3]`)
 
 ## Installation
 
@@ -29,12 +30,30 @@ npm i cel-js
 ## Usage
 
 ```ts
-import { parse } from 'cel-js'
+import { evaluate, parse } from 'cel-js'
 
-parse('2 + 2 * 2') // => 6
+// use `evaluate` to parse and evaluate an expression
+evaluate('2 + 2 * 2') // => 6
 
-parse('a > 1', { a: 2 }) // => true
+evaluate('"foo" + "bar"') // => 'foobar'
+
+evaluate('user.role == "admin"', { user: { role: 'admin' } }) // => true
+
+// use `parse` to parse an expression, useful for validation purposes
+const result = parse('2 + 2')
+
+if (!result.isSuccess) {
+  throw new Error('Invalid syntax')
+}
+
+// you can reuse the result of `parse` to evaluate the expression
+evaluate(result.cst) // => 4
 ```
+
 ## Known Issues
 
 - Errors types and messages are not 100% consistent with the cel-go implementation
+
+```
+
+```

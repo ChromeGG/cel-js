@@ -1,45 +1,46 @@
 import { expect, describe, it } from 'vitest'
 
-import { parse } from '..'
+import { evaluate } from '..'
 import { CelTypeError } from '../errors/CelTypeError'
+import { Operations } from '../helper'
 
 describe('addition', () => {
-  it('should parse addition', () => {
+  it('should evaluate addition', () => {
     const expr = '1 + 1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(2)
   })
 
-  it('should parse subtraction', () => {
+  it('should evaluate subtraction', () => {
     const expr = '1 - 1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(0)
   })
 
-  it('should parse addition with multiple terms', () => {
+  it('should evaluate addition with multiple terms', () => {
     const expr = '1 + 1 + 1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(3)
   })
 
-  it('should parse addition with multiple terms with different signs', () => {
+  it('should evaluate addition with multiple terms with different signs', () => {
     const expr = '1 + 1 - 1'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(1)
   })
 
-  it('should parse float addition', () => {
+  it('should evaluate float addition', () => {
     const expr = '0.333 + 0.333'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe(0.666)
   })
@@ -47,7 +48,7 @@ describe('addition', () => {
   it('should concatenate strings', () => {
     const expr = '"a" + "b"'
 
-    const result = parse(expr)
+    const result = evaluate(expr)
 
     expect(result).toBe('ab')
   })
@@ -56,17 +57,17 @@ describe('addition', () => {
     it('is a boolean', () => {
       const expr = 'true + 1'
 
-      const result = () => parse(expr)
+      const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelTypeError('addition', true, 1))
+      expect(result).toThrow(new CelTypeError(Operations.addition, true, 1))
     })
 
     it('is a null', () => {
       const expr = 'null + 1'
 
-      const result = () => parse(expr)
+      const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelTypeError('addition', null, 1))
+      expect(result).toThrow(new CelTypeError(Operations.addition, null, 1))
     })
   })
 })

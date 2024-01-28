@@ -210,8 +210,8 @@ export class CelVisitor
       throw new Error('Identifier must be a string')
     }
 
-    //@ts-expect-error TODO make it safe
-    const value = searchContext[identifier]
+    // TODO make it type safe
+    const value = searchContext![identifier]
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
