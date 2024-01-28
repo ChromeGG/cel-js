@@ -211,7 +211,7 @@ export class CelVisitor
     }
 
     // TODO make it type safe
-    const value = searchContext![identifier]
+    const value = searchContext![identifier] as unknown
 
     if (value === undefined) {
       const context = JSON.stringify(this?.context)
