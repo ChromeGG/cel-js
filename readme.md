@@ -10,14 +10,28 @@
 - 🌍 Isomorphic: Ready for server and browser
 - 📦 ESM support
 - 📚 Supported CEL Features:
-  - [x] Conditional Operators (`&&`, `||`)
-  - [x] Comparison Operators (`==`, `!=`, `<`, `<=`, `>`, `>=`)
-  - [x] Unary Operators (`!tue`, `-123`)
+  - [x] Literals
+    - [x] int
+    - [x] uint
+    - [x] double
+    - [x] bool
+    - [x] string
+    - [ ] bytes
+    - [ ] list
+    - [ ] map
+    - [x] null 
+  - [x] Conditional Operators
+    - [ ] Ternary (`condition ? true : false`)
+    - [x] Logical And (`&&`)
+    - [x] Logical Or (`||`)
+  - [x] Equality Operators (`==`, `!=`)
+  - [x] Relational Operators (`<`, `<=`, `>`, `>=`)
   - [x] Arithmetic Operators (`+`, `-`, `*`, `/`, `%`)
-  - [x] Identifiers (Variables, `foo == bar`)
-  - [x] Selectors (`foo.bar["baz"]`)
+  - [x] Identifiers
+    - [x] Dot Notation (`foo.bar`)
+    - [x] Index Notation (`foo["bar"]`)
   - [ ] Macros (`exists`, `has`, `size`, etc.)
-  - [ ] Object and arrays literals (`{"foo": 1}`, `[1,2,3]`)
+  - [x] Unary Operators (`!true`, `-123`)
 
 ## Installation
 
