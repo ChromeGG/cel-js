@@ -12,8 +12,10 @@
 - 📚 Supported CEL Features:
   - [x] Conditional Operators (`&&`, `||`)
   - [x] Comparison Operators (`==`, `!=`, `<`, `<=`, `>`, `>=`)
-  - [ ] Identifiers (Variables, `foo == bar`)
-  - [ ] Selectors (`foo.bar[0].baz`)
+  - [x] Unary Operators (`!tue`, `-123`)
+  - [x] Arithmetic Operators (`+`, `-`, `*`, `/`, `%`)
+  - [x] Identifiers (Variables, `foo == bar`)
+  - [x] Selectors (`foo.bar["baz"]`)
   - [ ] Macros (`exists`, `has`, `size`, etc.)
 
 ## Installation
@@ -33,3 +35,6 @@ parse('2 + 2 * 2') // => 6
 
 parse('a > 1', { a: 2 }) // => true
 ```
+## Known Issues
+
+- Errors types and messages are not 100% consistent with the cel-go implementation

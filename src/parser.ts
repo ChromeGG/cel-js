@@ -16,6 +16,9 @@ import {
   LogicalOrOperator,
   ComparisonOperator,
   UnaryOperator,
+  Dot,
+  CloseBracket,
+  OpenBracket,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -64,7 +67,7 @@ export class CelParser extends CstParser {
     this.SUBRULE(this.unaryExpression, { LABEL: 'lhs' })
     this.MANY(() => {
       this.CONSUME(MultiplicationOperator)
-      this.SUBRULE2(this.atomicExpression, { LABEL: 'rhs' })
+      this.SUBRULE2(this.unaryExpression, { LABEL: 'rhs' })
     })
   })
 
@@ -81,6 +84,30 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseParenthesis, { LABEL: 'close' })
   })
 
+  private identifierExpression = this.RULE('identifierExpression', () => {
+    this.CONSUME(Identifier)
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        { ALT: () => this.SUBRULE(this.identifierIndexExpression) },
+      ])
+    })  
+  })
+
+  private identifierDotExpression = this.RULE('identifierDotExpression', () => {
+    this.CONSUME(Dot)
+    this.CONSUME(Identifier)
+  })
+
+  private identifierIndexExpression = this.RULE(
+    'identifierIndexExpression',
+    () => {
+      this.CONSUME(OpenBracket)
+      this.SUBRULE(this.expr)
+      this.CONSUME(CloseBracket)
+    }
+  )
+
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
       { ALT: () => this.SUBRULE(this.parenthesisExpression) },
@@ -90,7 +117,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Float) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
-      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
   })
 }

@@ -17,6 +17,10 @@ import {
 } from './tokens.js'
 import { CelTypeError } from './errors/CelTypeError.js'
 import { CelEvaluationError } from './errors/CelEvaluationError.js'
+import {
+  IdentifierDotExpressionCstNode,
+  IdentifierIndexExpressionCstNode,
+} from './cst-definitions.js'
 
 export enum CelType {
   int = 'int',
@@ -301,4 +305,14 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
 
   // TODO this error message is not correct
   throw new CelTypeError(Operations.addition, operand, null)
+}
+
+export const getPosition = (
+  ctx: IdentifierDotExpressionCstNode | IdentifierIndexExpressionCstNode
+) => {
+  if (ctx.name === 'identifierDotExpression') {
+    return ctx.children.Dot[0].startOffset
+  }
+
+  return ctx.children.OpenBracket[0].startOffset
 }
