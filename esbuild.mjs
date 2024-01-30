@@ -6,5 +6,4 @@ await esbuild.build({
   outfile: 'dist/index.mjs',
   format: 'esm',
   minify: true,
-  sourcemap: true,
 })
