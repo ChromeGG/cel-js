@@ -17,17 +17,19 @@
   "license": "MIT",
   "author": "Adam Tkaczyk",
   "type": "module",
+  "main": "./lib/esm/index.js",
+  "types": "./lib/esm/types/index.d.ts",
   "exports": "./lib/esm/index.mjs",
   "files": [
     "lib/**/*"
   ],
   "scripts": {
-    "build": "npm run clean && npm run build:esm",
+    "build": "pnpm run clean && pnpm run build:esm",
     "build:esm": "tsc -p ./tsconfig.esm.json && mv lib/esm/index.js lib/esm/index.mjs",
     "clean": "rm -rf ./lib",
     "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
-    "prepack": "npm run build",
+    "prepack": "pnpm run build",
     "test": "vitest ./src --run",
     "test:watch": "vitest ./src",
     "type-check": "tsc src/index.ts --noEmit",
