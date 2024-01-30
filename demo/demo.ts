@@ -9,7 +9,7 @@ import { evaluate, parse } from 'cel-js'
   console.log(`${mathExpr} => ${evaluate(mathExpr)}`) // => 6
 
   // Float expression
-  const floatExpr = '0.1 - 0.2'
+  const floatExpr = '0.1 + 0.2'
   console.log(`${floatExpr} => ${evaluate(floatExpr)}`) // => 0.30000000000000004, same as cel-go, due to floating point precision
 
   // Parenthesized expression

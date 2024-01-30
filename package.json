@@ -17,22 +17,21 @@
   "license": "MIT",
   "author": "Adam Tkaczyk",
   "type": "module",
-  "main": "./lib/esm/index.js",
-  "types": "./lib/esm/types/index.d.ts",
-  "exports": "./lib/esm/index.mjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": "./dist/index.mjs",
   "files": [
-    "lib/**/*"
+    "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && pnpm run build:esm",
-    "build:esm": "tsc -p ./tsconfig.esm.json && mv lib/esm/index.js lib/esm/index.mjs",
-    "clean": "rm -rf ./lib",
+    "build": "pnpm run clean && tsc -p tsconfig.json --emitDeclarationOnly && node esbuild.mjs",
+    "clean": "rm -rf ./dist",
     "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
     "prepack": "pnpm run build",
     "test": "vitest ./src --run",
     "test:watch": "vitest ./src",
-    "type-check": "tsc src/index.ts --noEmit",
+    "type-check": "tsc --noEmit -p tsconfig.json",
     "release": "release-it"
   },
   "dependencies": {
@@ -45,6 +44,7 @@
     "@types/node": "20.9.0",
     "@typescript-eslint/eslint-plugin": "6.10.0",
     "@typescript-eslint/parser": "6.10.0",
+    "esbuild": "0.20.0",
     "eslint": "8.53.0",
     "eslint-plugin-sonarjs": "0.23.0",
     "eslint-plugin-vitest": "0.3.10",
