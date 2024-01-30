@@ -4,6 +4,10 @@ import { CelVisitor } from './visitor.js'
 import { CstNode } from 'chevrotain'
 import { CelParseError } from './errors/CelParseError.js'
 
+export { CelParseError } from './errors/CelParseError.js'
+export { CelEvaluationError } from './errors/CelEvaluationError.js'
+export { CelTypeError } from './errors/CelTypeError.js'
+
 const parserInstance = new CelParser()
 
 export type Success = {

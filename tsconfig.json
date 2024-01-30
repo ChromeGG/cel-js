@@ -15,6 +15,6 @@
       "*": ["*", "src/*"]
     }
   },
-  "include": ["src/**/*", "src/tokens.ts"],
-  "exclude": ["node_modules", "lib", "**/*.spec.ts"]
+  "include": ["src/index.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }
