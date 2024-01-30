@@ -1,1 +1,0 @@
-This is for testing the library from local registry (verdaccio, http://0.0.0.0:4873/)
