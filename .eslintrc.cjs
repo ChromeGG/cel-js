@@ -20,5 +20,11 @@ module.exports = {
         'vitest/prefer-lowercase-title': 'off',
       },
     },
+    {
+      files: ['demo/**/*'],
+      rules: {
+        'vitest/require-hook': 'off',
+      },
+    },
   ],
 }

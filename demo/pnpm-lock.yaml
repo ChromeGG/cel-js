@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   cel-js:
-    specifier: 0.1.0
-    version: 0.1.0
+    specifier: 0.1.1
+    version: 0.1.1
 
 devDependencies:
   tsx:
@@ -250,8 +250,8 @@ packages:
     dev: true
     optional: true
 
-  /cel-js@0.1.0:
-    resolution: {integrity: sha512-oUbKvY/6XQqfFs5Brb/9L2LwVV6AKlAqX9knouEzeqMSjppSCkoBGlYhDDHAMNCs53a6bMC2zeSnCo/hU5IcSA==}
+  /cel-js@0.1.1:
+    resolution: {integrity: sha512-4CZB0qKsRxMtv7c4h+rRcX4tT3bBX//P+QKg2KlK782I6yMEzX1xmE9VN09Zl1cMZ5DNXWIJ/aL/kBMPpss8hA==}
     engines: {node: '>=18.0.0'}
     dependencies:
       chevrotain: 11.0.3
