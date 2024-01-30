@@ -1,12 +1,14 @@
 # cel-js
 
-> ⛔ This library is not yet ready for production usage. ⛔
-
 `cel-js` is a powerful and efficient parser and evaluator for Google's [Common Expression Language](https://github.com/google/cel-spec) (CEL), built on the robust foundation of the [Chevrotain](https://chevrotain.io/docs/) parsing library. This library aims to provide a seamless and easy-to-use interface for working with CEL in JavaScript environments.
+
+## Live Demo 🚀
+
+Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/github/ChromeGG/cel-js/tree/main/demo?file=demo.ts).
 
 ## Features ✨
 
-- 🚀 Fast and Efficient Parsing: Leverages Chevrotain for high-performance parsing
+- 🚀 Fast and Efficient Parsing: Leverages Chevrotain for high-performance parsing and evaluation
 - 🌍 Isomorphic: Ready for server and browser
 - 📦 ESM support
 - 📚 Supported CEL Features:
