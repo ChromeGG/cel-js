@@ -1,4 +1,4 @@
-// ? run "pnpm tsx demo.ts" in the terminal to see the output
+// ? run "pnpm tsx demo" in the terminal to see the output
 
 import { evaluate, parse } from 'cel-js'
 

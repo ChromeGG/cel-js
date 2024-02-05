@@ -21,6 +21,7 @@ export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
 export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
 export const Dot = createToken({ name: 'Dot', pattern: /\./ })
+export const Comma = createToken({ name: 'Comma', pattern: /,/ })
 
 export const Float = createToken({
   name: 'Float',
@@ -196,6 +197,7 @@ export const allTokens = [
   OpenBracket,
   CloseBracket,
   Dot,
+  Comma,
 
   Float,
   Integer,

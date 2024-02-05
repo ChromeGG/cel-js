@@ -19,6 +19,7 @@ import {
   Dot,
   CloseBracket,
   OpenBracket,
+  Comma,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -91,7 +92,7 @@ export class CelParser extends CstParser {
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
         { ALT: () => this.SUBRULE(this.identifierIndexExpression) },
       ])
-    })  
+    })
   })
 
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
@@ -107,6 +108,18 @@ export class CelParser extends CstParser {
       this.CONSUME(CloseBracket)
     }
   )
+
+  private arrayExpression = this.RULE('arrayExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.OPTION(() => {
+      this.SUBRULE(this.expr)
+      this.MANY(() => {
+        this.CONSUME(Comma)
+        this.SUBRULE2(this.expr)
+      })
+    })
+    this.CONSUME(CloseBracket)
+  })
 
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
