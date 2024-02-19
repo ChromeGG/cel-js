@@ -127,4 +127,15 @@ describe('lists expressions', () => {
       expect(result).toStrictEqual([[1], [2], [3]])
     })
   })
+  describe('access', () => {
+    it('should access list by index', () => {
+      const expr = 'a[0]'
+
+      const context = { a: [1, 2, 3] }
+  
+      const result = evaluate(expr, context)
+
+      expect(result).toBe(1)
+    })
+  })
 })

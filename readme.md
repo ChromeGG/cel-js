@@ -19,7 +19,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] bool
     - [x] string
     - [ ] bytes
-    - [ ] list
+    - [x] list
     - [ ] map
     - [x] null 
   - [x] Conditional Operators
