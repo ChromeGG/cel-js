@@ -19,6 +19,7 @@ import {
   Dot,
   CloseBracket,
   OpenBracket,
+  Comma,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -84,6 +85,18 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseParenthesis, { LABEL: 'close' })
   })
 
+  private listExpression = this.RULE('listExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.OPTION(() => {
+      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+      this.MANY(() => {
+        this.CONSUME(Comma)
+        this.SUBRULE2(this.expr, { LABEL: 'rhs' })
+      })
+    })
+    this.CONSUME(CloseBracket)
+  })
+
   private identifierExpression = this.RULE('identifierExpression', () => {
     this.CONSUME(Identifier)
     this.MANY(() => {
@@ -118,6 +131,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
+      { ALT: () => this.SUBRULE(this.listExpression) },
     ])
   })
 }

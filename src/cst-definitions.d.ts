@@ -85,6 +85,19 @@ export type ParenthesisExpressionCstChildren = {
   close: IToken[];
 };
 
+export interface ListsExpressionCstNode extends CstNode {
+  name: "ListsExpression";
+  children: ListsExpressionCstChildren;
+}
+
+export type ListsExpressionCstChildren = {
+  open: IToken[];
+  lhs: ExprCstNode[];
+  close: IToken[];
+  ListSeparator?: IToken[];
+  rhs?: ExprCstNode[];
+};
+
 export interface IdentifierExpressionCstNode extends CstNode {
   name: "identifierExpression";
   children: IdentifierExpressionCstChildren;
@@ -131,6 +144,7 @@ export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   identifierExpression?: IdentifierExpressionCstNode[];
+  listExpression?: ListsExpressionCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {

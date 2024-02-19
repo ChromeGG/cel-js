@@ -10,6 +10,7 @@ import {
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
   IdentifierIndexExpressionCstChildren,
+  ListsExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
@@ -127,6 +128,27 @@ export class CelVisitor
     return this.visit(ctx.expr)
   }
 
+  listExpression(ctx: ListsExpressionCstChildren) {
+    let result = []
+    if (!ctx.lhs) {
+      return []
+    }
+
+    let left = this.visit(ctx.lhs)
+
+    result.push(left)
+    if (!ctx.rhs) {
+      return result
+    }
+
+    for (const rhsOperand of ctx.rhs) {
+      const right = this.visit(rhsOperand)
+      result.push(right)
+    }
+
+    return result
+  }
+
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Null) {
@@ -160,6 +182,10 @@ export class CelVisitor
     if (ctx.identifierExpression) {
       return this.visit(ctx.identifierExpression)
       // return this.identifier(ctx)
+    }
+
+    if (ctx.listExpression) {
+      return this.visit(ctx.listExpression)
     }
 
     throw new Error('Atomic expression not recognized')
