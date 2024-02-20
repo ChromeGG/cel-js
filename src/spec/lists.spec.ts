@@ -175,4 +175,79 @@ describe('lists expressions', () => {
       expect(result).toStrictEqual([1, 2])
     })
   })
+  describe('in', () => {
+    it('should return false for element in empty list', () =>{
+      const expr = '1 in []'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(false)
+    })
+    it('should return true for element the only element on the list', () =>{
+      const expr = '1 in [1]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(true)
+    })
+    it('should return true for element the first element of the list', () =>{
+      const expr = '"first" in ["first", "second", "third"]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(true)
+    })
+
+    it('should return true for element a middle element of the list', () =>{
+      const expr = '3 in [5, 4, 3, 2, 1]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(true)
+    })
+    it('should return true for element the last element of the list', () =>{
+      const expr = '3 in [1, 2, 3]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(true)
+    })
+    it('should return false for element not in the list', () =>{
+      const expr = '3 in [1, 2]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(false)
+    })
+  })
+  describe('size', () => {
+    it('should return 0 for empty list', () =>{
+      const expr = 'size([])'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(0)
+    })
+    it('should return 1 for one element list', () =>{
+      const expr = 'size([1])'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(1)
+    })
+    it('should return 2 for two element list', () =>{
+      const expr = 'size([1, 2])'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(2)
+    })
+    it('should return 3 for three element list', () =>{
+      const expr = 'size([1, 2, 3])'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(3)
+    })
+  })
 })

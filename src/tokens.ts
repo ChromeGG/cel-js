@@ -144,6 +144,12 @@ export const LessThan = createToken({
   categories: ComparisonOperator,
 })
 
+export const In = createToken({
+  name: 'In',
+  pattern: /in/,
+  categories: ComparisonOperator,
+})
+
 export const MultiplicationOperator = createToken({
   name: 'MultiplicationOperator',
   pattern: Lexer.NA,
@@ -218,6 +224,7 @@ export const allTokens = [
   LessOrEqualThan,
   GreaterThan,
   LessThan,
+  In,
 
   UnaryOperator,
   LogicalNotOperator,

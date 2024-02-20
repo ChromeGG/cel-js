@@ -4,6 +4,7 @@ import {
   Equals,
   GreaterOrEqualThan,
   GreaterThan,
+  In,
   LessOrEqualThan,
   LessThan,
   LogicalAndOperator,
@@ -139,6 +140,7 @@ export enum Operations {
   greaterOrEqualThan = 'greaterOrEqualThan',
   equals = 'equals',
   notEquals = 'notEquals',
+  in = 'in',
 }
 
 const additionOperation = (left: unknown, right: unknown) => {
@@ -244,6 +246,14 @@ const comparisonOperation = (
     return left !== right
   }
 
+  if (operation === Operations.in) {
+    if (isArray(right)) {
+      return right.includes(left)
+    }
+
+    throw new CelTypeError(operation, left, right)
+  }
+
   throw new CelTypeError(operation, left, right)
 }
 
@@ -275,6 +285,8 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
       return comparisonOperation(Operations.equals, left, right)
     case tokenMatcher(operator, NotEquals):
       return comparisonOperation(Operations.notEquals, left, right)
+    case tokenMatcher(operator, In):
+      return comparisonOperation(Operations.in, left, right)
     default:
       throw new Error('Operator not recognized')
   }
