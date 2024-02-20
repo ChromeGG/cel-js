@@ -27,12 +27,15 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] Logical And (`&&`)
     - [x] Logical Or (`||`)
   - [x] Equality Operators (`==`, `!=`)
-  - [x] Relational Operators (`<`, `<=`, `>`, `>=`)
+  - [x] Relational Operators (`<`, `<=`, `>`, `>=`, `in`)
   - [x] Arithmetic Operators (`+`, `-`, `*`, `/`, `%`)
   - [x] Identifiers
     - [x] Dot Notation (`foo.bar`)
     - [x] Index Notation (`foo["bar"]`)
-  - [ ] Macros (`exists`, `has`, `size`, etc.)
+  - [ ] Macros: (`exists`, `has`, `size`, etc.)
+    - [ ] Exists (`exists(foo)`)
+    - [ ] Has (`has(foo, "bar")`)
+    - [x] Size (`size(foo)`)
   - [x] Unary Operators (`!true`, `-123`)
 
 ## Installation
