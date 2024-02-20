@@ -130,6 +130,18 @@ export type IdentifierIndexExpressionCstChildren = {
   CloseBracket: IToken[];
 };
 
+export interface FunExpressionCstNode extends CstNode {
+  name: "funExpression";
+  children: FunExpressionCstChildren;
+}
+
+export type FunExpressionCstChildren = {
+  FunIdentifier: IToken[];
+  open: IToken[];
+  arg?: ExprCstNode[];
+  close: IToken[];
+};
+
 export interface AtomicExpressionCstNode extends CstNode {
   name: "atomicExpression";
   children: AtomicExpressionCstChildren;
@@ -145,6 +157,7 @@ export type AtomicExpressionCstChildren = {
   ReservedIdentifiers?: IToken[];
   identifierExpression?: IdentifierExpressionCstNode[];
   listExpression?: ListsExpressionCstNode[];
+  funExpression?: FunExpressionCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {

@@ -20,6 +20,8 @@ import {
   CloseBracket,
   OpenBracket,
   Comma,
+  FunIdentifier,
+  Size,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -97,6 +99,15 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseBracket)
   })
 
+  private funExpression = this.RULE('funExpression', () => {
+    this.CONSUME(FunIdentifier)
+    this.CONSUME(OpenParenthesis)
+    this.OPTION(() => {
+      this.SUBRULE(this.expr, { LABEL: 'arg' })
+    })
+    this.CONSUME(CloseParenthesis)
+  })
+
   private identifierExpression = this.RULE('identifierExpression', () => {
     this.CONSUME(Identifier)
     this.MANY(() => {
@@ -132,6 +143,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
       { ALT: () => this.SUBRULE(this.listExpression) },
+      { ALT: () => this.SUBRULE(this.funExpression) },
     ])
   })
 }

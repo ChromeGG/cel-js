@@ -6,6 +6,7 @@ import {
   ConditionalAndCstChildren,
   ConditionalOrCstChildren,
   ExprCstChildren,
+  FunExpressionCstChildren,
   ICstNodeVisitor,
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
@@ -129,12 +130,12 @@ export class CelVisitor
   }
 
   listExpression(ctx: ListsExpressionCstChildren) {
-    let result = []
+    const result = []
     if (!ctx.lhs) {
       return []
     }
 
-    let left = this.visit(ctx.lhs)
+    const left = this.visit(ctx.lhs)
 
     result.push(left)
     if (!ctx.rhs) {
@@ -188,6 +189,10 @@ export class CelVisitor
       return this.visit(ctx.listExpression)
     }
 
+    if (ctx.funExpression) {
+      return this.visit(ctx.funExpression)
+    }
+
     throw new Error('Atomic expression not recognized')
   }
 
@@ -228,6 +233,16 @@ export class CelVisitor
   ): unknown {
     const index = this.visit(ctx.expr)
     return this.getIdentifier(param, index)
+  }
+
+  funExpression(ctx: FunExpressionCstChildren): unknown {
+    const funIdentifier = ctx.FunIdentifier[0]
+    switch (funIdentifier.image) {
+      case 'size':
+        return ctx.arg ? this.visit(ctx.arg).length : 0
+      default:
+        throw new Error(`Function ${funIdentifier.image} not recognized`)
+    }
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
