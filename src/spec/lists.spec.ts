@@ -127,7 +127,7 @@ describe('lists expressions', () => {
       expect(result).toStrictEqual([[1], [2], [3]])
     })
   })
-  describe('access', () => {
+  describe('index', () => {
     it('should access list by index', () => {
       const expr = 'a[0]'
 
@@ -136,6 +136,43 @@ describe('lists expressions', () => {
       const result = evaluate(expr, context)
 
       expect(result).toBe(1)
+    })
+  })
+  describe('concatenation', () => {
+    it('should concatenate two lists', () => {
+      const expr = '[1, 2] + [3, 4]'
+
+      const result = evaluate(expr)
+
+      expect(result).toStrictEqual([1, 2, 3, 4])
+    })
+    it('should concatenate two lists with the same element', () => {
+      const expr = '[2] + [2]'
+
+      const result = evaluate(expr)
+
+      expect(result).toStrictEqual([2, 2])
+    })
+    it('should return empty list if both elements are empty', () => {
+      const expr = '[] + []'
+
+      const result = evaluate(expr)
+
+      expect(result).toStrictEqual([])
+    })
+    it('should return correct list if left side is empty', () => {
+      const expr = '[] + [1, 2]'
+
+      const result = evaluate(expr)
+
+      expect(result).toStrictEqual([1, 2])
+    })
+    it('should return correct list if right side is empty', () => {
+      const expr = '[1, 2] + []'
+
+      const result = evaluate(expr)
+
+      expect(result).toStrictEqual([1, 2])
     })
   })
 })
