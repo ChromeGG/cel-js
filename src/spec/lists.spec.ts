@@ -1,6 +1,6 @@
 import { expect, describe, it } from 'vitest'
 
-import { CelTypeError, evaluate } from '..'
+import { CelEvaluationError, CelTypeError, evaluate } from '..'
 import { Operations } from '../helper'
 
 describe('lists expressions', () => {
@@ -29,7 +29,9 @@ describe('lists expressions', () => {
       expect(result).toStrictEqual([1, 2, 3])
     })
 
-    
+    // Shall we throw an error if lists have different types?
+    // The original implementation does that if we put literals
+    // but no in case of context usage. So for now we will not throw an error
     it.todo('should throw an error if lists have different types', () => {
       const expr = '[1, true]'
 
@@ -68,15 +70,22 @@ describe('lists expressions', () => {
       expect(result).toBe(2)
     })
 
+    it.todo('should access list by index if literal used', () => {
+      const expr = '[1, 2, 3][1]'
+
+      const context = { a: [1, 2, 3] }
+
+      const result = evaluate(expr, context)
+
+      expect(result).toBe(2)
+    })
+
     it.todo('should throw an error if index out of bounds', () => {
-      const expr = 'a[1]'
+      const expr = '[1][5]'
 
-      const context = { a: [1] }
+      const result = () => evaluate(expr)
 
-      const result = () => evaluate(expr, context)
-
-      // TODO rather no CelTypeError
-      expect(result).toThrow(new CelTypeError(Operations.logicalAnd, true, 1))
+      expect(result).toThrow(new CelEvaluationError(`Index out of bounds: 5`))
     })
   })
 
@@ -123,7 +132,7 @@ describe('lists expressions', () => {
 
     // Shall we throw an error if lists have different types?
     // The original implementation does that if we put literals
-    // but no in case on context. So for now we will not throw an error
+    // but no in case of context usage. So for now we will not throw an error
     it.todo('should throw an error if lists have different types', () => {
       const expr = '[1] + [true]'
 

@@ -140,9 +140,9 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Float) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
-      { ALT: () => this.SUBRULE(this.identifierExpression) },
       { ALT: () => this.SUBRULE(this.listExpression) },
       { ALT: () => this.SUBRULE(this.funExpression) },
+      { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
   })
 }

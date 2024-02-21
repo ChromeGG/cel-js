@@ -216,12 +216,8 @@ const comparisonOperation = (
     return left !== right
   }
 
-  if (operation === Operations.in) {
-    if (isArray(right)) {
-      return right.includes(left)
-    }
-
-    throw new CelTypeError(operation, left, right)
+  if (operation === Operations.in && isArray(right)) {
+    return right.includes(left)
   }
 
   throw new CelTypeError(operation, left, right)
