@@ -96,36 +96,6 @@ export const getCelType = (value: unknown): CelType => {
   throw new Error(`Unknown type: ${typeof value}`)
 }
 
-export const additionOperationDeprecated = (
-  left: unknown,
-  right: unknown,
-  operator: IToken
-) => {
-  if (tokenMatcher(operator, Plus)) {
-    if (isCalculable(left) && isCalculable(right)) {
-      return left + right
-    }
-
-    if (isString(left) && isString(right)) {
-      return left + right
-    }
-
-    if (isArray(left) && isArray(right)) {
-      return left.concat(right)
-    }
-  }
-
-  if (
-    tokenMatcher(operator, Minus) &&
-    isCalculable(left) &&
-    isCalculable(right)
-  ) {
-    return left - right
-  }
-
-  throw new CelTypeError(Operations.addition, left, right)
-}
-
 export enum Operations {
   addition = 'addition',
   subtraction = 'subtraction',

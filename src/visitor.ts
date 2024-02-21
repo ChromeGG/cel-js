@@ -150,6 +150,17 @@ export class CelVisitor
     return result
   }
 
+  funExpression(ctx: FunExpressionCstChildren): unknown {
+    const funIdentifier = ctx.FunIdentifier[0]
+    // eslint-disable-next-line sonarjs/no-small-switch
+    switch (funIdentifier.image) {
+      case 'size':
+        return ctx.arg ? this.visit(ctx.arg).length : 0
+      default:
+        throw new Error(`Function ${funIdentifier.image} not recognized`)
+    }
+  }
+
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Null) {
@@ -233,17 +244,6 @@ export class CelVisitor
   ): unknown {
     const index = this.visit(ctx.expr)
     return this.getIdentifier(param, index)
-  }
-
-  funExpression(ctx: FunExpressionCstChildren): unknown {
-    const funIdentifier = ctx.FunIdentifier[0]
-    // eslint-disable-next-line sonarjs/no-small-switch
-    switch (funIdentifier.image) {
-      case 'size':
-        return ctx.arg ? this.visit(ctx.arg).length : 0
-      default:
-        throw new Error(`Function ${funIdentifier.image} not recognized`)
-    }
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
