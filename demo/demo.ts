@@ -28,6 +28,14 @@ import { evaluate, parse } from 'cel-js'
   const identifierExpr = 'user.role == "admin"'
   const context = { user: { role: 'admin' } }
   console.log(`${identifierExpr} => ${evaluate(identifierExpr, context)}`) // => true
+
+  // Array expressions
+  const arrayExpr = '[1, 2]'
+  console.log(`${arrayExpr} => ${evaluate(arrayExpr)}`) // => [1, 2]
+
+  // Macro expressions
+  const macroExpr = 'size([1, 2])'
+  console.log(`${arrayExpr} => ${evaluate(macroExpr)}`) // => 2
 }
 
 // Parse an expression, useful for validation purposes before persisting
