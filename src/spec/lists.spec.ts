@@ -129,6 +129,7 @@ describe('lists expressions', () => {
     })
   })
 
+  // TODO move it to comparison.spec.ts
   describe('in', () => {
     it('should return false for element in empty list', () => {
       const expr = '1 in []'
@@ -177,31 +178,73 @@ describe('lists expressions', () => {
 
       expect(result).toBe(false)
     })
+
+    it.todo(
+      'should thrown an error if used on something else than list',
+      () => {
+        const expr = '"a" in "asd"'
+
+        const result = () => evaluate(expr)
+
+        // TODO fix type
+        expect(result).toThrow(new CelTypeError(Operations.in, 123, 123))
+      }
+    )
   })
 
+  // TODO create a separate file for this
   describe('size', () => {
-    it('should return 0 for empty list', () => {
-      const expr = 'size([])'
+    describe('list', () => {
+      it('should return 0 for empty list', () => {
+        const expr = 'size([])'
 
-      const result = evaluate(expr)
+        const result = evaluate(expr)
 
-      expect(result).toBe(0)
+        expect(result).toBe(0)
+      })
+
+      it('should return 1 for one element list', () => {
+        const expr = 'size([1])'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(1)
+      })
+
+      it('should return 3 for three element list', () => {
+        const expr = 'size([1, 2, 3])'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(3)
+      })
     })
 
-    it('should return 1 for one element list', () => {
-      const expr = 'size([1])'
+    describe('string', () => {
+      it('should return 0 for empty string', () => {
+        const expr = 'size("")'
 
-      const result = evaluate(expr)
+        const result = evaluate(expr)
 
-      expect(result).toBe(1)
+        expect(result).toBe(0)
+      })
+
+      it('should return length of string', () => {
+        const expr = 'size("abc")'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(3)
+      })
     })
 
-    it('should return 3 for three element list', () => {
-      const expr = 'size([1, 2, 3])'
+    it.todo('should thrown an error if operator is not string or list', () => {
+      const expr = 'size(123)'
 
-      const result = evaluate(expr)
+      const result = () => evaluate(expr)
 
-      expect(result).toBe(3)
+      // TODO fix type
+      expect(result).toThrow(new CelTypeError(Operations.addition, 123, 123))
     })
   })
 })
