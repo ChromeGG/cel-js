@@ -11,7 +11,7 @@ import {
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
   IdentifierIndexExpressionCstChildren,
-  ListsExpressionCstChildren,
+  ListExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
@@ -129,7 +129,7 @@ export class CelVisitor
     return this.visit(ctx.expr)
   }
 
-  listExpression(ctx: ListsExpressionCstChildren) {
+  listExpression(ctx: ListExpressionCstChildren) {
     const result = []
     if (!ctx.lhs) {
       return []
@@ -237,6 +237,7 @@ export class CelVisitor
 
   funExpression(ctx: FunExpressionCstChildren): unknown {
     const funIdentifier = ctx.FunIdentifier[0]
+    // eslint-disable-next-line sonarjs/no-small-switch
     switch (funIdentifier.image) {
       case 'size':
         return ctx.arg ? this.visit(ctx.arg).length : 0

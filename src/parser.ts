@@ -21,7 +21,6 @@ import {
   OpenBracket,
   Comma,
   FunIdentifier,
-  Size,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
