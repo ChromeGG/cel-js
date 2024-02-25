@@ -96,6 +96,7 @@ export type ListExpressionCstChildren = {
   Comma?: IToken[];
   rhs?: ExprCstNode[];
   CloseBracket: IToken[];
+  Index?: ListIndexExpressionCstNode[];
 };
 
 export interface FunExpressionCstNode extends CstNode {
@@ -142,6 +143,17 @@ export type IdentifierIndexExpressionCstChildren = {
   CloseBracket: IToken[];
 };
 
+export interface ListIndexExpressionCstNode extends CstNode {
+  name: "listIndexExpression";
+  children: ListIndexExpressionCstChildren;
+}
+
+export type ListIndexExpressionCstChildren = {
+  OpenBracket: IToken[];
+  Index: IToken[];
+  CloseBracket: IToken[];
+};
+
 export interface AtomicExpressionCstNode extends CstNode {
   name: "atomicExpression";
   children: AtomicExpressionCstChildren;
@@ -169,8 +181,7 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
-  listExpression(children: ListExpressionCstChildren, param?: IN): OUT;
-  funExpression(children: FunExpressionCstChildren, param?: IN): OUT;
+  listIndexExpression(children: ListIndexExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
   identifierIndexExpression(children: IdentifierIndexExpressionCstChildren, param?: IN): OUT;

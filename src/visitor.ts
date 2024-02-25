@@ -12,6 +12,7 @@ import {
   IdentifierExpressionCstChildren,
   IdentifierIndexExpressionCstChildren,
   ListExpressionCstChildren,
+  ListIndexExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
@@ -32,6 +33,12 @@ export class CelVisitor
     super()
     this.context = context || {}
     this.validateVisitor()
+  }
+
+  listIndexExpression(children: ListIndexExpressionCstChildren, param?: void | undefined): unknown {
+    const index = parseInt(children.Index[0].image)
+
+    return index
   }
 
   private context: Record<string, unknown>
@@ -147,7 +154,13 @@ export class CelVisitor
       result.push(right)
     }
 
-    return result
+    if(!ctx.Index) {
+      return result
+    }
+
+    const index = this.visit(ctx.Index)
+
+    return result[index]
   }
 
   funExpression(ctx: FunExpressionCstChildren): unknown {

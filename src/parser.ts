@@ -96,6 +96,15 @@ export class CelParser extends CstParser {
       })
     })
     this.CONSUME(CloseBracket)
+    this.OPTION2(() => {
+      this.SUBRULE(this.listIndexExpression, { LABEL: 'Index' })
+    })
+  })
+
+  private listIndexExpression = this.RULE('listIndexExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.CONSUME(Integer, { LABEL: 'Index' })
+    this.CONSUME(CloseBracket)
   })
 
   private funExpression = this.RULE('funExpression', () => {

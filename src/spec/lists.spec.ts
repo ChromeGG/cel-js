@@ -70,7 +70,7 @@ describe('lists expressions', () => {
       expect(result).toBe(2)
     })
 
-    it.todo('should access list by index if literal used', () => {
+    it('should access list by index if literal used', () => {
       const expr = '[1, 2, 3][1]'
 
       const context = { a: [1, 2, 3] }
