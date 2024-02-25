@@ -20,6 +20,7 @@ import {
 } from './cst-definitions.js'
 
 import { getPosition, getResult, getUnaryResult } from './helper.js'
+import { CelEvaluationError } from './errors/CelEvaluationError.js'
 
 const parserInstance = new CelParser()
 
@@ -145,13 +146,11 @@ export class CelVisitor
     const left = this.visit(ctx.lhs)
 
     result.push(left)
-    if (!ctx.rhs) {
-      return result
-    }
-
-    for (const rhsOperand of ctx.rhs) {
-      const right = this.visit(rhsOperand)
-      result.push(right)
+    if (ctx.rhs) {
+      for (const rhsOperand of ctx.rhs) {
+        const right = this.visit(rhsOperand)
+        result.push(right)
+      }
     }
 
     if(!ctx.Index) {
@@ -159,6 +158,10 @@ export class CelVisitor
     }
 
     const index = this.visit(ctx.Index)
+
+    if (index < 0 || index >= result.length) {
+      throw new CelEvaluationError(`Index out of bounds: ${index}`)
+    }
 
     return result[index]
   }

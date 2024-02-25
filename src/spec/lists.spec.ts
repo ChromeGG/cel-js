@@ -80,7 +80,7 @@ describe('lists expressions', () => {
       expect(result).toBe(2)
     })
 
-    it.todo('should throw an error if index out of bounds', () => {
+    it('should throw an error if index out of bounds', () => {
       const expr = '[1][5]'
 
       const result = () => evaluate(expr)
