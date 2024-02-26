@@ -88,6 +88,30 @@ describe('lists expressions', () => {
       expect(result).toBe(7)
     })
 
+    it.todo('should access list using the zero_based_double', () => {
+      const expr = "[7, 8, 9][dyn(0.0)]"
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(7)
+    })
+
+    it.todo('should throw error on zero_based_double_error', () => {
+      const expr = "[7, 8, 9][dyn(0.1)]"
+
+      const result = () => evaluate(expr)
+
+      expect(result).toThrow(new CelEvaluationError('Index out of bounds: 0.1'))
+    })
+
+    it.todo('should access list using zero_based_uint', () => {
+      const expr = "[7, 8, 9][dyn(0u)]"
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(7)
+    })
+
     it('should access list a singleton', () => {
       const expr = '["foo"][0]'
 
