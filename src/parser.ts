@@ -20,7 +20,7 @@ import {
   CloseBracket,
   OpenBracket,
   Comma,
-  FunIdentifier,
+  MacrosIdentifier,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -107,8 +107,8 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseBracket)
   })
 
-  private funExpression = this.RULE('funExpression', () => {
-    this.CONSUME(FunIdentifier)
+  private macrosExpression = this.RULE('macrosExpression', () => {
+    this.CONSUME(MacrosIdentifier)
     this.CONSUME(OpenParenthesis)
     this.OPTION(() => {
       this.SUBRULE(this.expr, { LABEL: 'arg' })
@@ -150,7 +150,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.SUBRULE(this.listExpression) },
-      { ALT: () => this.SUBRULE(this.funExpression) },
+      { ALT: () => this.SUBRULE(this.macrosExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
   })

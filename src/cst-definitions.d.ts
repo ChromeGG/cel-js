@@ -99,13 +99,13 @@ export type ListExpressionCstChildren = {
   Index?: ListIndexExpressionCstNode[];
 };
 
-export interface FunExpressionCstNode extends CstNode {
-  name: "funExpression";
-  children: FunExpressionCstChildren;
+export interface MacrosExpressionCstNode extends CstNode {
+  name: "macrosExpression";
+  children: MacrosExpressionCstChildren;
 }
 
-export type FunExpressionCstChildren = {
-  FunIdentifier: IToken[];
+export type MacrosExpressionCstChildren = {
+  MacrosIdentifier: IToken[];
   OpenParenthesis: IToken[];
   arg?: ExprCstNode[];
   CloseParenthesis: IToken[];
@@ -169,7 +169,7 @@ export type AtomicExpressionCstChildren = {
   ReservedIdentifiers?: IToken[];
   identifierExpression?: IdentifierExpressionCstNode[];
   listExpression?: ListExpressionCstNode[];
-  funExpression?: FunExpressionCstNode[];
+  macrosExpression?: MacrosExpressionCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {

@@ -6,7 +6,7 @@ import {
   ConditionalAndCstChildren,
   ConditionalOrCstChildren,
   ExprCstChildren,
-  FunExpressionCstChildren,
+  MacrosExpressionCstChildren,
   ICstNodeVisitor,
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
@@ -166,14 +166,14 @@ export class CelVisitor
     return result[index]
   }
 
-  funExpression(ctx: FunExpressionCstChildren): unknown {
-    const funIdentifier = ctx.FunIdentifier[0]
+  macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
+    const macrosIdentifier = ctx.MacrosIdentifier[0]
     // eslint-disable-next-line sonarjs/no-small-switch
-    switch (funIdentifier.image) {
+    switch (macrosIdentifier.image) {
       case 'size':
         return ctx.arg ? this.visit(ctx.arg).length : 0
       default:
-        throw new Error(`Function ${funIdentifier.image} not recognized`)
+        throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
     }
   }
 
@@ -216,8 +216,8 @@ export class CelVisitor
       return this.visit(ctx.listExpression)
     }
 
-    if (ctx.funExpression) {
-      return this.visit(ctx.funExpression)
+    if (ctx.macrosExpression) {
+      return this.visit(ctx.macrosExpression)
     }
 
     throw new Error('Atomic expression not recognized')
