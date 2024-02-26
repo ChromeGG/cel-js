@@ -20,7 +20,7 @@ import { CelTypeError } from './errors/CelTypeError.js'
 import { CelEvaluationError } from './errors/CelEvaluationError.js'
 import {
   IdentifierDotExpressionCstNode,
-  IdentifierIndexExpressionCstNode,
+  IndexExpressionCstNode,
 } from './cst-definitions.js'
 
 export enum CelType {
@@ -62,11 +62,11 @@ export const getCelType = (value: unknown): CelType => {
   }
 
   if (typeof value === 'number') {
-    if (Number.isInteger(value) && value > 0) {
+    if (Number.isInteger(value) && value >= 0) {
       return CelType.uint
     }
 
-    if (Number.isInteger(value) && value < 0) {
+    if (Number.isInteger(value) && value <= 0) {
       return CelType.int
     }
 
@@ -291,7 +291,7 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
 }
 
 export const getPosition = (
-  ctx: IdentifierDotExpressionCstNode | IdentifierIndexExpressionCstNode
+  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode
 ) => {
   if (ctx.name === 'identifierDotExpression') {
     return ctx.children.Dot[0].startOffset

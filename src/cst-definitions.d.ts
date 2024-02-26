@@ -132,12 +132,12 @@ export type IdentifierDotExpressionCstChildren = {
   Identifier: IToken[];
 };
 
-export interface IdentifierIndexExpressionCstNode extends CstNode {
+export interface IndexExpressionCstNode extends CstNode {
   name: "identifierIndexExpression";
-  children: IdentifierIndexExpressionCstChildren;
+  children: IndexExpressionCstChildren;
 }
 
-export type IdentifierIndexExpressionCstChildren = {
+export type IndexExpressionCstChildren = {
   OpenBracket: IToken[];
   expr: ExprCstNode[];
   CloseBracket: IToken[];
@@ -184,6 +184,6 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   listIndexExpression(children: ListIndexExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
-  identifierIndexExpression(children: IdentifierIndexExpressionCstChildren, param?: IN): OUT;
+  indexExpression(children: IndexExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

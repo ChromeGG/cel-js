@@ -88,24 +88,24 @@ describe('lists expressions', () => {
       expect(result).toBe(7)
     })
 
-    it.todo('should access list using the zero_based_double', () => {
-      const expr = "[7, 8, 9][dyn(0.0)]"
+    it('should access first element if index 0.0', () => {
+      const expr = "[7, 8, 9][0.0]"
 
       const result = evaluate(expr)
 
       expect(result).toBe(7)
     })
 
-    it.todo('should throw error on zero_based_double_error', () => {
-      const expr = "[7, 8, 9][dyn(0.1)]"
+    it('should throw error on index 0.1', () => {
+      const expr = "[7, 8, 9][0.1]"
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError('Index out of bounds: 0.1'))
+      expect(result).toThrow(new CelEvaluationError('invalid_argument: 0.1'))
     })
 
-    it.todo('should access list using zero_based_uint', () => {
-      const expr = "[7, 8, 9][dyn(0u)]"
+    it.todo('should access first element using 0u', () => { // TODO: Implement zero_based_uint
+      const expr = "[7, 8, 9][0u]"
 
       const result = evaluate(expr)
 

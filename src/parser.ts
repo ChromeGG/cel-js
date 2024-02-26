@@ -97,14 +97,8 @@ export class CelParser extends CstParser {
     })
     this.CONSUME(CloseBracket)
     this.OPTION2(() => {
-      this.SUBRULE(this.listIndexExpression, { LABEL: 'Index' })
+      this.SUBRULE(this.indexExpression, { LABEL: 'Index' })
     })
-  })
-
-  private listIndexExpression = this.RULE('listIndexExpression', () => {
-    this.CONSUME(OpenBracket)
-    this.CONSUME(Integer, { LABEL: 'Index' })
-    this.CONSUME(CloseBracket)
   })
 
   private macrosExpression = this.RULE('macrosExpression', () => {
@@ -121,7 +115,7 @@ export class CelParser extends CstParser {
     this.MANY(() => {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
-        { ALT: () => this.SUBRULE(this.identifierIndexExpression) },
+        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
       ])
     })  
   })
@@ -131,8 +125,8 @@ export class CelParser extends CstParser {
     this.CONSUME(Identifier)
   })
 
-  private identifierIndexExpression = this.RULE(
-    'identifierIndexExpression',
+  private indexExpression = this.RULE(
+    'indexExpression',
     () => {
       this.CONSUME(OpenBracket)
       this.SUBRULE(this.expr)

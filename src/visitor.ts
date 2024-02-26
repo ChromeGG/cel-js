@@ -10,7 +10,7 @@ import {
   ICstNodeVisitor,
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
-  IdentifierIndexExpressionCstChildren,
+  IndexExpressionCstChildren,
   ListExpressionCstChildren,
   ListIndexExpressionCstChildren,
   MultiplicationCstChildren,
@@ -19,7 +19,7 @@ import {
   UnaryExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { getPosition, getResult, getUnaryResult } from './helper.js'
+import { CelType, getCelType, getPosition, getResult, getUnaryResult } from './helper.js'
 import { CelEvaluationError  } from './index.js'
 
 const parserInstance = new CelParser()
@@ -159,6 +159,11 @@ export class CelVisitor
 
     const index = this.visit(ctx.Index)
 
+    const indexType = getCelType(index)
+    if (indexType != CelType.int && indexType != CelType.uint ) {
+      throw new CelEvaluationError(`invalid_argument: ${index}`)
+    }
+
     if (index < 0 || index >= result.length) {
       throw new CelEvaluationError(`Index out of bounds: ${index}`)
     }
@@ -254,12 +259,10 @@ export class CelVisitor
     return this.getIdentifier(param, identifierName)
   }
 
-  identifierIndexExpression(
-    ctx: IdentifierIndexExpressionCstChildren,
-    param: unknown
+  indexExpression(
+    ctx: IndexExpressionCstChildren
   ): unknown {
-    const index = this.visit(ctx.expr)
-    return this.getIdentifier(param, index)
+    return this.visit(ctx.expr)
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
