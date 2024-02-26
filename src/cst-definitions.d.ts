@@ -96,7 +96,7 @@ export type ListExpressionCstChildren = {
   Comma?: IToken[];
   rhs?: ExprCstNode[];
   CloseBracket: IToken[];
-  Index?: ListIndexExpressionCstNode[];
+  Index?: IndexExpressionCstNode[];
 };
 
 export interface MacrosExpressionCstNode extends CstNode {
@@ -119,7 +119,7 @@ export interface IdentifierExpressionCstNode extends CstNode {
 export type IdentifierExpressionCstChildren = {
   Identifier: IToken[];
   identifierDotExpression?: IdentifierDotExpressionCstNode[];
-  identifierIndexExpression?: IdentifierIndexExpressionCstNode[];
+  identifierIndexExpression?: IndexExpressionCstNode[];
 };
 
 export interface IdentifierDotExpressionCstNode extends CstNode {
@@ -133,24 +133,13 @@ export type IdentifierDotExpressionCstChildren = {
 };
 
 export interface IndexExpressionCstNode extends CstNode {
-  name: "identifierIndexExpression";
+  name: "indexExpression";
   children: IndexExpressionCstChildren;
 }
 
 export type IndexExpressionCstChildren = {
   OpenBracket: IToken[];
   expr: ExprCstNode[];
-  CloseBracket: IToken[];
-};
-
-export interface ListIndexExpressionCstNode extends CstNode {
-  name: "listIndexExpression";
-  children: ListIndexExpressionCstChildren;
-}
-
-export type ListIndexExpressionCstChildren = {
-  OpenBracket: IToken[];
-  Index: IToken[];
   CloseBracket: IToken[];
 };
 
@@ -167,9 +156,9 @@ export type AtomicExpressionCstChildren = {
   Float?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
-  identifierExpression?: IdentifierExpressionCstNode[];
   listExpression?: ListExpressionCstNode[];
   macrosExpression?: MacrosExpressionCstNode[];
+  identifierExpression?: IdentifierExpressionCstNode[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
@@ -181,7 +170,8 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
-  listIndexExpression(children: ListIndexExpressionCstChildren, param?: IN): OUT;
+  listExpression(children: ListExpressionCstChildren, param?: IN): OUT;
+  macrosExpression(children: MacrosExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
   indexExpression(children: IndexExpressionCstChildren, param?: IN): OUT;

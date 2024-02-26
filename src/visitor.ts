@@ -12,7 +12,6 @@ import {
   IdentifierExpressionCstChildren,
   IndexExpressionCstChildren,
   ListExpressionCstChildren,
-  ListIndexExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
@@ -34,10 +33,6 @@ export class CelVisitor
     super()
     this.context = context || {}
     this.validateVisitor()
-  }
-
-  listIndexExpression(children: ListIndexExpressionCstChildren): unknown {
-    return parseInt(children.Index[0].image)
   }
 
   private context: Record<string, unknown>
