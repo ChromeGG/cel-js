@@ -4,6 +4,7 @@ import {
   Equals,
   GreaterOrEqualThan,
   GreaterThan,
+  In,
   LessOrEqualThan,
   LessThan,
   LogicalAndOperator,
@@ -19,7 +20,7 @@ import { CelTypeError } from './errors/CelTypeError.js'
 import { CelEvaluationError } from './errors/CelEvaluationError.js'
 import {
   IdentifierDotExpressionCstNode,
-  IdentifierIndexExpressionCstNode,
+  IndexExpressionCstNode,
 } from './cst-definitions.js'
 
 export enum CelType {
@@ -61,11 +62,11 @@ export const getCelType = (value: unknown): CelType => {
   }
 
   if (typeof value === 'number') {
-    if (Number.isInteger(value) && value > 0) {
+    if (Number.isInteger(value) && value >= 0) {
       return CelType.uint
     }
 
-    if (Number.isInteger(value) && value < 0) {
+    if (Number.isInteger(value) && value <= 0) {
       return CelType.int
     }
 
@@ -95,36 +96,6 @@ export const getCelType = (value: unknown): CelType => {
   throw new Error(`Unknown type: ${typeof value}`)
 }
 
-export const additionOperationDeprecated = (
-  left: unknown,
-  right: unknown,
-  operator: IToken
-) => {
-  if (tokenMatcher(operator, Plus)) {
-    if (isCalculable(left) && isCalculable(right)) {
-      return left + right
-    }
-
-    if (isString(left) && isString(right)) {
-      return left + right
-    }
-
-    if (isArray(left) && isArray(right)) {
-      return left.concat(right)
-    }
-  }
-
-  if (
-    tokenMatcher(operator, Minus) &&
-    isCalculable(left) &&
-    isCalculable(right)
-  ) {
-    return left - right
-  }
-
-  throw new CelTypeError(Operations.addition, left, right)
-}
-
 export enum Operations {
   addition = 'addition',
   subtraction = 'subtraction',
@@ -139,6 +110,7 @@ export enum Operations {
   greaterOrEqualThan = 'greaterOrEqualThan',
   equals = 'equals',
   notEquals = 'notEquals',
+  in = 'in',
 }
 
 const additionOperation = (left: unknown, right: unknown) => {
@@ -151,6 +123,13 @@ const additionOperation = (left: unknown, right: unknown) => {
   }
 
   if (isArray(left) && isArray(right)) {
+    if (
+      left.length !== 0 &&
+      right.length !== 0 &&
+      typeof left[0] !== typeof right[0]
+    ) {
+      throw new CelTypeError(Operations.addition, left[0], right[0])
+    }
     return [...left, ...right]
   }
 
@@ -244,6 +223,10 @@ const comparisonOperation = (
     return left !== right
   }
 
+  if (operation === Operations.in && isArray(right)) {
+    return right.includes(left)
+  }
+
   throw new CelTypeError(operation, left, right)
 }
 
@@ -275,6 +258,8 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
       return comparisonOperation(Operations.equals, left, right)
     case tokenMatcher(operator, NotEquals):
       return comparisonOperation(Operations.notEquals, left, right)
+    case tokenMatcher(operator, In):
+      return comparisonOperation(Operations.in, left, right)
     default:
       throw new Error('Operator not recognized')
   }
@@ -308,7 +293,7 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
 }
 
 export const getPosition = (
-  ctx: IdentifierDotExpressionCstNode | IdentifierIndexExpressionCstNode
+  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode
 ) => {
   if (ctx.name === 'identifierDotExpression') {
     return ctx.children.Dot[0].startOffset

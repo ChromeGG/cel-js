@@ -22,6 +22,8 @@ export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
 export const Dot = createToken({ name: 'Dot', pattern: /\./ })
 
+export const Comma = createToken({ name: 'Comma', pattern: /,/ })
+
 export const Float = createToken({
   name: 'Float',
   pattern: /-?\d+\.\d+/,
@@ -142,6 +144,12 @@ export const LessThan = createToken({
   categories: ComparisonOperator,
 })
 
+export const In = createToken({
+  name: 'In',
+  pattern: /in/,
+  categories: ComparisonOperator,
+})
+
 export const MultiplicationOperator = createToken({
   name: 'MultiplicationOperator',
   pattern: Lexer.NA,
@@ -182,6 +190,17 @@ export const Minus = createToken({
   categories: [AdditionOperator, UnaryOperator],
 })
 
+export const MacrosIdentifier = createToken({
+  name: 'MacrosIdentifier',
+  pattern: Lexer.NA
+})
+
+export const Size = createToken({
+  name: 'Size',
+  pattern: /size/,
+  categories: MacrosIdentifier
+})
+
 export const Identifier = createToken({
   name: 'Identifier',
   pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -196,6 +215,7 @@ export const allTokens = [
   OpenBracket,
   CloseBracket,
   Dot,
+  Comma,
 
   Float,
   Integer,
@@ -215,6 +235,10 @@ export const allTokens = [
   LessOrEqualThan,
   GreaterThan,
   LessThan,
+  In,
+
+  MacrosIdentifier,
+  Size,
 
   UnaryOperator,
   LogicalNotOperator,

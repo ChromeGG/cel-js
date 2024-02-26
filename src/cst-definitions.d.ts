@@ -85,6 +85,32 @@ export type ParenthesisExpressionCstChildren = {
   close: IToken[];
 };
 
+export interface ListExpressionCstNode extends CstNode {
+  name: "listExpression";
+  children: ListExpressionCstChildren;
+}
+
+export type ListExpressionCstChildren = {
+  OpenBracket: IToken[];
+  lhs?: ExprCstNode[];
+  Comma?: IToken[];
+  rhs?: ExprCstNode[];
+  CloseBracket: IToken[];
+  Index?: IndexExpressionCstNode[];
+};
+
+export interface MacrosExpressionCstNode extends CstNode {
+  name: "macrosExpression";
+  children: MacrosExpressionCstChildren;
+}
+
+export type MacrosExpressionCstChildren = {
+  MacrosIdentifier: IToken[];
+  OpenParenthesis: IToken[];
+  arg?: ExprCstNode[];
+  CloseParenthesis: IToken[];
+};
+
 export interface IdentifierExpressionCstNode extends CstNode {
   name: "identifierExpression";
   children: IdentifierExpressionCstChildren;
@@ -93,7 +119,7 @@ export interface IdentifierExpressionCstNode extends CstNode {
 export type IdentifierExpressionCstChildren = {
   Identifier: IToken[];
   identifierDotExpression?: IdentifierDotExpressionCstNode[];
-  identifierIndexExpression?: IdentifierIndexExpressionCstNode[];
+  identifierIndexExpression?: IndexExpressionCstNode[];
 };
 
 export interface IdentifierDotExpressionCstNode extends CstNode {
@@ -106,12 +132,12 @@ export type IdentifierDotExpressionCstChildren = {
   Identifier: IToken[];
 };
 
-export interface IdentifierIndexExpressionCstNode extends CstNode {
-  name: "identifierIndexExpression";
-  children: IdentifierIndexExpressionCstChildren;
+export interface IndexExpressionCstNode extends CstNode {
+  name: "indexExpression";
+  children: IndexExpressionCstChildren;
 }
 
-export type IdentifierIndexExpressionCstChildren = {
+export type IndexExpressionCstChildren = {
   OpenBracket: IToken[];
   expr: ExprCstNode[];
   CloseBracket: IToken[];
@@ -130,6 +156,8 @@ export type AtomicExpressionCstChildren = {
   Float?: IToken[];
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
+  listExpression?: ListExpressionCstNode[];
+  macrosExpression?: MacrosExpressionCstNode[];
   identifierExpression?: IdentifierExpressionCstNode[];
 };
 
@@ -142,8 +170,10 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
+  listExpression(children: ListExpressionCstChildren, param?: IN): OUT;
+  macrosExpression(children: MacrosExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
-  identifierIndexExpression(children: IdentifierIndexExpressionCstChildren, param?: IN): OUT;
+  indexExpression(children: IndexExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

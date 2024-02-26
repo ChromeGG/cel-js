@@ -6,17 +6,20 @@ import {
   ConditionalAndCstChildren,
   ConditionalOrCstChildren,
   ExprCstChildren,
+  MacrosExpressionCstChildren,
   ICstNodeVisitor,
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
-  IdentifierIndexExpressionCstChildren,
+  IndexExpressionCstChildren,
+  ListExpressionCstChildren,
   MultiplicationCstChildren,
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
   UnaryExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { getPosition, getResult, getUnaryResult } from './helper.js'
+import { CelType, getCelType, getPosition, getResult, getUnaryResult } from './helper.js'
+import { CelEvaluationError  } from './index.js'
 
 const parserInstance = new CelParser()
 
@@ -127,6 +130,51 @@ export class CelVisitor
     return this.visit(ctx.expr)
   }
 
+  listExpression(ctx: ListExpressionCstChildren) {
+    const result = []
+    if (!ctx.lhs) {
+      return []
+    }
+
+    const left = this.visit(ctx.lhs)
+
+    result.push(left)
+    if (ctx.rhs) {
+      for (const rhsOperand of ctx.rhs) {
+        const right = this.visit(rhsOperand)
+        result.push(right)
+      }
+    }
+
+    if(!ctx.Index) {
+      return result
+    }
+
+    const index = this.visit(ctx.Index)
+
+    const indexType = getCelType(index)
+    if (indexType != CelType.int && indexType != CelType.uint ) {
+      throw new CelEvaluationError(`invalid_argument: ${index}`)
+    }
+
+    if (index < 0 || index >= result.length) {
+      throw new CelEvaluationError(`Index out of bounds: ${index}`)
+    }
+
+    return result[index]
+  }
+
+  macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
+    const macrosIdentifier = ctx.MacrosIdentifier[0]
+    // eslint-disable-next-line sonarjs/no-small-switch
+    switch (macrosIdentifier.image) {
+      case 'size':
+        return ctx.arg ? this.visit(ctx.arg).length : 0
+      default:
+        throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
+    }
+  }
+
   // these two visitor methods will return a string.
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Null) {
@@ -160,6 +208,14 @@ export class CelVisitor
     if (ctx.identifierExpression) {
       return this.visit(ctx.identifierExpression)
       // return this.identifier(ctx)
+    }
+
+    if (ctx.listExpression) {
+      return this.visit(ctx.listExpression)
+    }
+
+    if (ctx.macrosExpression) {
+      return this.visit(ctx.macrosExpression)
     }
 
     throw new Error('Atomic expression not recognized')
@@ -196,12 +252,10 @@ export class CelVisitor
     return this.getIdentifier(param, identifierName)
   }
 
-  identifierIndexExpression(
-    ctx: IdentifierIndexExpressionCstChildren,
-    param: unknown
+  indexExpression(
+    ctx: IndexExpressionCstChildren
   ): unknown {
-    const index = this.visit(ctx.expr)
-    return this.getIdentifier(param, index)
+    return this.visit(ctx.expr)
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {

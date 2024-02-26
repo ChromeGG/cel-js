@@ -19,6 +19,8 @@ import {
   Dot,
   CloseBracket,
   OpenBracket,
+  Comma,
+  MacrosIdentifier,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -84,12 +86,36 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseParenthesis, { LABEL: 'close' })
   })
 
+  private listExpression = this.RULE('listExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.OPTION(() => {
+      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+      this.MANY(() => {
+        this.CONSUME(Comma)
+        this.SUBRULE2(this.expr, { LABEL: 'rhs' })
+      })
+    })
+    this.CONSUME(CloseBracket)
+    this.OPTION2(() => {
+      this.SUBRULE(this.indexExpression, { LABEL: 'Index' })
+    })
+  })
+
+  private macrosExpression = this.RULE('macrosExpression', () => {
+    this.CONSUME(MacrosIdentifier)
+    this.CONSUME(OpenParenthesis)
+    this.OPTION(() => {
+      this.SUBRULE(this.expr, { LABEL: 'arg' })
+    })
+    this.CONSUME(CloseParenthesis)
+  })
+
   private identifierExpression = this.RULE('identifierExpression', () => {
     this.CONSUME(Identifier)
     this.MANY(() => {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
-        { ALT: () => this.SUBRULE(this.identifierIndexExpression) },
+        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
       ])
     })  
   })
@@ -99,8 +125,8 @@ export class CelParser extends CstParser {
     this.CONSUME(Identifier)
   })
 
-  private identifierIndexExpression = this.RULE(
-    'identifierIndexExpression',
+  private indexExpression = this.RULE(
+    'indexExpression',
     () => {
       this.CONSUME(OpenBracket)
       this.SUBRULE(this.expr)
@@ -117,6 +143,8 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Float) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
+      { ALT: () => this.SUBRULE(this.listExpression) },
+      { ALT: () => this.SUBRULE(this.macrosExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
   })
