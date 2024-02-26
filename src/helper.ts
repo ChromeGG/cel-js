@@ -123,10 +123,12 @@ const additionOperation = (left: unknown, right: unknown) => {
   }
 
   if (isArray(left) && isArray(right)) {
-    if (left.length !== 0 && right.length !== 0) {
-      if (typeof left[0] !=  typeof right[0]) {
-        throw new CelTypeError(Operations.addition, left[0], right[0])
-      }
+    if (
+      left.length !== 0 &&
+      right.length !== 0 &&
+      typeof left[0] !== typeof right[0]
+    ) {
+      throw new CelTypeError(Operations.addition, left[0], right[0])
     }
     return [...left, ...right]
   }

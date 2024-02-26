@@ -187,9 +187,6 @@ describe('lists expressions', () => {
       expect(result).toStrictEqual([1, 2])
     })
 
-    // Shall we throw an error if lists have different types?
-    // The original implementation does that if we put literals
-    // but no in case of context usage. So for now we will not throw an error
     it('should throw an error if lists have different types', () => {
       const expr = '[1] + [true]'
 

@@ -36,10 +36,8 @@ export class CelVisitor
     this.validateVisitor()
   }
 
-  listIndexExpression(children: ListIndexExpressionCstChildren, param?: void | undefined): unknown {
-    const index = parseInt(children.Index[0].image)
-
-    return index
+  listIndexExpression(children: ListIndexExpressionCstChildren): unknown {
+    return parseInt(children.Index[0].image)
   }
 
   private context: Record<string, unknown>
