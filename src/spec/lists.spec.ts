@@ -80,6 +80,39 @@ describe('lists expressions', () => {
       expect(result).toBe(2)
     })
 
+    it('should access list on zero index', () => {
+      const expr = '[7, 8, 9][0]'
+
+      const result = evaluate(expr)
+      
+      expect(result).toBe(7)
+    })
+
+    it('should access list a singleton', () => {
+      const expr = '["foo"][0]'
+
+      const result = evaluate(expr)
+      
+      expect(result).toBe("foo")
+    })
+
+    it('should access list on the last index', () => {
+      const expr = '[7, 8, 9][2]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(9)
+    })
+
+    it('should access the list on middle values', () => {
+      const expr = '[0, 1, 1, 2, 3, 5, 8, 13][4]'
+
+      const result = evaluate(expr)
+
+      expect(result).toBe(3)
+    
+    })
+
     it('should throw an error if index out of bounds', () => {
       const expr = '[1][5]'
 
