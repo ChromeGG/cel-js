@@ -20,7 +20,7 @@ import {
 } from './cst-definitions.js'
 
 import { getPosition, getResult, getUnaryResult } from './helper.js'
-import { CelEvaluationError } from './errors/CelEvaluationError.js'
+import { CelEvaluationError  } from './index.js'
 
 const parserInstance = new CelParser()
 

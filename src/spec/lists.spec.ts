@@ -133,12 +133,12 @@ describe('lists expressions', () => {
     // Shall we throw an error if lists have different types?
     // The original implementation does that if we put literals
     // but no in case of context usage. So for now we will not throw an error
-    it.todo('should throw an error if lists have different types', () => {
+    it('should throw an error if lists have different types', () => {
       const expr = '[1] + [true]'
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelTypeError(Operations.logicalAnd, true, 1))
+      expect(result).toThrow(new CelTypeError(Operations.addition, 1, true))
     })
   })
 })
