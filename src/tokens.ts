@@ -20,6 +20,10 @@ export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
 
 export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
+export const OpenCurlyBracket = createToken({ name: 'OpenCurlyBracket', pattern: /{/ })
+
+export const CloseCurlyBracket = createToken({ name: 'CloseCurlyBracket', pattern: /}/ })
+
 export const Dot = createToken({ name: 'Dot', pattern: /\./ })
 
 export const Comma = createToken({ name: 'Comma', pattern: /,/ })
@@ -214,6 +218,8 @@ export const allTokens = [
   OpenParenthesis,
   OpenBracket,
   CloseBracket,
+  OpenCurlyBracket,
+  CloseCurlyBracket,
   Dot,
   Comma,
 

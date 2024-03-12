@@ -99,6 +99,17 @@ export type ListExpressionCstChildren = {
   Index?: IndexExpressionCstNode[];
 };
 
+export interface MapExpressionCstNode extends CstNode {
+  name: "mapExpression";
+  children: MapExpressionCstChildren;
+}
+
+export type MapExpressionCstChildren = {
+  OpenCurlyBracket: IToken[];
+  lhs?: ExprCstNode[];
+  CloseCurlyBracket: IToken[];
+};
+
 export interface MacrosExpressionCstNode extends CstNode {
   name: "macrosExpression";
   children: MacrosExpressionCstChildren;
@@ -157,6 +168,7 @@ export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   listExpression?: ListExpressionCstNode[];
+  mapExpression?: MapExpressionCstNode[];
   macrosExpression?: MacrosExpressionCstNode[];
   identifierExpression?: IdentifierExpressionCstNode[];
 };

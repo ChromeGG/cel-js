@@ -164,6 +164,14 @@ export class CelVisitor
     return result[index]
   }
 
+  mapExpression(ctx: ListExpressionCstChildren) {
+    const result = {}
+    if (!ctx.lhs) {
+      return {}
+    }
+    return result
+  }
+
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
     const macrosIdentifier = ctx.MacrosIdentifier[0]
     // eslint-disable-next-line sonarjs/no-small-switch
@@ -212,6 +220,10 @@ export class CelVisitor
 
     if (ctx.listExpression) {
       return this.visit(ctx.listExpression)
+    }
+
+    if (ctx.mapExpression) {
+      return this.visit(ctx.mapExpression)
     }
 
     if (ctx.macrosExpression) {
