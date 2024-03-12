@@ -90,5 +90,16 @@ describe('maps expressions', () => {
         })
        })
     })
+
+    describe('addition', () => {
+        it('should add to values accessed by index', () => {
+            const expr = '{"a": 1, "b": 2}["a"] + {"a": 1, "b": 2}["b"]'
+            
+            const result = evaluate(expr)
+
+            expect(result).toStrictEqual(3)
+
+        })
+    })
     
 })
