@@ -27,6 +27,20 @@ const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
+const size = (arr: unknown) => {
+  switch (getCelType(arr)) {
+    case CelType.list:
+    case CelType.string:
+      // @ts-ignore
+      return arr.length
+    case CelType.map:
+      // @ts-ignore
+      return Object.keys(arr).length
+    default:
+      throw new CelEvaluationError(`invalid_argument: ${arr}`)
+  } 
+}
+
 export class CelVisitor
   extends BaseCelVisitor
   implements ICstNodeVisitor<void, unknown>
@@ -219,7 +233,7 @@ export class CelVisitor
     // eslint-disable-next-line sonarjs/no-small-switch
     switch (macrosIdentifier.image) {
       case 'size':
-        return ctx.arg ? this.visit(ctx.arg).length : 0
+        return ctx.arg ? size(this.visit(ctx.arg)) : 0
       default:
         throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
     }
