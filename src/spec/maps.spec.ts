@@ -119,4 +119,22 @@ describe('maps expressions', () => {
 
         })
     })
+    describe('in', () => {
+        it('should find a key in the map', () => {
+            const expr = '"c" in {"c": 1, "a": 1, "b": 2}'
+            
+            const result = evaluate(expr)
+
+            expect(result).toStrictEqual(true)
+
+        })
+        it('should not find a key in the map', () => {
+            const expr = '"z" in {"c": 1, "a": 1, "b": 2}'
+            
+            const result = evaluate(expr)
+
+            expect(result).toStrictEqual(false)
+
+        })
+    })
 })

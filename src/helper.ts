@@ -235,8 +235,14 @@ const comparisonOperation = (
     return left !== right
   }
 
-  if (operation === Operations.in && isArray(right)) {
-    return right.includes(left)
+
+  if (operation === Operations.in) {
+    if(isArray(right)) {
+      return right.includes(left)
+    }
+    if(isMap(right)) {
+      return Object.keys(right).includes(left as string)
+    }
   }
 
   throw new CelTypeError(operation, left, right)
