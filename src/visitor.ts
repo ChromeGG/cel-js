@@ -167,7 +167,7 @@ export class CelVisitor
   }
 
   mapExpression(ctx: MapExpressionCstChildren) {
-    const result: {[key: string]: any} = {}
+    const mapExpression: {[key: string]: any} = {}
     if (!ctx.keyValues) {
       return {}
     }
@@ -183,8 +183,28 @@ export class CelVisitor
       if (valueType !== getCelType(value)) {
         throw new CelEvaluationError(`invalid_argument: ${value}`)
       }
-      result[key] = value
+      mapExpression[key] = value
     }
+
+    if(!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+      return mapExpression
+    }
+
+    const expressions = [
+      ...(ctx.identifierDotExpression || []),
+      ...(ctx.identifierIndexExpression || []),
+    ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
+
+    let result: unknown
+    result = expressions.reduce((acc: unknown, expression) => {
+      if (expression.name === 'identifierDotExpression') {
+        return this.getIdentifier(acc, expression.children.Identifier[0].image)
+      }
+
+      const index = this.visit(expression.children.expr[0])
+      return this.getIdentifier(acc, index)
+    }, mapExpression)
+
     return result
   }
 

@@ -110,6 +110,12 @@ export class CelParser extends CstParser {
       this.SUBRULE(this.mapKeyValues, { LABEL: 'keyValues' })
     })
     this.CONSUME(CloseCurlyBracket)
+    this.MANY2(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
+      ])
+    })
   })
 
   private mapKeyValues = this.RULE('mapKeyValues', () => {

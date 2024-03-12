@@ -108,6 +108,8 @@ export type MapExpressionCstChildren = {
   OpenCurlyBracket: IToken[];
   keyValues?: MapKeyValuesCstNode[];
   CloseCurlyBracket: IToken[];
+  identifierDotExpression?: IdentifierDotExpressionCstNode[];
+  identifierIndexExpression?: IndexExpressionCstNode[];
 };
 
 export interface MapKeyValuesCstNode extends CstNode {
