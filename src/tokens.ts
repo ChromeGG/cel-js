@@ -28,6 +28,8 @@ export const Dot = createToken({ name: 'Dot', pattern: /\./ })
 
 export const Comma = createToken({ name: 'Comma', pattern: /,/ })
 
+export const Colon = createToken({ name: 'Colon', pattern: /:/ })
+
 export const Float = createToken({
   name: 'Float',
   pattern: /-?\d+\.\d+/,
@@ -222,6 +224,7 @@ export const allTokens = [
   CloseCurlyBracket,
   Dot,
   Comma,
+  Colon,
 
   Float,
   Integer,

@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest'
-import { CelTypeError, evaluate } from '..'
+import { CelEvaluationError, CelTypeError, evaluate } from '..'
 import { Operations } from '../helper'
 
 describe('maps expressions', () => {
@@ -28,15 +28,12 @@ describe('maps expressions', () => {
         expect(result).toStrictEqual({ "a": 1, "b": 2, "c": 3 })
         })
     
-        // Shall we throw an error if maps have different types?
-        // The original implementation does that if we put literals
-        // but no in case of context usage. So for now we will not throw an error
-        it.todo('should throw an error if maps have different types', () => {
+        it('should throw an error if maps have different types', () => {
         const expr = '{"a": 1, "b": true}'
     
         const result = () => evaluate(expr)
     
-        expect(result).toThrow(new CelTypeError(Operations.logicalAnd, true, 1))
+        expect(result).toThrow(new CelEvaluationError('invalid_argument: true'))
         })
     })
     

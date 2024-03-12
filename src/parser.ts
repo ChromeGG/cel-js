@@ -23,6 +23,7 @@ import {
   MacrosIdentifier,
   OpenCurlyBracket,
   CloseCurlyBracket,
+  Colon,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -105,10 +106,19 @@ export class CelParser extends CstParser {
 
   private mapExpression = this.RULE('mapExpression', () => {
     this.CONSUME(OpenCurlyBracket)
-    this.OPTION(() => {
-      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+    this.MANY(() => {
+      this.SUBRULE(this.mapKeyValues, { LABEL: 'keyValues' })
     })
     this.CONSUME(CloseCurlyBracket)
+  })
+
+  private mapKeyValues = this.RULE('mapKeyValues', () => {
+    this.SUBRULE(this.expr, { LABEL: 'key' })
+    this.CONSUME(Colon)
+    this.SUBRULE2(this.expr, { LABEL: 'value' })
+    this.OPTION(() => {
+      this.CONSUME(Comma)
+    })
   })
 
   private macrosExpression = this.RULE('macrosExpression', () => {

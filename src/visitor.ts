@@ -16,6 +16,8 @@ import {
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
   UnaryExpressionCstChildren,
+  MapKeyValuesCstChildren,
+  MapExpressionCstChildren,
 } from './cst-definitions.js'
 
 import { CelType, getCelType, getPosition, getResult, getUnaryResult } from './helper.js'
@@ -164,12 +166,32 @@ export class CelVisitor
     return result[index]
   }
 
-  mapExpression(ctx: ListExpressionCstChildren) {
-    const result = {}
-    if (!ctx.lhs) {
+  mapExpression(ctx: MapExpressionCstChildren) {
+    const result: {[key: string]: any} = {}
+    if (!ctx.keyValues) {
       return {}
     }
+    let valueType: string = ''
+    for (const keyValuePair of ctx.keyValues) {
+      const [key, value] = this.visit(keyValuePair)
+      if (valueType === '') {
+        valueType = getCelType(value)
+      }
+      if (getCelType(key) != CelType.string) {
+        throw new CelEvaluationError(`invalid_argument: ${key}`)
+      }
+      if (valueType !== getCelType(value)) {
+        throw new CelEvaluationError(`invalid_argument: ${value}`)
+      }
+      result[key] = value
+    }
     return result
+  }
+
+  mapKeyValues(children: MapKeyValuesCstChildren, param?: void | undefined): [string, unknown] {
+    const key = this.visit(children.key)
+    const value = this.visit(children.value)
+    return [key, value]
   }
 
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
