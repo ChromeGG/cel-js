@@ -246,6 +246,9 @@ const comparisonOperation = (
   }
 
   if (operation === Operations.notEquals) {
+    if (isMap(left) && isMap(right)) {
+      return !comparisonEqualForMap(left, right)
+    }
     return left !== right
   }
 

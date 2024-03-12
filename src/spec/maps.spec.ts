@@ -101,7 +101,7 @@ describe('maps expressions', () => {
         })
     })
     
-    describe('comparison', () => {
+    describe('equal', () => {
         it('should compare two equal maps', () => {
             const expr = '{"c": 1, "a": 1, "b": 2} == {"a": 1, "b": 2, "c": 1}'
             
@@ -116,6 +116,24 @@ describe('maps expressions', () => {
             const result = evaluate(expr)
 
             expect(result).toStrictEqual(false)
+
+        })
+    })
+    describe('not equal', () => {
+        it('should compare two equal maps', () => {
+            const expr = '{"c": 1, "a": 1, "b": 2} != {"a": 1, "b": 2, "c": 1}'
+            
+            const result = evaluate(expr)
+
+            expect(result).toStrictEqual(false)
+
+        })
+        it('should compare two different maps', () => {
+            const expr = '{"a": 1, "b": 2} != {"a": 1, "b": 2, "c": 1}'
+            
+            const result = evaluate(expr)
+
+            expect(result).toStrictEqual(true)
 
         })
     })
