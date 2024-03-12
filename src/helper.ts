@@ -22,6 +22,7 @@ import {
   IdentifierDotExpressionCstNode,
   IndexExpressionCstNode,
 } from './cst-definitions.js'
+import { AssertionError, deepStrictEqual } from 'assert'
 
 export enum CelType {
   int = 'int',
@@ -55,6 +56,9 @@ const isArray = (value: unknown): value is unknown[] =>
 
 const isBoolean = (value: unknown): value is boolean =>
   getCelType(value) === CelType.bool
+
+const isMap = (value: unknown): value is Record<string, unknown> =>
+  getCelType(value) === CelType.map
 
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
@@ -216,6 +220,14 @@ const comparisonOperation = (
   }
 
   if (operation === Operations.equals) {
+    if (isMap(left) && isMap(right)) {
+      try {
+        deepStrictEqual(left, right)
+        return true
+      } catch {
+        return false
+      }
+    }
     return left === right
   }
 
