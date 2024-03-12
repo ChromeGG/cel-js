@@ -1,6 +1,5 @@
 import { expect, describe, it } from 'vitest'
-import { CelEvaluationError, CelTypeError, evaluate } from '..'
-import { Operations } from '../helper'
+import { CelEvaluationError, evaluate } from '..'
 
 describe('maps expressions', () => {
     describe('creation', () => {
