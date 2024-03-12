@@ -198,6 +198,25 @@ const logicalOrOperation = (left: unknown, right: unknown) => {
   throw new CelTypeError(Operations.logicalOr, left, right)
 }
 
+const comparisonEqualForMap = (left: object, right: object): boolean => {
+  try {
+    deepStrictEqual(left, right)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const comparisonInOperation = (left: unknown, right: unknown) => {
+  if(isArray(right)) {
+    return right.includes(left)
+  }
+  if(isMap(right)) {
+    return Object.keys(right).includes(left as string)
+  }
+  throw new CelTypeError(Operations.in, left, right)
+}
+
 const comparisonOperation = (
   operation: Operations,
   left: unknown,
@@ -221,12 +240,7 @@ const comparisonOperation = (
 
   if (operation === Operations.equals) {
     if (isMap(left) && isMap(right)) {
-      try {
-        deepStrictEqual(left, right)
-        return true
-      } catch {
-        return false
-      }
+      return comparisonEqualForMap(left, right)
     }
     return left === right
   }
@@ -235,18 +249,13 @@ const comparisonOperation = (
     return left !== right
   }
 
-
   if (operation === Operations.in) {
-    if(isArray(right)) {
-      return right.includes(left)
-    }
-    if(isMap(right)) {
-      return Object.keys(right).includes(left as string)
-    }
+    return comparisonInOperation(left, right)
   }
 
   throw new CelTypeError(operation, left, right)
 }
+
 
 export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   switch (true) {

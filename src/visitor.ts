@@ -31,10 +31,10 @@ const size = (arr: unknown) => {
   switch (getCelType(arr)) {
     case CelType.list:
     case CelType.string:
-      // @ts-ignore
+      // @ts-expect-error type assertion error
       return arr.length
     case CelType.map:
-      // @ts-ignore
+      // @ts-expect-error type assertion error
       return Object.keys(arr).length
     default:
       throw new CelEvaluationError(`invalid_argument: ${arr}`)
@@ -204,6 +204,10 @@ export class CelVisitor
       return mapExpression
     }
 
+    return this.getIndexSection(ctx, mapExpression)
+  }
+
+  private getIndexSection(ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren, mapExpression: unknown) {
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...(ctx.identifierIndexExpression || []),
@@ -288,25 +292,14 @@ export class CelVisitor
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
     const data = this.context
-    let result = this.getIdentifier(data, ctx.Identifier[0].image)
+    const result = this.getIdentifier(data, ctx.Identifier[0].image)
 
-    // ctx is an object with Dot and Index expressions grouped, but not sorted
-    // for this reason we need to sort them by position, to handle `a.b["c"].d`
-    const expressions = [
-      ...(ctx.identifierDotExpression || []),
-      ...(ctx.identifierIndexExpression || []),
-    ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
 
-    result = expressions.reduce((acc, expression) => {
-      if (expression.name === 'identifierDotExpression') {
-        return this.getIdentifier(acc, expression.children.Identifier[0].image)
-      }
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+      return result
+    }
 
-      const index = this.visit(expression.children.expr[0])
-      return this.getIdentifier(acc, index)
-    }, result)
-
-    return result
+    return this.getIndexSection(ctx, result)
   }
 
   identifierDotExpression(
