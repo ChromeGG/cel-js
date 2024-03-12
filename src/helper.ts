@@ -22,7 +22,7 @@ import {
   IdentifierDotExpressionCstNode,
   IndexExpressionCstNode,
 } from './cst-definitions.js'
-import { AssertionError, deepStrictEqual } from 'assert'
+import { deepStrictEqual } from 'assert'
 
 export enum CelType {
   int = 'int',
