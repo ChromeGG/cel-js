@@ -187,11 +187,11 @@ export class CelVisitor
   }
 
   mapExpression(ctx: MapExpressionCstChildren) {
-    const mapExpression: { [key: string]: unknown } = {}
+    const mapExpression: Record<string, unknown> = {}
     if (!ctx.keyValues) {
       return {}
     }
-    let valueType: string = ''
+    let valueType = ''
     for (const keyValuePair of ctx.keyValues) {
       const [key, value] = this.visit(keyValuePair)
       if (valueType === '') {
@@ -240,7 +240,7 @@ export class CelVisitor
 
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
     const macrosIdentifier = ctx.MacrosIdentifier[0]
-    // eslint-disable-next-line sonarjs/no-small-switch
+    // eslint-disable-next-line sonarjs/no-small-switch -- there will be more macros in the future, remove me when that happens
     switch (macrosIdentifier.image) {
       case 'size': // todo type it
         return ctx.arg ? size(this.visit(ctx.arg)) : 0
