@@ -208,10 +208,10 @@ const comparisonEqualForMap = (left: object, right: object): boolean => {
 }
 
 const comparisonInOperation = (left: unknown, right: unknown) => {
-  if(isArray(right)) {
+  if (isArray(right)) {
     return right.includes(left)
   }
-  if(isMap(right)) {
+  if (isMap(right)) {
     return Object.keys(right).includes(left as string)
   }
   throw new CelTypeError(Operations.in, left, right)
@@ -258,7 +258,6 @@ const comparisonOperation = (
 
   throw new CelTypeError(operation, left, right)
 }
-
 
 export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   switch (true) {

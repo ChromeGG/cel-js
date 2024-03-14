@@ -20,9 +20,15 @@ export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
 
 export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
-export const OpenCurlyBracket = createToken({ name: 'OpenCurlyBracket', pattern: /{/ })
+export const OpenCurlyBracket = createToken({
+  name: 'OpenCurlyBracket',
+  pattern: /{/,
+})
 
-export const CloseCurlyBracket = createToken({ name: 'CloseCurlyBracket', pattern: /}/ })
+export const CloseCurlyBracket = createToken({
+  name: 'CloseCurlyBracket',
+  pattern: /}/,
+})
 
 export const Dot = createToken({ name: 'Dot', pattern: /\./ })
 
@@ -198,13 +204,13 @@ export const Minus = createToken({
 
 export const MacrosIdentifier = createToken({
   name: 'MacrosIdentifier',
-  pattern: Lexer.NA
+  pattern: Lexer.NA,
 })
 
 export const Size = createToken({
   name: 'Size',
   pattern: /size/,
-  categories: MacrosIdentifier
+  categories: MacrosIdentifier,
 })
 
 export const Identifier = createToken({

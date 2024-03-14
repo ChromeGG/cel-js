@@ -20,8 +20,14 @@ import {
   MapExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { CelType, getCelType, getPosition, getResult, getUnaryResult } from './helper.js'
-import { CelEvaluationError  } from './index.js'
+import {
+  CelType,
+  getCelType,
+  getPosition,
+  getResult,
+  getUnaryResult,
+} from './helper.js'
+import { CelEvaluationError } from './index.js'
 
 const parserInstance = new CelParser()
 
@@ -38,7 +44,7 @@ const size = (arr: unknown) => {
       return Object.keys(arr).length
     default:
       throw new CelEvaluationError(`invalid_argument: ${arr}`)
-  } 
+  }
 }
 
 export class CelVisitor
@@ -162,14 +168,14 @@ export class CelVisitor
       }
     }
 
-    if(!ctx.Index) {
+    if (!ctx.Index) {
       return result
     }
 
     const index = this.visit(ctx.Index)
 
     const indexType = getCelType(index)
-    if (indexType != CelType.int && indexType != CelType.uint ) {
+    if (indexType != CelType.int && indexType != CelType.uint) {
       throw new CelEvaluationError(`invalid_argument: ${index}`)
     }
 
@@ -181,7 +187,7 @@ export class CelVisitor
   }
 
   mapExpression(ctx: MapExpressionCstChildren) {
-    const mapExpression: {[key: string]: unknown} = {}
+    const mapExpression: { [key: string]: unknown } = {}
     if (!ctx.keyValues) {
       return {}
     }
@@ -200,14 +206,17 @@ export class CelVisitor
       mapExpression[key] = value
     }
 
-    if(!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return mapExpression
     }
 
     return this.getIndexSection(ctx, mapExpression)
   }
 
-  private getIndexSection(ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren, mapExpression: unknown) {
+  private getIndexSection(
+    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren,
+    mapExpression: unknown
+  ) {
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...(ctx.identifierIndexExpression || []),
@@ -233,7 +242,7 @@ export class CelVisitor
     const macrosIdentifier = ctx.MacrosIdentifier[0]
     // eslint-disable-next-line sonarjs/no-small-switch
     switch (macrosIdentifier.image) {
-      case 'size':
+      case 'size': // todo type it
         return ctx.arg ? size(this.visit(ctx.arg)) : 0
       default:
         throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
@@ -272,7 +281,6 @@ export class CelVisitor
 
     if (ctx.identifierExpression) {
       return this.visit(ctx.identifierExpression)
-      // return this.identifier(ctx)
     }
 
     if (ctx.listExpression) {
@@ -294,7 +302,6 @@ export class CelVisitor
     const data = this.context
     const result = this.getIdentifier(data, ctx.Identifier[0].image)
 
-
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return result
     }
@@ -310,9 +317,7 @@ export class CelVisitor
     return this.getIdentifier(param, identifierName)
   }
 
-  indexExpression(
-    ctx: IndexExpressionCstChildren
-  ): unknown {
+  indexExpression(ctx: IndexExpressionCstChildren): unknown {
     return this.visit(ctx.expr)
   }
 

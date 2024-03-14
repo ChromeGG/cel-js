@@ -113,7 +113,12 @@ export class CelParser extends CstParser {
     this.MANY2(() => {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
-        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'identifierIndexExpression',
+            }),
+        },
       ])
     })
   })
@@ -141,9 +146,14 @@ export class CelParser extends CstParser {
     this.MANY(() => {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
-        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'identifierIndexExpression',
+            }),
+        },
       ])
-    })  
+    })
   })
 
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
@@ -151,14 +161,11 @@ export class CelParser extends CstParser {
     this.CONSUME(Identifier)
   })
 
-  private indexExpression = this.RULE(
-    'indexExpression',
-    () => {
-      this.CONSUME(OpenBracket)
-      this.SUBRULE(this.expr)
-      this.CONSUME(CloseBracket)
-    }
-  )
+  private indexExpression = this.RULE('indexExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.SUBRULE(this.expr)
+    this.CONSUME(CloseBracket)
+  })
 
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([

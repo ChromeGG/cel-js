@@ -196,8 +196,9 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   multiplication(children: MultiplicationCstChildren, param?: IN): OUT;
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
-  mapKeyValues(children: MapKeyValuesCstChildren, param?: IN): OUT;
   listExpression(children: ListExpressionCstChildren, param?: IN): OUT;
+  mapExpression(children: MapExpressionCstChildren, param?: IN): OUT;
+  mapKeyValues(children: MapKeyValuesCstChildren, param?: IN): OUT;
   macrosExpression(children: MacrosExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
