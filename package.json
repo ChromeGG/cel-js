@@ -35,11 +35,13 @@
     "release": "release-it"
   },
   "dependencies": {
-    "chevrotain": "11.0.3"
+    "chevrotain": "11.0.3",
+    "ramda": "0.29.1"
   },
   "devDependencies": {
     "@commitlint/cli": "18.4.3",
     "@commitlint/config-conventional": "18.4.3",
+    "@types/ramda": "0.29.11",
     "@types/lodash.get": "4.4.9",
     "@types/node": "20.9.0",
     "@typescript-eslint/eslint-plugin": "6.10.0",

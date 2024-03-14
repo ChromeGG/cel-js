@@ -33,6 +33,10 @@ import { evaluate, parse } from 'cel-js'
   const arrayExpr = '[1, 2]'
   console.log(`${arrayExpr} => ${evaluate(arrayExpr)}`) // => [1, 2]
 
+  // Map expressions
+  const mapExpr = '{"a": 1, "b": 2}'
+  console.log(`${mapExpr} => ${evaluate(mapExpr)}`) // => { a: 1, b: 2 }
+
   // Macro expressions
   const macroExpr = 'size([1, 2])'
   console.log(`${arrayExpr} => ${evaluate(macroExpr)}`) // => 2

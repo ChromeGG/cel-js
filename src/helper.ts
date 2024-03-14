@@ -22,7 +22,7 @@ import {
   IdentifierDotExpressionCstNode,
   IndexExpressionCstNode,
 } from './cst-definitions.js'
-import { deepStrictEqual } from 'assert'
+import { equals } from 'ramda'
 
 export enum CelType {
   int = 'int',
@@ -198,15 +198,6 @@ const logicalOrOperation = (left: unknown, right: unknown) => {
   throw new CelTypeError(Operations.logicalOr, left, right)
 }
 
-const comparisonEqualForMap = (left: object, right: object): boolean => {
-  try {
-    deepStrictEqual(left, right)
-    return true
-  } catch {
-    return false
-  }
-}
-
 const comparisonInOperation = (left: unknown, right: unknown) => {
   if (isArray(right)) {
     return right.includes(left)
@@ -239,17 +230,11 @@ const comparisonOperation = (
   }
 
   if (operation === Operations.equals) {
-    if (isMap(left) && isMap(right)) {
-      return comparisonEqualForMap(left, right)
-    }
-    return left === right
+    return equals(left, right)
   }
 
   if (operation === Operations.notEquals) {
-    if (isMap(left) && isMap(right)) {
-      return !comparisonEqualForMap(left, right)
-    }
-    return left !== right
+    return !equals(left, right)
   }
 
   if (operation === Operations.in) {
