@@ -26,26 +26,13 @@ import {
   getPosition,
   getResult,
   getUnaryResult,
+  size,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 
 const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
-
-const size = (arr: unknown) => {
-  switch (getCelType(arr)) {
-    case CelType.list:
-    case CelType.string:
-      // @ts-expect-error type assertion error
-      return arr.length
-    case CelType.map:
-      // @ts-expect-error type assertion error
-      return Object.keys(arr).length
-    default:
-      throw new CelEvaluationError(`invalid_argument: ${arr}`)
-  }
-}
 
 export class CelVisitor
   extends BaseCelVisitor

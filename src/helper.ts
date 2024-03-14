@@ -315,3 +315,15 @@ export const getPosition = (
 
   return ctx.children.OpenBracket[0].startOffset
 }
+
+export const size = (arr: unknown) => {
+  if (isString(arr) || isArray(arr)) {
+    return arr.length
+  }
+
+  if (isMap(arr)) {
+    return Object.keys(arr).length
+  }
+
+  throw new CelEvaluationError(`invalid_argument: ${arr}`)
+}
