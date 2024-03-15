@@ -230,7 +230,7 @@ export class CelVisitor
     // eslint-disable-next-line sonarjs/no-small-switch -- there will be more macros in the future, remove me when that happens
     switch (macrosIdentifier.image) {
       case 'size': // todo type it
-        return ctx.arg ? size(this.visit(ctx.arg)) : 0
+        return ctx.arg ? size(this.visit(ctx.arg)) : 0 // todo original implementation throws error if no arg is passed
       default:
         throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
     }
