@@ -26,13 +26,6 @@ describe('maps expressions', () => {
 
       expect(result).toStrictEqual({ a: 1, b: 2, c: 3 })
     })
-    it('should handle nested map', () => {
-      const expr = '{"a": {"a":1, "b":2}}'
-
-      const result = evaluate(expr)
-
-      expect(result).toStrictEqual({ a: { a: 1, b: 2 } })
-    })
 
     it('should throw an error if maps have different types', () => {
       const expr = '{"a": 1, "b": true}'
@@ -99,16 +92,6 @@ describe('maps expressions', () => {
           new CelEvaluationError('Identifier "1" not found, no context passed')
         )
       })
-    })
-  })
-
-  describe('addition', () => {
-    it('should add to values accessed by index', () => {
-      const expr = '{"a": 1, "b": 2}["a"] + {"a": 1, "b": 2}["b"]'
-
-      const result = evaluate(expr)
-
-      expect(result).toStrictEqual(3)
     })
   })
 

@@ -1,4 +1,4 @@
-// ? run "pnpm tsx demo.ts" in the terminal to see the output
+// ? run "pnpm tsx demo" in the terminal to see the output
 
 import { evaluate, parse } from 'cel-js'
 
@@ -34,9 +34,8 @@ import { evaluate, parse } from 'cel-js'
   console.log(`${arrayExpr} => ${evaluate(arrayExpr)}`) // => [1, 2]
 
   // Map expressions
-  // TODO - bump version to 0.1.5 and uncomment
-  // const mapExpr = '{"a": 1, "b": {"c": 2} }'
-  // console.log(`${mapExpr} => ${evaluate(mapExpr)}`) // => { a: 1, b: { c: 2 } }
+  const mapExpr = '{"a": 1, "b": 2}'
+  console.log(`${mapExpr} => ${JSON.stringify(evaluate(mapExpr))}`) // => { a: 1, b: 2 }
 
   // Macro expressions
   const macroExpr = 'size([1, 2])'

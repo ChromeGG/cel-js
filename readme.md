@@ -21,7 +21,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [ ] bytes
     - [x] list
     - [x] map
-    - [x] null 
+    - [x] null
   - [x] Conditional Operators
     - [ ] Ternary (`condition ? true : false`)
     - [x] Logical And (`&&`)
@@ -48,6 +48,10 @@ npm i cel-js
 
 ## Usage
 
+### `evaluate`
+
+`evaluate` is the primary function for parsing and evaluating CEL expressions. It takes an expression string and an optional object of variables to use in the expression.
+
 ```ts
 import { evaluate, parse } from 'cel-js'
 
@@ -57,22 +61,25 @@ evaluate('2 + 2 * 2') // => 6
 evaluate('"foo" + "bar"') // => 'foobar'
 
 evaluate('user.role == "admin"', { user: { role: 'admin' } }) // => true
+```
 
+### `parse`
+
+`parse` is a lower-level function that only parses an expression string into an AST. This can be useful if you want to evaluate the expression multiple times with different variables or if you want to validate the syntax of an expression.
+
+```ts
 // use `parse` to parse an expression, useful for validation purposes
-const result = parse('2 + 2')
+const result = parse('2 + a')
 
 if (!result.isSuccess) {
-  throw new Error('Invalid syntax')
+  // your business logic
 }
 
 // you can reuse the result of `parse` to evaluate the expression
-evaluate(result.cst) // => 4
+evaluate(result.cst, { a: 2 }) // => 4
+evaluate(result.cst, { a: 4 }) // => 6
 ```
 
 ## Known Issues
 
-- Errors types and messages are not 100% consistent with the cel-go implementation
-
-```
-
-```
+- Errors types and messages are not 100% consistent with the cel-go implementation,
