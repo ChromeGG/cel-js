@@ -99,6 +99,31 @@ export type ListExpressionCstChildren = {
   Index?: IndexExpressionCstNode[];
 };
 
+export interface MapExpressionCstNode extends CstNode {
+  name: "mapExpression";
+  children: MapExpressionCstChildren;
+}
+
+export type MapExpressionCstChildren = {
+  OpenCurlyBracket: IToken[];
+  keyValues?: MapKeyValuesCstNode[];
+  CloseCurlyBracket: IToken[];
+  identifierDotExpression?: IdentifierDotExpressionCstNode[];
+  identifierIndexExpression?: IndexExpressionCstNode[];
+};
+
+export interface MapKeyValuesCstNode extends CstNode {
+  name: "mapKeyValues";
+  children: MapKeyValuesCstChildren;
+}
+
+export type MapKeyValuesCstChildren = {
+  key: ExprCstNode[];
+  Colon: IToken[];
+  value: ExprCstNode[];
+  Comma?: IToken[];
+};
+
 export interface MacrosExpressionCstNode extends CstNode {
   name: "macrosExpression";
   children: MacrosExpressionCstChildren;
@@ -157,6 +182,7 @@ export type AtomicExpressionCstChildren = {
   Integer?: IToken[];
   ReservedIdentifiers?: IToken[];
   listExpression?: ListExpressionCstNode[];
+  mapExpression?: MapExpressionCstNode[];
   macrosExpression?: MacrosExpressionCstNode[];
   identifierExpression?: IdentifierExpressionCstNode[];
 };
@@ -171,6 +197,8 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   unaryExpression(children: UnaryExpressionCstChildren, param?: IN): OUT;
   parenthesisExpression(children: ParenthesisExpressionCstChildren, param?: IN): OUT;
   listExpression(children: ListExpressionCstChildren, param?: IN): OUT;
+  mapExpression(children: MapExpressionCstChildren, param?: IN): OUT;
+  mapKeyValues(children: MapKeyValuesCstChildren, param?: IN): OUT;
   macrosExpression(children: MacrosExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;

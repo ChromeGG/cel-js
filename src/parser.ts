@@ -21,6 +21,9 @@ import {
   OpenBracket,
   Comma,
   MacrosIdentifier,
+  OpenCurlyBracket,
+  CloseCurlyBracket,
+  Colon,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -101,6 +104,34 @@ export class CelParser extends CstParser {
     })
   })
 
+  private mapExpression = this.RULE('mapExpression', () => {
+    this.CONSUME(OpenCurlyBracket)
+    this.MANY(() => {
+      this.SUBRULE(this.mapKeyValues, { LABEL: 'keyValues' })
+    })
+    this.CONSUME(CloseCurlyBracket)
+    this.MANY2(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'identifierIndexExpression',
+            }),
+        },
+      ])
+    })
+  })
+
+  private mapKeyValues = this.RULE('mapKeyValues', () => {
+    this.SUBRULE(this.expr, { LABEL: 'key' })
+    this.CONSUME(Colon)
+    this.SUBRULE2(this.expr, { LABEL: 'value' })
+    this.OPTION(() => {
+      this.CONSUME(Comma)
+    })
+  })
+
   private macrosExpression = this.RULE('macrosExpression', () => {
     this.CONSUME(MacrosIdentifier)
     this.CONSUME(OpenParenthesis)
@@ -115,9 +146,14 @@ export class CelParser extends CstParser {
     this.MANY(() => {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
-        { ALT: () => this.SUBRULE(this.indexExpression, {LABEL: 'identifierIndexExpression'}) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'identifierIndexExpression',
+            }),
+        },
       ])
-    })  
+    })
   })
 
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
@@ -125,14 +161,11 @@ export class CelParser extends CstParser {
     this.CONSUME(Identifier)
   })
 
-  private indexExpression = this.RULE(
-    'indexExpression',
-    () => {
-      this.CONSUME(OpenBracket)
-      this.SUBRULE(this.expr)
-      this.CONSUME(CloseBracket)
-    }
-  )
+  private indexExpression = this.RULE('indexExpression', () => {
+    this.CONSUME(OpenBracket)
+    this.SUBRULE(this.expr)
+    this.CONSUME(CloseBracket)
+  })
 
   private atomicExpression = this.RULE('atomicExpression', () => {
     this.OR([
@@ -144,6 +177,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.SUBRULE(this.listExpression) },
+      { ALT: () => this.SUBRULE(this.mapExpression) },
       { ALT: () => this.SUBRULE(this.macrosExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])

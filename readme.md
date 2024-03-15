@@ -20,7 +20,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] string
     - [ ] bytes
     - [x] list
-    - [ ] map
+    - [x] map
     - [x] null 
   - [x] Conditional Operators
     - [ ] Ternary (`condition ? true : false`)

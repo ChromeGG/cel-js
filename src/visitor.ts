@@ -16,10 +16,19 @@ import {
   ParenthesisExpressionCstChildren,
   RelationCstChildren,
   UnaryExpressionCstChildren,
+  MapKeyValuesCstChildren,
+  MapExpressionCstChildren,
 } from './cst-definitions.js'
 
-import { CelType, getCelType, getPosition, getResult, getUnaryResult } from './helper.js'
-import { CelEvaluationError  } from './index.js'
+import {
+  CelType,
+  getCelType,
+  getPosition,
+  getResult,
+  getUnaryResult,
+  size,
+} from './helper.js'
+import { CelEvaluationError } from './index.js'
 
 const parserInstance = new CelParser()
 
@@ -146,14 +155,14 @@ export class CelVisitor
       }
     }
 
-    if(!ctx.Index) {
+    if (!ctx.Index) {
       return result
     }
 
     const index = this.visit(ctx.Index)
 
     const indexType = getCelType(index)
-    if (indexType != CelType.int && indexType != CelType.uint ) {
+    if (indexType != CelType.int && indexType != CelType.uint) {
       throw new CelEvaluationError(`invalid_argument: ${index}`)
     }
 
@@ -164,12 +173,64 @@ export class CelVisitor
     return result[index]
   }
 
+  mapExpression(ctx: MapExpressionCstChildren) {
+    const mapExpression: Record<string, unknown> = {}
+    if (!ctx.keyValues) {
+      return {}
+    }
+    let valueType = ''
+    for (const keyValuePair of ctx.keyValues) {
+      const [key, value] = this.visit(keyValuePair)
+      if (valueType === '') {
+        valueType = getCelType(value)
+      }
+      if (getCelType(key) != CelType.string) {
+        throw new CelEvaluationError(`invalid_argument: ${key}`)
+      }
+      if (valueType !== getCelType(value)) {
+        throw new CelEvaluationError(`invalid_argument: ${value}`)
+      }
+      mapExpression[key] = value
+    }
+
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+      return mapExpression
+    }
+
+    return this.getIndexSection(ctx, mapExpression)
+  }
+
+  private getIndexSection(
+    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren,
+    mapExpression: unknown
+  ) {
+    const expressions = [
+      ...(ctx.identifierDotExpression || []),
+      ...(ctx.identifierIndexExpression || []),
+    ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
+
+    return expressions.reduce((acc: unknown, expression) => {
+      if (expression.name === 'identifierDotExpression') {
+        return this.getIdentifier(acc, expression.children.Identifier[0].image)
+      }
+
+      const index = this.visit(expression.children.expr[0])
+      return this.getIdentifier(acc, index)
+    }, mapExpression)
+  }
+
+  mapKeyValues(children: MapKeyValuesCstChildren): [string, unknown] {
+    const key = this.visit(children.key)
+    const value = this.visit(children.value)
+    return [key, value]
+  }
+
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
     const macrosIdentifier = ctx.MacrosIdentifier[0]
-    // eslint-disable-next-line sonarjs/no-small-switch
+    // eslint-disable-next-line sonarjs/no-small-switch -- there will be more macros in the future, remove me when that happens
     switch (macrosIdentifier.image) {
-      case 'size':
-        return ctx.arg ? this.visit(ctx.arg).length : 0
+      case 'size': // todo type it
+        return ctx.arg ? size(this.visit(ctx.arg)) : 0 // todo original implementation throws error if no arg is passed
       default:
         throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
     }
@@ -207,11 +268,14 @@ export class CelVisitor
 
     if (ctx.identifierExpression) {
       return this.visit(ctx.identifierExpression)
-      // return this.identifier(ctx)
     }
 
     if (ctx.listExpression) {
       return this.visit(ctx.listExpression)
+    }
+
+    if (ctx.mapExpression) {
+      return this.visit(ctx.mapExpression)
     }
 
     if (ctx.macrosExpression) {
@@ -223,25 +287,13 @@ export class CelVisitor
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
     const data = this.context
-    let result = this.getIdentifier(data, ctx.Identifier[0].image)
+    const result = this.getIdentifier(data, ctx.Identifier[0].image)
 
-    // ctx is an object with Dot and Index expressions grouped, but not sorted
-    // for this reason we need to sort them by position, to handle `a.b["c"].d`
-    const expressions = [
-      ...(ctx.identifierDotExpression || []),
-      ...(ctx.identifierIndexExpression || []),
-    ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+      return result
+    }
 
-    result = expressions.reduce((acc, expression) => {
-      if (expression.name === 'identifierDotExpression') {
-        return this.getIdentifier(acc, expression.children.Identifier[0].image)
-      }
-
-      const index = this.visit(expression.children.expr[0])
-      return this.getIdentifier(acc, index)
-    }, result)
-
-    return result
+    return this.getIndexSection(ctx, result)
   }
 
   identifierDotExpression(
@@ -252,9 +304,7 @@ export class CelVisitor
     return this.getIdentifier(param, identifierName)
   }
 
-  indexExpression(
-    ctx: IndexExpressionCstChildren
-  ): unknown {
+  indexExpression(ctx: IndexExpressionCstChildren): unknown {
     return this.visit(ctx.expr)
   }
 

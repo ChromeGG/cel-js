@@ -31,6 +31,32 @@ describe('lists expressions', () => {
       })
     })
 
+    describe('map', () => {
+      it('should return 0 for empty map', () => {
+        const expr = 'size({})'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(0)
+      })
+
+      it('should return 1 for one element map', () => {
+        const expr = 'size({"a": 1})'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(1)
+      })
+
+      it('should return 3 for three element map', () => {
+        const expr = 'size({"a": 1, "b": 2, "c": 3})'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(3)
+      })
+    })
+
     describe('string', () => {
       it('should return 0 for empty string', () => {
         const expr = 'size("")'

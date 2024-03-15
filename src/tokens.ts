@@ -20,9 +20,21 @@ export const OpenBracket = createToken({ name: 'OpenBracket', pattern: /\[/ })
 
 export const CloseBracket = createToken({ name: 'CloseBracket', pattern: /\]/ })
 
+export const OpenCurlyBracket = createToken({
+  name: 'OpenCurlyBracket',
+  pattern: /{/,
+})
+
+export const CloseCurlyBracket = createToken({
+  name: 'CloseCurlyBracket',
+  pattern: /}/,
+})
+
 export const Dot = createToken({ name: 'Dot', pattern: /\./ })
 
 export const Comma = createToken({ name: 'Comma', pattern: /,/ })
+
+export const Colon = createToken({ name: 'Colon', pattern: /:/ })
 
 export const Float = createToken({
   name: 'Float',
@@ -192,13 +204,13 @@ export const Minus = createToken({
 
 export const MacrosIdentifier = createToken({
   name: 'MacrosIdentifier',
-  pattern: Lexer.NA
+  pattern: Lexer.NA,
 })
 
 export const Size = createToken({
   name: 'Size',
   pattern: /size/,
-  categories: MacrosIdentifier
+  categories: MacrosIdentifier,
 })
 
 export const Identifier = createToken({
@@ -214,8 +226,11 @@ export const allTokens = [
   OpenParenthesis,
   OpenBracket,
   CloseBracket,
+  OpenCurlyBracket,
+  CloseCurlyBracket,
   Dot,
   Comma,
+  Colon,
 
   Float,
   Integer,

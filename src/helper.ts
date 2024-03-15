@@ -22,6 +22,7 @@ import {
   IdentifierDotExpressionCstNode,
   IndexExpressionCstNode,
 } from './cst-definitions.js'
+import { equals } from 'ramda'
 
 export enum CelType {
   int = 'int',
@@ -55,6 +56,9 @@ const isArray = (value: unknown): value is unknown[] =>
 
 const isBoolean = (value: unknown): value is boolean =>
   getCelType(value) === CelType.bool
+
+const isMap = (value: unknown): value is Record<string, unknown> =>
+  getCelType(value) === CelType.map
 
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
@@ -194,6 +198,16 @@ const logicalOrOperation = (left: unknown, right: unknown) => {
   throw new CelTypeError(Operations.logicalOr, left, right)
 }
 
+const comparisonInOperation = (left: unknown, right: unknown) => {
+  if (isArray(right)) {
+    return right.includes(left)
+  }
+  if (isMap(right)) {
+    return Object.keys(right).includes(left as string)
+  }
+  throw new CelTypeError(Operations.in, left, right)
+}
+
 const comparisonOperation = (
   operation: Operations,
   left: unknown,
@@ -216,15 +230,15 @@ const comparisonOperation = (
   }
 
   if (operation === Operations.equals) {
-    return left === right
+    return equals(left, right)
   }
 
   if (operation === Operations.notEquals) {
-    return left !== right
+    return !equals(left, right)
   }
 
-  if (operation === Operations.in && isArray(right)) {
-    return right.includes(left)
+  if (operation === Operations.in) {
+    return comparisonInOperation(left, right)
   }
 
   throw new CelTypeError(operation, left, right)
@@ -300,4 +314,16 @@ export const getPosition = (
   }
 
   return ctx.children.OpenBracket[0].startOffset
+}
+
+export const size = (arr: unknown) => {
+  if (isString(arr) || isArray(arr)) {
+    return arr.length
+  }
+
+  if (isMap(arr)) {
+    return Object.keys(arr).length
+  }
+
+  throw new CelEvaluationError(`invalid_argument: ${arr}`)
 }
