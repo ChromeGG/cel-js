@@ -19,12 +19,14 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": "./dist/index.mjs",
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && tsc -p tsconfig.json --emitDeclarationOnly && node esbuild.mjs",
+    "build": "pnpm run clean && tsc",
     "clean": "rm -rf ./dist",
     "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
