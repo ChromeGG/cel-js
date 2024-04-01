@@ -26,7 +26,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && tsc -p tsconfig.json --emitDeclarationOnly && node esbuild.mjs",
+    "build": "pnpm run clean && tsc",
     "clean": "rm -rf ./dist",
     "generate": "tsx ./ts-signatures-generator",
     "lint": "eslint --ext .ts src",
