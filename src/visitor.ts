@@ -34,17 +34,29 @@ const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
+const defaultFunctions = {
+  size: size,
+};
+
 export class CelVisitor
   extends BaseCelVisitor
   implements ICstNodeVisitor<void, unknown>
 {
-  constructor(context?: Record<string, unknown>) {
+  constructor(context?: Record<string, unknown>, functions?: Record<string, CallableFunction>) {
     super()
-    this.context = context || {}
-    this.validateVisitor()
+    this.context = context || {};
+
+    this.functions = {
+      ...defaultFunctions,
+      ...(functions || {}),
+    };
+
+    this.validateVisitor();
   }
 
   private context: Record<string, unknown>
+
+  private functions: Record<string, CallableFunction>
 
   public expr(ctx: ExprCstChildren) {
     return this.visit(ctx.conditionalOr) as unknown
@@ -226,14 +238,12 @@ export class CelVisitor
   }
 
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
-    const macrosIdentifier = ctx.MacrosIdentifier[0]
-    // eslint-disable-next-line sonarjs/no-small-switch -- there will be more macros in the future, remove me when that happens
-    switch (macrosIdentifier.image) {
-      case 'size': // todo type it
-        return ctx.arg ? size(this.visit(ctx.arg)) : 0 // todo original implementation throws error if no arg is passed
-      default:
-        throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
+    const macrosIdentifier = ctx.Identifier[0]
+    const fn = this.functions[macrosIdentifier.image];
+    if (fn) {
+      return fn(...[...(ctx.arg ? [this.visit(ctx.arg)] : []), ...(ctx.args ? ctx.args.map((arg) => this.visit(arg)) : [])])
     }
+    throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
   }
 
   // these two visitor methods will return a string.

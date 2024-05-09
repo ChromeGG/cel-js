@@ -202,17 +202,6 @@ export const Minus = createToken({
   categories: [AdditionOperator, UnaryOperator],
 })
 
-export const MacrosIdentifier = createToken({
-  name: 'MacrosIdentifier',
-  pattern: Lexer.NA,
-})
-
-export const Size = createToken({
-  name: 'Size',
-  pattern: /size/,
-  categories: MacrosIdentifier,
-})
-
 export const Identifier = createToken({
   name: 'Identifier',
   pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -251,9 +240,6 @@ export const allTokens = [
   GreaterThan,
   LessThan,
   In,
-
-  MacrosIdentifier,
-  Size,
 
   UnaryOperator,
   LogicalNotOperator,
