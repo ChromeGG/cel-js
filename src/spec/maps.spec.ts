@@ -43,7 +43,7 @@ describe('maps expressions', () => {
 
         const result = evaluate(expr)
 
-        expect(result).toStrictEqual(1)
+        expect(result).toBe(1)
       })
 
       it('should throw an error if the key does not exist', () => {
@@ -70,7 +70,7 @@ describe('maps expressions', () => {
 
         const result = evaluate(expr)
 
-        expect(result).toStrictEqual(1)
+        expect(result).toBe(1)
       })
 
       it('should throw an error if the key does not exist', () => {
@@ -101,14 +101,14 @@ describe('maps expressions', () => {
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(true)
+      expect(result).toBe(true)
     })
     it('should compare two different maps', () => {
       const expr = '{"a": 1, "b": 2} == {"a": 1, "b": 2, "c": 1}'
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(false)
+      expect(result).toBe(false)
     })
   })
   describe('not equal', () => {
@@ -117,14 +117,14 @@ describe('maps expressions', () => {
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(false)
+      expect(result).toBe(false)
     })
     it('should compare two different maps', () => {
       const expr = '{"a": 1, "b": 2} != {"a": 1, "b": 2, "c": 1}'
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(true)
+      expect(result).toBe(true)
     })
   })
   describe('in', () => {
@@ -133,14 +133,14 @@ describe('maps expressions', () => {
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(true)
+      expect(result).toBe(true)
     })
     it('should not find a key in the map', () => {
       const expr = '"z" in {"c": 1, "a": 1, "b": 2}'
 
       const result = evaluate(expr)
 
-      expect(result).toStrictEqual(false)
+      expect(result).toBe(false)
     })
   })
 })
