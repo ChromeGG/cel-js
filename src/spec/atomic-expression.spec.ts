@@ -32,7 +32,7 @@ describe('atomic expressions', () => {
 
     const result = evaluate(expr)
 
-    expect(result).toBe(null)
+    expect(result).toBeNull()
   })
 
   it('should evaluate a string literal', () => {
