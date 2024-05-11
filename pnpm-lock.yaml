@@ -38,8 +38,8 @@ devDependencies:
     specifier: 8.53.0
     version: 8.53.0
   eslint-plugin-sonarjs:
-    specifier: 1.0.3
-    version: 1.0.3(eslint@8.53.0)
+    specifier: 0.25.1
+    version: 0.25.1(eslint@8.53.0)
   eslint-plugin-vitest:
     specifier: 0.5.4
     version: 0.5.4(@typescript-eslint/eslint-plugin@7.8.0)(eslint@8.53.0)(typescript@5.4.5)(vitest@1.6.0)
@@ -2158,11 +2158,11 @@ packages:
       source-map: 0.6.1
     dev: true
 
-  /eslint-plugin-sonarjs@1.0.3(eslint@8.53.0):
-    resolution: {integrity: sha512-6s41HLPYPyDrp+5+7Db5yFYbod6h9pC7yx+xfcNwHRcLe1EZwbbQT/tdOAkR7ekVUkNGEvN3GmYakIoQUX7dEg==}
+  /eslint-plugin-sonarjs@0.25.1(eslint@8.53.0):
+    resolution: {integrity: sha512-5IOKvj/GMBNqjxBdItfotfRHo7w48496GOu1hxdeXuD0mB1JBlDCViiLHETDTfA8pDAVSBimBEQoetRXYceQEw==}
     engines: {node: '>=16'}
     peerDependencies:
-      eslint: ^8.0.0 || ^9.0.0
+      eslint: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
     dependencies:
       eslint: 8.53.0
     dev: true

@@ -49,7 +49,7 @@
     "@typescript-eslint/parser": "7.8.0",
     "esbuild": "0.21.1",
     "eslint": "8.53.0",
-    "eslint-plugin-sonarjs": "1.0.3",
+    "eslint-plugin-sonarjs": "0.25.1",
     "eslint-plugin-vitest": "0.5.4",
     "prettier": "3.2.5",
     "release-it": "17.2.1",
