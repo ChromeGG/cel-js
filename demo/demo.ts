@@ -41,7 +41,7 @@ import { evaluate, parse } from 'cel-js'
   const macroExpr = 'size([1, 2])'
   console.log(`${macroExpr} => ${evaluate(macroExpr)}`) // => 2
 
-  // Function expressions
+  // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'
   console.log(
     `${functionExpr} => ${evaluate(functionExpr, {}, { max: Math.max })}`
