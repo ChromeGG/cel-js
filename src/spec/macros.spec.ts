@@ -90,13 +90,13 @@ describe('custom functions', () => {
     it('should execute a single argument custom function', () => {
       const expr = 'foo(bar)'
 
-      const foo = (arg) => {
+      const foo = (arg: unknown) => {
         return `foo:${arg}`
       }
 
-      const result = evaluate(expr, {bar: "bar"}, {foo: foo})
+      const result = evaluate(expr, { bar: 'bar' }, { foo })
 
-      expect(result).toBe("foo:bar")
+      expect(result).toBe('foo:bar')
     })
   })
 
@@ -104,25 +104,13 @@ describe('custom functions', () => {
     it('should execute a two argument custom function', () => {
       const expr = 'foo(bar, 42)'
 
-      const foo = (thing, intensity) => {
+      const foo = (thing: unknown, intensity: unknown) => {
         return `foo:${thing} ${intensity}`
       }
 
-      const result = evaluate(expr, {bar: "bar"}, {foo: foo})
+      const result = evaluate(expr, { bar: 'bar' }, { foo })
 
-      expect(result).toBe("foo:bar 42")
-    })
-
-    it('should execute a three argument custom function', () => {
-      const expr = 'foo(bar, 42, true)'
-
-      const foo = (thing, intensity, enable) => {
-        return `foo:${thing} ${intensity} ${enable}`
-      }
-
-      const result = evaluate(expr, {bar: "bar"}, {foo: foo})
-
-      expect(result).toBe("foo:bar 42 true")
+      expect(result).toBe('foo:bar 42')
     })
   })
 
@@ -134,9 +122,9 @@ describe('custom functions', () => {
         return `foo:${thing} ${intensity} ${enable}`
       }
 
-      const result = evaluate(expr, {bar: "bar"}, {foo: foo})
+      const result = evaluate(expr, { bar: 'bar' }, { foo: foo })
 
-      expect(result).toBe("foo:bar 8 true")
+      expect(result).toBe('foo:bar 8 true')
     })
 
     it('should allow overriding default functions', () => {
@@ -146,9 +134,13 @@ describe('custom functions', () => {
         return `foo:${thing} ${intensity} ${enable}`
       }
 
-      const result = evaluate(expr, {bar: "bar"}, {foo: foo, size: () => "strange"})
+      const result = evaluate(
+        expr,
+        { bar: 'bar' },
+        { foo: foo, size: () => 'strange' }
+      )
 
-      expect(result).toBe("foo:bar strange true")
+      expect(result).toBe('foo:bar strange true')
     })
   })
 
@@ -158,15 +150,19 @@ describe('custom functions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError('Macros foo not recognized'))
+      expect(result).toThrow(
+        new CelEvaluationError('Macros foo not recognized')
+      )
     })
 
     it('should not treat context values as first-class functions', () => {
       const expr = 'foo(bar)'
 
-      const result = () => evaluate(expr, {foo: 'foo', bar: 'bar'})
+      const result = () => evaluate(expr, { foo: 'foo', bar: 'bar' })
 
-      expect(result).toThrow(new CelEvaluationError('Macros foo not recognized'))
+      expect(result).toThrow(
+        new CelEvaluationError('Macros foo not recognized')
+      )
     })
   })
 })
