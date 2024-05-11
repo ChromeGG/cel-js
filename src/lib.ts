@@ -40,13 +40,14 @@ export function parse(expression: string): ParseResult {
 // TODO mention about this library in other Google's CEL repos
 export function evaluate(
   expression: string | CstNode,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  functions?: Record<string, CallableFunction>,
 ) {
   const result =
     typeof expression === 'string'
       ? parse(expression)
       : <Success>{ isSuccess: true, cst: expression }
-  const toAstVisitorInstance = new CelVisitor(context)
+  const toAstVisitorInstance = new CelVisitor(context, functions)
 
   if (!result.isSuccess) {
     throw new CelParseError(

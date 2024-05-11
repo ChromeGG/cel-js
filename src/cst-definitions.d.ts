@@ -130,9 +130,11 @@ export interface MacrosExpressionCstNode extends CstNode {
 }
 
 export type MacrosExpressionCstChildren = {
-  MacrosIdentifier: IToken[];
+  Identifier: IToken[];
   OpenParenthesis: IToken[];
   arg?: ExprCstNode[];
+  Comma?: IToken[];
+  args?: ExprCstNode[];
   CloseParenthesis: IToken[];
 };
 

@@ -20,7 +20,6 @@ import {
   CloseBracket,
   OpenBracket,
   Comma,
-  MacrosIdentifier,
   OpenCurlyBracket,
   CloseCurlyBracket,
   Colon,
@@ -133,10 +132,14 @@ export class CelParser extends CstParser {
   })
 
   private macrosExpression = this.RULE('macrosExpression', () => {
-    this.CONSUME(MacrosIdentifier)
+    this.CONSUME(Identifier)
     this.CONSUME(OpenParenthesis)
     this.OPTION(() => {
       this.SUBRULE(this.expr, { LABEL: 'arg' })
+      this.MANY(() => {
+        this.CONSUME(Comma)
+        this.SUBRULE2(this.expr, { LABEL: 'args' })
+      })
     })
     this.CONSUME(CloseParenthesis)
   })
