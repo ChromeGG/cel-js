@@ -85,5 +85,18 @@ describe('comparisons', () => {
         new CelTypeError(Operations.in, 'string', 'string')
       )
     })
+
+    it.each(['"install"', '"inin"', '"stalin"'])(
+      'should not be recognized in string',
+      (aString) => {
+        const expr = aString
+
+        const result = evaluate(expr)
+
+        const expected = aString.slice(1, -1) // remove quotes
+
+        expect(result).toBe(expected)
+      }
+    )
   })
 })

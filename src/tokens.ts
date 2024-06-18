@@ -158,7 +158,7 @@ export const LessThan = createToken({
 
 export const In = createToken({
   name: 'In',
-  pattern: /in/,
+  pattern: /\bin\b/,
   categories: ComparisonOperator,
 })
 
