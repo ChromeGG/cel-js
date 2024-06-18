@@ -4,7 +4,7 @@
   "description": "A simple usage of the CEL library",
   "type": "module",
   "dependencies": {
-    "cel-js": "0.2.0"
+    "cel-js": "0.2.1"
   },
   "devDependencies": {
     "tsx": "4.10.0"
