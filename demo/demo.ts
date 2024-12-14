@@ -38,8 +38,16 @@ import { evaluate, parse } from 'cel-js'
   console.log(`${mapExpr} => ${JSON.stringify(evaluate(mapExpr))}`) // => { a: 1, b: 2 }
 
   // Macro expressions
+  // size()
   const macroExpr = 'size([1, 2])'
   console.log(`${macroExpr} => ${evaluate(macroExpr)}`) // => 2
+
+  // has()
+  const hasExpr = 'has(user.role)'
+  console.log(`${hasExpr} => ${evaluate(hasExpr, context)}`) // => true
+  
+  const hasExpr2 = 'has(user.name)'
+  console.log(`${hasExpr2} => ${evaluate(hasExpr2, context)}`) // => false
 
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'

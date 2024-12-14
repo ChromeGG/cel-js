@@ -327,3 +327,17 @@ export const size = (arr: unknown) => {
 
   throw new CelEvaluationError(`invalid_argument: ${arr}`)
 }
+
+/**
+ * Macro definition for the CEL has() function that checks if a path exists in an object.
+ * 
+ * @param path - The path to check for existence
+ * @returns boolean - True if the path exists (is not undefined), false otherwise
+ * 
+ * @example
+ * has(obj.field) // returns true if field exists on obj
+ */
+export const has = (path: unknown): boolean => {
+  // If the path itself is undefined, it means the field/index doesn't exist
+  return !(path === undefined)
+}
