@@ -45,9 +45,6 @@ import { evaluate, parse } from 'cel-js'
   // has()
   const hasExpr = 'has(user.role)'
   console.log(`${hasExpr} => ${evaluate(hasExpr, context)}`) // => true
-  
-  const hasExpr2 = 'has(user.name)'
-  console.log(`${hasExpr2} => ${evaluate(hasExpr2, context)}`) // => false
 
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'
