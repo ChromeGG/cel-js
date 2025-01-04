@@ -54,7 +54,7 @@
     "prettier": "3.4.2",
     "release-it": "17.2.1",
     "tsx": "4.9.4",
-    "typescript": "5.4.5",
+    "typescript": "5.7.2",
     "vitest": "1.6.0"
   },
   "engines": {
