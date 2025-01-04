@@ -117,7 +117,9 @@ export enum Operations {
   in = 'in',
 }
 
-const additionOperation = (left: unknown, right: unknown) => {
+
+// eslint-disable-next-line sonarjs/function-return-type -- this function returns generic value based on input type.
+const additionOperation = (left: unknown, right: unknown): number | string | unknown[] | never  => {
   if (isCalculable(left) && isCalculable(right)) {
     return left + right
   }
@@ -244,6 +246,7 @@ const comparisonOperation = (
   throw new CelTypeError(operation, left, right)
 }
 
+// eslint-disable-next-line sonarjs/function-return-type -- this function returns generic value based on input type.
 export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   switch (true) {
     case tokenMatcher(operator, Plus):
@@ -279,7 +282,8 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   }
 }
 
-export const getUnaryResult = (operators: IToken[], operand: unknown) => {
+// eslint-disable-next-line sonarjs/function-return-type -- this function returns generic value based on input type.
+export const getUnaryResult = (operators: IToken[], operand: unknown): number | boolean | never => {
   if (
     isCalculable(operand) &&
     operators.every((operator) => tokenMatcher(operator, Minus))
@@ -339,5 +343,5 @@ export const size = (arr: unknown) => {
  */
 export const has = (path: unknown): boolean => {
   // If the path itself is undefined, it means the field/index doesn't exist
-  return !(path === undefined)
+  return path !== undefined
 }

@@ -207,7 +207,7 @@ describe('custom functions', () => {
     it('should preserve default functions when custom functions specified', () => {
       const expr = 'foo(bar, size("ubernete"), true)'
 
-      const foo = (thing, intensity, enable) => {
+      const foo = (thing: string, intensity: object, enable: boolean) => {
         return `foo:${thing} ${intensity} ${enable}`
       }
 
@@ -219,7 +219,7 @@ describe('custom functions', () => {
     it('should allow overriding default functions', () => {
       const expr = 'foo(bar, size("ubernete"), true)'
 
-      const foo = (thing, intensity, enable) => {
+      const foo = (thing: string, intensity: object, enable: boolean) => {
         return `foo:${thing} ${intensity} ${enable}`
       }
 

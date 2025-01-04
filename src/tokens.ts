@@ -38,7 +38,7 @@ export const Colon = createToken({ name: 'Colon', pattern: /:/ })
 
 export const Float = createToken({
   name: 'Float',
-  pattern: /-?\d+\.\d+/,
+  pattern: /[-+]?\d*\.?\d+/,
 })
 
 export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
@@ -204,7 +204,7 @@ export const Minus = createToken({
 
 export const Identifier = createToken({
   name: 'Identifier',
-  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
+  pattern: /[a-zA-Z_]\w*/,
 })
 
 // The order of tokens is important
