@@ -14,13 +14,13 @@ import {
   Modulo,
   MultiplicationToken,
   NotEquals,
-  Plus,
+  Plus
 } from './tokens.js'
 import { CelTypeError } from './errors/CelTypeError.js'
 import { CelEvaluationError } from './errors/CelEvaluationError.js'
 import {
   IdentifierDotExpressionCstNode,
-  IndexExpressionCstNode,
+  IndexExpressionCstNode
 } from './cst-definitions.js'
 import { equals } from 'ramda'
 
@@ -32,7 +32,7 @@ export enum CelType {
   bool = 'bool',
   null = 'null',
   list = 'list',
-  map = 'map',
+  map = 'map'
 }
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
@@ -114,7 +114,7 @@ export enum Operations {
   greaterOrEqualThan = 'greaterOrEqualThan',
   equals = 'equals',
   notEquals = 'notEquals',
-  in = 'in',
+  in = 'in'
 }
 
 const additionOperation = (left: unknown, right: unknown) => {
@@ -330,10 +330,10 @@ export const size = (arr: unknown) => {
 
 /**
  * Macro definition for the CEL has() function that checks if a path exists in an object.
- * 
+ *
  * @param path - The path to check for existence
  * @returns boolean - True if the path exists (is not undefined), false otherwise
- * 
+ *
  * @example
  * has(obj.field) // returns true if field exists on obj
  */

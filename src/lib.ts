@@ -30,7 +30,7 @@ export function parse(expression: string): ParseResult {
   if (parserInstance.errors.length > 0) {
     return {
       isSuccess: false,
-      errors: parserInstance.errors.map((e) => e.message),
+      errors: parserInstance.errors.map((e) => e.message)
     }
   }
 
@@ -41,7 +41,7 @@ export function parse(expression: string): ParseResult {
 export function evaluate(
   expression: string | CstNode,
   context?: Record<string, unknown>,
-  functions?: Record<string, CallableFunction>,
+  functions?: Record<string, CallableFunction>
 ) {
   const result =
     typeof expression === 'string'

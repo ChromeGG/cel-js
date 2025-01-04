@@ -22,7 +22,7 @@ import {
   Comma,
   OpenCurlyBracket,
   CloseCurlyBracket,
-  Colon,
+  Colon
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -115,9 +115,9 @@ export class CelParser extends CstParser {
         {
           ALT: () =>
             this.SUBRULE(this.indexExpression, {
-              LABEL: 'identifierIndexExpression',
-            }),
-        },
+              LABEL: 'identifierIndexExpression'
+            })
+        }
       ])
     })
   })
@@ -152,9 +152,9 @@ export class CelParser extends CstParser {
         {
           ALT: () =>
             this.SUBRULE(this.indexExpression, {
-              LABEL: 'identifierIndexExpression',
-            }),
-        },
+              LABEL: 'identifierIndexExpression'
+            })
+        }
       ])
     })
   })
@@ -182,7 +182,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.SUBRULE(this.listExpression) },
       { ALT: () => this.SUBRULE(this.mapExpression) },
       { ALT: () => this.SUBRULE(this.macrosExpression) },
-      { ALT: () => this.SUBRULE(this.identifierExpression) },
+      { ALT: () => this.SUBRULE(this.identifierExpression) }
     ])
   })
 }

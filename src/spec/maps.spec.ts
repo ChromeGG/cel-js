@@ -51,7 +51,8 @@ describe('maps expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow( // todo fix this error message, no context passed is misleading
+        expect(result).toThrow(
+          // todo fix this error message, no context passed is misleading
           new CelEvaluationError('Identifier "b" not found, no context passed')
         )
       })

@@ -12,7 +12,7 @@ describe('index.ts', () => {
 
       expect(result).toStrictEqual({
         isSuccess: true,
-        cst: expect.any(Object),
+        cst: expect.any(Object)
       })
     })
 
@@ -23,7 +23,7 @@ describe('index.ts', () => {
 
       expect(result).toStrictEqual({
         isSuccess: false,
-        errors: expect.any(Array),
+        errors: expect.any(Array)
       })
     })
   })
