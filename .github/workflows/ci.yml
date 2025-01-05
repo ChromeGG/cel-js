@@ -33,7 +33,7 @@ jobs:
         run: pnpm run type-check
 
       - name: Commit lint
-        run: echo ${{ github.event.pull_request.title }} | pnpm commitlint --verbose
+        run: echo "${{ github.event.pull_request.title }}" | pnpm commitlint --verbose
 
   test:
     runs-on: ubuntu-latest
