@@ -7,7 +7,7 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": true,
     "outDir": "./dist",
     "baseUrl": "./src",
