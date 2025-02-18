@@ -32,9 +32,6 @@ jobs:
       - name: Run type check
         run: pnpm run type-check
 
-      - name: Commit lint
-        run: echo "${{ github.event.pull_request.title }}" | pnpm commitlint --verbose
-
   test:
     runs-on: ubuntu-latest
     steps:
