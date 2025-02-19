@@ -4,7 +4,6 @@ import { CelEvaluationError, CelTypeError, evaluate } from '..'
 import { Operations } from '../helper'
 
 describe('lists expressions', () => {
-  
   describe('has', () => {
     it('should return true when nested property exists', () => {
       const expr = 'has(object.property)'
@@ -34,22 +33,22 @@ describe('lists expressions', () => {
       const expr = 'has()'
       const context = { object: { property: true } }
 
-      expect(() => evaluate(expr, context))
-        .toThrow('has() requires exactly one argument')
+      expect(() => evaluate(expr, context)).toThrow(
+        'has() requires exactly one argument',
+      )
     })
 
     it('should throw when argument is not an object', () => {
       const context = { object: { property: true } }
-      const errorMessages = 'has() requires a field selection';
+      const errorMessages = 'has() requires a field selection'
 
-      expect(() => evaluate('has(object)', context))
-        .toThrow(errorMessages)
-    
-      expect(() => evaluate('has(object[0])', context))
-        .toThrow(errorMessages)
-        
-      expect(() => evaluate('has(object[property])', context))
-        .toThrow(errorMessages)  
+      expect(() => evaluate('has(object)', context)).toThrow(errorMessages)
+
+      expect(() => evaluate('has(object[0])', context)).toThrow(errorMessages)
+
+      expect(() => evaluate('has(object[property])', context)).toThrow(
+        errorMessages,
+      )
     })
 
     describe('should throw when argument is an atomic expresion of type', () => {
@@ -57,40 +56,31 @@ describe('lists expressions', () => {
       const context = { object: { property: true } }
 
       it('string', () => {
-        expect(() => evaluate('has("")', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has("")', context)).toThrow(errorMessages)
 
-        expect(() => evaluate('has("string")', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has("string")', context)).toThrow(errorMessages)
       })
 
       it('array', () => {
-        expect(() => evaluate('has([])', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has([])', context)).toThrow(errorMessages)
 
-        expect(() => evaluate('has([1, 2, 3])', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has([1, 2, 3])', context)).toThrow(errorMessages)
       })
 
       it('boolean', () => {
-        expect(() => evaluate('has(true)', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has(true)', context)).toThrow(errorMessages)
 
-        expect(() => evaluate('has(false)', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has(false)', context)).toThrow(errorMessages)
       })
 
       it('number', () => {
-        expect(() => evaluate('has(42)', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has(42)', context)).toThrow(errorMessages)
 
-        expect(() => evaluate('has(0)', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has(0)', context)).toThrow(errorMessages)
 
-        expect(() => evaluate('has(0.3)', context))
-          .toThrow(errorMessages)
+        expect(() => evaluate('has(0.3)', context)).toThrow(errorMessages)
       })
-    })    
+    })
   })
 
   describe('size', () => {
@@ -226,7 +216,7 @@ describe('custom functions', () => {
       const result = evaluate(
         expr,
         { bar: 'bar' },
-        { foo: foo, size: () => 'strange' }
+        { foo: foo, size: () => 'strange' },
       )
 
       expect(result).toBe('foo:bar strange true')
@@ -239,9 +229,7 @@ describe('custom functions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(
-        new CelEvaluationError('Macros foo not recognized')
-      )
+      expect(result).toThrow('Macros foo not recognized')
     })
 
     it('should not treat context values as first-class functions', () => {
@@ -249,9 +237,7 @@ describe('custom functions', () => {
 
       const result = () => evaluate(expr, { foo: 'foo', bar: 'bar' })
 
-      expect(result).toThrow(
-        new CelEvaluationError('Macros foo not recognized')
-      )
+      expect(result).toThrow('Macros foo not recognized')
     })
   })
 })

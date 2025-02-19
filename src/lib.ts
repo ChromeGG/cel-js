@@ -51,7 +51,7 @@ export function evaluate(
 
   if (!result.isSuccess) {
     throw new CelParseError(
-      'Given string is not a valid CEL expression: ' + result.errors.join(', ')
+      'Given string is not a valid CEL expression: ' + result.errors.join(', '),
     )
   }
 

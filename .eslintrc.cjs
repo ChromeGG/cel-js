@@ -19,7 +19,7 @@ module.exports = {
         'vitest/no-focused-tests': 'error',
         'vitest/consistent-test-filename': 'off',
         'vitest/prefer-lowercase-title': 'off',
-        'vitest/prefer-expect-assertions': 'off'
+        'vitest/prefer-expect-assertions': 'off',
       },
     },
   ],

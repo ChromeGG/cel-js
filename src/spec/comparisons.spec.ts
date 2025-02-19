@@ -82,7 +82,7 @@ describe('comparisons', () => {
       const result = () => evaluate(expr)
 
       expect(result).toThrow(
-        new CelTypeError(Operations.in, 'string', 'string')
+        new CelTypeError(Operations.in, 'string', 'string'),
       )
     })
 
@@ -96,7 +96,7 @@ describe('comparisons', () => {
         const expected = aString.slice(1, -1) // remove quotes
 
         expect(result).toBe(expected)
-      }
+      },
     )
   })
 })

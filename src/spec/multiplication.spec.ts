@@ -53,7 +53,7 @@ describe('multiplication', () => {
       const result = () => evaluate(expr)
 
       expect(result).toThrow(
-        new CelTypeError(Operations.multiplication, true, 1)
+        new CelTypeError(Operations.multiplication, true, 1),
       )
     })
 

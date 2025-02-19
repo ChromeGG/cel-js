@@ -32,6 +32,9 @@ jobs:
       - name: Run type check
         run: pnpm run type-check
 
+      - name: Run prettier
+        run: pnpm prettier ./src --check
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -77,5 +80,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Run tests
+      - name: Run build
         run: pnpm run build

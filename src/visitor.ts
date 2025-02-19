@@ -27,7 +27,7 @@ import {
   getResult,
   getUnaryResult,
   has,
-  size
+  size,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 
@@ -36,7 +36,7 @@ enum Mode {
   /** The visitor is executed without any specified mode  */
   'normal',
   /** The visitor is executed inside a has macro */
-  'has'
+  'has',
 }
 
 const parserInstance = new CelParser()
@@ -45,23 +45,26 @@ const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
 const defaultFunctions = {
   has,
-  size
-};
+  size,
+}
 
 export class CelVisitor
   extends BaseCelVisitor
   implements ICstNodeVisitor<void, unknown>
 {
-  constructor(context?: Record<string, unknown>, functions?: Record<string, CallableFunction>) {
+  constructor(
+    context?: Record<string, unknown>,
+    functions?: Record<string, CallableFunction>,
+  ) {
     super()
-    this.context = context || {};
+    this.context = context || {}
 
     this.functions = {
       ...defaultFunctions,
       ...(functions || {}),
-    };
+    }
 
-    this.validateVisitor();
+    this.validateVisitor()
   }
 
   private context: Record<string, unknown>
@@ -79,7 +82,7 @@ export class CelVisitor
 
   /**
    * Handles the special 'has' macro which checks for the existence of a field.
-   * 
+   *
    * @param ctx - The macro expression context containing the argument to check
    * @returns boolean indicating if the field exists
    * @throws CelEvaluationError if argument is missing or invalid
@@ -106,16 +109,21 @@ export class CelVisitor
 
   /**
    * Handles execution of generic macro functions by evaluating and passing their arguments.
-   * 
+   *
    * @param fn - The macro function to execute
    * @param ctx - The macro expression context containing the arguments
    * @returns The result of executing the macro function with the evaluated arguments
    */
-  private handleGenericMacro(fn: CallableFunction, ctx: MacrosExpressionCstChildren): unknown {
-    return fn(...[
-      ...(ctx.arg ? [this.visit(ctx.arg)] : []),
-      ...(ctx.args ? ctx.args.map((arg) => this.visit(arg)) : [])
-    ])
+  private handleGenericMacro(
+    fn: CallableFunction,
+    ctx: MacrosExpressionCstChildren,
+  ): unknown {
+    return fn(
+      ...[
+        ...(ctx.arg ? [this.visit(ctx.arg)] : []),
+        ...(ctx.args ? ctx.args.map((arg) => this.visit(arg)) : []),
+      ],
+    )
   }
 
   conditionalOr(ctx: ConditionalOrCstChildren): boolean {
@@ -135,14 +143,14 @@ export class CelVisitor
 
   /**
    * Evaluates a logical AND expression by visiting left and right hand operands.
-   * 
+   *
    * @param ctx - The conditional AND context containing left and right operands
    * @returns The boolean result of evaluating the AND expression
-   * 
+   *
    * This method implements short-circuit evaluation - if the left operand is false,
    * it returns false immediately without evaluating the right operand. This is required
    * for proper handling of the has() macro.
-   * 
+   *
    * For multiple right-hand operands, it evaluates them sequentially, combining results
    * with logical AND operations.
    */
@@ -153,7 +161,7 @@ export class CelVisitor
     if (left === false) {
       return false
     }
-    
+
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
         const right = this.visit(rhsOperand)
@@ -288,7 +296,7 @@ export class CelVisitor
 
   private getIndexSection(
     ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren,
-    mapExpression: unknown
+    mapExpression: unknown,
   ) {
     const expressions = [
       ...(ctx.identifierDotExpression || []),
@@ -313,19 +321,19 @@ export class CelVisitor
 
   /**
    * Evaluates a macros expression by executing the corresponding macro function.
-   * 
+   *
    * @param ctx - The macro expression context containing the macro identifier and arguments
    * @returns The result of executing the macro function
    * @throws Error if the macro function is not recognized
-   * 
+   *
    * This method handles two types of macros:
    * 1. The special 'has' macro which checks for field existence
    * 2. Generic macros that take evaluated arguments
    */
   macrosExpression(ctx: MacrosExpressionCstChildren): unknown {
-    const [ macrosIdentifier ] = ctx.Identifier
+    const [macrosIdentifier] = ctx.Identifier
     const fn = this.functions[macrosIdentifier.image]
-    
+
     if (!fn) {
       throw new Error(`Macros ${macrosIdentifier.image} not recognized`)
     }
@@ -334,13 +342,13 @@ export class CelVisitor
     if (macrosIdentifier.image === 'has') {
       return this.handleHasMacro(ctx)
     }
-    
+
     return this.handleGenericMacro(fn, ctx)
   }
 
   /**
    * Evaluates an atomic expression node in the AST.
-   * 
+   *
    * @param ctx - The atomic expression context containing the expression type and value
    * @returns The evaluated value of the atomic expression
    * @throws CelEvaluationError if invalid atomic expression is used in has() macro
@@ -348,7 +356,7 @@ export class CelVisitor
    *
    * Handles the following atomic expression types:
    * - Null literals
-   * - Parenthesized expressions 
+   * - Parenthesized expressions
    * - String literals
    * - Boolean literals
    * - Float literals
@@ -413,10 +421,10 @@ export class CelVisitor
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
     // Validate that we have a dot expression when in a has() macro
-    if (this.mode === Mode.has && !ctx.identifierDotExpression?.length) {  
+    if (this.mode === Mode.has && !ctx.identifierDotExpression?.length) {
       throw new CelEvaluationError('has() requires a field selection')
     }
-    
+
     const data = this.context
     const result = this.getIdentifier(data, ctx.Identifier[0].image)
 
@@ -429,7 +437,7 @@ export class CelVisitor
 
   identifierDotExpression(
     ctx: IdentifierDotExpressionCstChildren,
-    param: unknown
+    param: unknown,
   ): unknown {
     const identifierName = ctx.Identifier[0].image
     return this.getIdentifier(param, identifierName)
@@ -442,7 +450,7 @@ export class CelVisitor
   getIdentifier(searchContext: unknown, identifier: string): unknown {
     if (typeof searchContext !== 'object' || searchContext === null) {
       throw new Error(
-        `Cannot obtain "${identifier}" from non-object context: ${searchContext}`
+        `Cannot obtain "${identifier}" from non-object context: ${searchContext}`,
       )
     }
 
@@ -453,11 +461,11 @@ export class CelVisitor
 
       if (context === '{}') {
         throw new Error(
-          `Identifier "${identifier}" not found, no context passed`
+          `Identifier "${identifier}" not found, no context passed`,
         )
       }
       throw new Error(
-        `Identifier "${identifier}" not found in context: ${context}`
+        `Identifier "${identifier}" not found in context: ${context}`,
       )
     }
 

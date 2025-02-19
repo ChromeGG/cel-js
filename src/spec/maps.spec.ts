@@ -51,9 +51,7 @@ describe('maps expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow( // todo fix this error message, no context passed is misleading
-          new CelEvaluationError('Identifier "b" not found, no context passed')
-        )
+        expect(result).toThrow('Identifier "b" not found, no context passed')
       })
 
       it.todo('should throw an error if the key is not a string', () => {
@@ -61,7 +59,7 @@ describe('maps expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow(new CelEvaluationError('invalid_argument: 1'))
+        expect(result).toThrow('invalid_argument: 1')
       })
     })
     describe('index expression', () => {
@@ -78,9 +76,7 @@ describe('maps expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow(
-          new CelEvaluationError('Identifier "b" not found, no context passed')
-        )
+        expect(result).toThrow('Identifier "b" not found, no context passed')
       })
 
       it('should throw an error if the key is not a string', () => {
@@ -88,9 +84,7 @@ describe('maps expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow(
-          new CelEvaluationError('Identifier "1" not found, no context passed')
-        )
+        expect(result).toThrow('Identifier "1" not found, no context passed')
       })
     })
   })

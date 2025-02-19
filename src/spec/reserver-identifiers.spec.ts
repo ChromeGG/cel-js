@@ -12,8 +12,8 @@ describe('reserved identifiers', () => {
       const result = () => evaluate(expr)
 
       expect(result).toThrow(
-        `Detected reserved identifier. This is not allowed`
+        `Detected reserved identifier. This is not allowed`,
       )
-    }
+    },
   )
 })

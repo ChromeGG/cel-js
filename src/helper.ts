@@ -211,7 +211,7 @@ const comparisonInOperation = (left: unknown, right: unknown) => {
 const comparisonOperation = (
   operation: Operations,
   left: unknown,
-  right: unknown
+  right: unknown,
 ) => {
   if (
     (isCalculable(left) && isCalculable(right)) ||
@@ -307,7 +307,7 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
 }
 
 export const getPosition = (
-  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode
+  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode,
 ) => {
   if (ctx.name === 'identifierDotExpression') {
     return ctx.children.Dot[0].startOffset
@@ -330,10 +330,10 @@ export const size = (arr: unknown) => {
 
 /**
  * Macro definition for the CEL has() function that checks if a path exists in an object.
- * 
+ *
  * @param path - The path to check for existence
  * @returns boolean - True if the path exists (is not undefined), false otherwise
- * 
+ *
  * @example
  * has(obj.field) // returns true if field exists on obj
  */

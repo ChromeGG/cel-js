@@ -24,4 +24,3 @@ files.forEach((file) => {
     fs.unlinkSync(path.join(distDir, file))
   }
 })
-
