@@ -7,6 +7,10 @@ export interface ExprCstNode extends CstNode {
 
 export type ExprCstChildren = {
   conditionalOr: ConditionalOrCstNode[]
+  QuestionMark?: IToken[]
+  lhs?: ExprCstNode[]
+  Colon?: IToken[]
+  rhs?: ExprCstNode[]
 }
 
 export interface ConditionalAndCstNode extends CstNode {
@@ -19,6 +23,8 @@ export type ConditionalAndCstChildren = {
   LogicalAndOperator?: IToken[]
   rhs?: RelationCstNode[]
 }
+
+
 
 export interface ConditionalOrCstNode extends CstNode {
   name: 'conditionalOr'
