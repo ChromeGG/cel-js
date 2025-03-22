@@ -286,20 +286,19 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
  * @param isEvenOperators Whether there's an even number of operators (affects result)
  * @returns Negated value
  */
-function handleLogicalNegation(operand: unknown, isEvenOperators: boolean): boolean {
+function handleLogicalNegation(
+  operand: unknown,
+  isEvenOperators: boolean,
+): boolean {
   if (operand === null) {
     return !isEvenOperators // Odd number gives true, even gives false
   }
 
   if (!isBoolean(operand)) {
-    throw new CelTypeError(
-      'logical negation',
-      operand,
-      null
-    )
+    throw new CelTypeError('logical negation', operand, null)
   }
 
-  return isEvenOperators ? operand as boolean : !operand
+  return isEvenOperators ? (operand as boolean) : !operand
 }
 
 /**
@@ -309,13 +308,12 @@ function handleLogicalNegation(operand: unknown, isEvenOperators: boolean): bool
  * @param isEvenOperators Whether there's an even number of operators (affects result)
  * @returns Negated value
  */
-function handleArithmeticNegation(operand: unknown, isEvenOperators: boolean): number {
+function handleArithmeticNegation(
+  operand: unknown,
+  isEvenOperators: boolean,
+): number {
   if (!isCalculable(operand)) {
-    throw new CelTypeError(
-      'arithmetic negation',
-      operand,
-      null
-    )
+    throw new CelTypeError('arithmetic negation', operand, null)
   }
 
   // Handle -0 edge case by returning +0
@@ -323,7 +321,7 @@ function handleArithmeticNegation(operand: unknown, isEvenOperators: boolean): n
     return 0
   }
 
-  return isEvenOperators ? operand as number : -(operand as number)
+  return isEvenOperators ? (operand as number) : -(operand as number)
 }
 
 /**
@@ -343,21 +341,17 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
   const isEvenOperators = operators.length % 2 === 0
 
   // Check if all operators are logical negation
-  if (operators.every(op => tokenMatcher(op, LogicalNotOperator))) {
+  if (operators.every((op) => tokenMatcher(op, LogicalNotOperator))) {
     return handleLogicalNegation(operand, isEvenOperators)
   }
 
   // Check if all operators are arithmetic negation
-  if (operators.every(op => tokenMatcher(op, Minus))) {
+  if (operators.every((op) => tokenMatcher(op, Minus))) {
     return handleArithmeticNegation(operand, isEvenOperators)
   }
 
   // Mixed or unsupported operators
-  throw new CelTypeError(
-    'unary operation',
-    operand,
-    null
-  )
+  throw new CelTypeError('unary operation', operand, null)
 }
 
 export const getPosition = (

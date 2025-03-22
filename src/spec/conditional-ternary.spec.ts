@@ -29,8 +29,12 @@ describe('Ternary Operator', () => {
   })
 
   it('should work with variables', () => {
-    expect(evaluate('user.admin ? "Admin" : "User"', { user: { admin: true } })).toBe('Admin')
-    expect(evaluate('user.admin ? "Admin" : "User"', { user: { admin: false } })).toBe('User')
+    expect(
+      evaluate('user.admin ? "Admin" : "User"', { user: { admin: true } }),
+    ).toBe('Admin')
+    expect(
+      evaluate('user.admin ? "Admin" : "User"', { user: { admin: false } }),
+    ).toBe('User')
   })
 
   it('should support logical operators in condition', () => {

@@ -86,7 +86,7 @@ export class CelVisitor
     const condition = this.visit(ctx.conditionalOr[0])
 
     // If no ternary operator is present, just return the condition
-    if (!ctx.QuestionMark) return condition;
+    if (!ctx.QuestionMark) return condition
 
     // Evaluate the appropriate branch based on the condition (logical true/false)
     if (condition) {

@@ -19,17 +19,21 @@ describe('Unary Operators', () => {
     })
 
     it('should throw error when used with non-boolean, non-null values', () => {
-      expect(() => evaluate('!"string"'))
-        .toThrow(new CelTypeError('logical negation', 'string', null))
+      expect(() => evaluate('!"string"')).toThrow(
+        new CelTypeError('logical negation', 'string', null),
+      )
 
-      expect(() => evaluate('!123'))
-        .toThrow(new CelTypeError('logical negation', 123, null))
+      expect(() => evaluate('!123')).toThrow(
+        new CelTypeError('logical negation', 123, null),
+      )
 
-      expect(() => evaluate('![]'))
-        .toThrow(new CelTypeError('logical negation', [], null))
+      expect(() => evaluate('![]')).toThrow(
+        new CelTypeError('logical negation', [], null),
+      )
 
-      expect(() => evaluate('!{}'))
-        .toThrow(new CelTypeError('logical negation', {}, null))
+      expect(() => evaluate('!{}')).toThrow(
+        new CelTypeError('logical negation', {}, null),
+      )
     })
   })
 
@@ -43,20 +47,25 @@ describe('Unary Operators', () => {
     })
 
     it('should throw error when used with non-numeric values', () => {
-      expect(() => evaluate('-"string"'))
-        .toThrow(new CelTypeError('arithmetic negation', 'string', null))
+      expect(() => evaluate('-"string"')).toThrow(
+        new CelTypeError('arithmetic negation', 'string', null),
+      )
 
-      expect(() => evaluate('-true'))
-        .toThrow(new CelTypeError('arithmetic negation', true, null))
+      expect(() => evaluate('-true')).toThrow(
+        new CelTypeError('arithmetic negation', true, null),
+      )
 
-      expect(() => evaluate('-null'))
-        .toThrow(new CelTypeError('arithmetic negation', null, null))
+      expect(() => evaluate('-null')).toThrow(
+        new CelTypeError('arithmetic negation', null, null),
+      )
 
-      expect(() => evaluate('-[]'))
-        .toThrow(new CelTypeError('arithmetic negation', [], null))
+      expect(() => evaluate('-[]')).toThrow(
+        new CelTypeError('arithmetic negation', [], null),
+      )
 
-      expect(() => evaluate('-{}'))
-        .toThrow(new CelTypeError('arithmetic negation', {}, null))
+      expect(() => evaluate('-{}')).toThrow(
+        new CelTypeError('arithmetic negation', {}, null),
+      )
     })
   })
 
@@ -74,9 +83,9 @@ describe('Unary Operators', () => {
     })
 
     it('should respect operator precedence', () => {
-      expect(evaluate('!true || true')).toBe(true)  // (!true) || true
-      expect(evaluate('!(true || true)')).toBe(false)  // !(true || true)
-      expect(evaluate('-5 + 3')).toBe(-2)  // (-5) + 3
+      expect(evaluate('!true || true')).toBe(true) // (!true) || true
+      expect(evaluate('!(true || true)')).toBe(false) // !(true || true)
+      expect(evaluate('-5 + 3')).toBe(-2) // (-5) + 3
     })
   })
 })
