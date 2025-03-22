@@ -280,6 +280,53 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
 }
 
 /**
+ * Handles logical negation for a value.
+ *
+ * @param operand The value to negate
+ * @param isEvenOperators Whether there's an even number of operators (affects result)
+ * @returns Negated value
+ */
+function handleLogicalNegation(operand: unknown, isEvenOperators: boolean): boolean {
+  if (operand === null) {
+    return !isEvenOperators // Odd number gives true, even gives false
+  }
+
+  if (!isBoolean(operand)) {
+    throw new CelTypeError(
+      'logical negation',
+      operand,
+      null
+    )
+  }
+
+  return isEvenOperators ? operand as boolean : !operand
+}
+
+/**
+ * Handles arithmetic negation for a value.
+ *
+ * @param operand The value to negate
+ * @param isEvenOperators Whether there's an even number of operators (affects result)
+ * @returns Negated value
+ */
+function handleArithmeticNegation(operand: unknown, isEvenOperators: boolean): number {
+  if (!isCalculable(operand)) {
+    throw new CelTypeError(
+      'arithmetic negation',
+      operand,
+      null
+    )
+  }
+
+  // Handle -0 edge case by returning +0
+  if (!isEvenOperators && operand === 0) {
+    return 0
+  }
+
+  return isEvenOperators ? operand as number : -(operand as number)
+}
+
+/**
  * Applies unary operators to an operand according to CEL semantics.
  *
  * @param operators - Array of unary operator tokens to apply
@@ -289,44 +336,23 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
  */
 export const getUnaryResult = (operators: IToken[], operand: unknown) => {
   // If no operators, return the operand unchanged
-  if (operators.length === 0) return operand
-
-  // Handle arithmetic negation (-)
-  if (operators.every((operator) => tokenMatcher(operator, Minus))) {
-    if (!isCalculable(operand)) {
-      throw new CelTypeError(
-        'arithmetic negation',
-        operand,
-        null
-      )
-    }
-
-    // Handle special case for -0 (should be normalized to +0)
-    if (operators.length % 2 === 1 && operand === 0) return 0
-
-    // Even number of negations cancel out
-    return operators.length % 2 === 0 ? operand : -operand
+  if (operators.length === 0) {
+    return operand
   }
 
-  // Handle logical negation (!)
-  if (operators.every((operator) => tokenMatcher(operator, LogicalNotOperator))) {
-    // Special case for null: !null is true in CEL
-    if (operand === null) return operators.length % 2 === 0 ? false : true
+  const isEvenOperators = operators.length % 2 === 0
 
-    // Only boolean values can be logically negated
-    if (!isBoolean(operand)) {
-      throw new CelTypeError(
-        'logical negation',
-        operand,
-        null
-      )
-    }
-
-    // Even number of negations cancel out
-    return operators.length % 2 === 0 ? operand : !operand
+  // Check if all operators are logical negation
+  if (operators.every(op => tokenMatcher(op, LogicalNotOperator))) {
+    return handleLogicalNegation(operand, isEvenOperators)
   }
 
-  // Mixed operators or unsupported operators
+  // Check if all operators are arithmetic negation
+  if (operators.every(op => tokenMatcher(op, Minus))) {
+    return handleArithmeticNegation(operand, isEvenOperators)
+  }
+
+  // Mixed or unsupported operators
   throw new CelTypeError(
     'unary operation',
     operand,
@@ -367,5 +393,5 @@ export const size = (arr: unknown) => {
  */
 export const has = (path: unknown): boolean => {
   // If the path itself is undefined, it means the field/index doesn't exist
-  return !(path === undefined)
+  return path !== undefined
 }
