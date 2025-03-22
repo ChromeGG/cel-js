@@ -279,31 +279,59 @@ export const getResult = (operator: IToken, left: unknown, right: unknown) => {
   }
 }
 
+/**
+ * Applies unary operators to an operand according to CEL semantics.
+ *
+ * @param operators - Array of unary operator tokens to apply
+ * @param operand - The value to apply the operators to
+ * @returns The result of applying the operators to the operand
+ * @throws CelTypeError if the operators cannot be applied to the operand type
+ */
 export const getUnaryResult = (operators: IToken[], operand: unknown) => {
-  if (
-    isCalculable(operand) &&
-    operators.every((operator) => tokenMatcher(operator, Minus))
-  ) {
-    if (operators.length % 2 === 0) {
-      return operand
+  // If no operators, return the operand unchanged
+  if (operators.length === 0) return operand
+
+  // Handle arithmetic negation (-)
+  if (operators.every((operator) => tokenMatcher(operator, Minus))) {
+    if (!isCalculable(operand)) {
+      throw new CelTypeError(
+        'arithmetic negation',
+        operand,
+        null
+      )
     }
 
-    return -operand
+    // Handle special case for -0 (should be normalized to +0)
+    if (operators.length % 2 === 1 && operand === 0) return 0
+
+    // Even number of negations cancel out
+    return operators.length % 2 === 0 ? operand : -operand
   }
 
-  if (
-    isBoolean(operand) &&
-    operators.every((operator) => tokenMatcher(operator, LogicalNotOperator))
-  ) {
-    if (operators.length % 2 === 0) {
-      return operand
+  // Handle logical negation (!)
+  if (operators.every((operator) => tokenMatcher(operator, LogicalNotOperator))) {
+    // Special case for null: !null is true in CEL
+    if (operand === null) return operators.length % 2 === 0 ? false : true
+
+    // Only boolean values can be logically negated
+    if (!isBoolean(operand)) {
+      throw new CelTypeError(
+        'logical negation',
+        operand,
+        null
+      )
     }
 
-    return !operand
+    // Even number of negations cancel out
+    return operators.length % 2 === 0 ? operand : !operand
   }
 
-  // TODO this error message is not correct
-  throw new CelTypeError(Operations.addition, operand, null)
+  // Mixed operators or unsupported operators
+  throw new CelTypeError(
+    'unary operation',
+    operand,
+    null
+  )
 }
 
 export const getPosition = (

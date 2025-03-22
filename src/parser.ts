@@ -23,6 +23,7 @@ import {
   OpenCurlyBracket,
   CloseCurlyBracket,
   Colon,
+  QuestionMark,
 } from './tokens.js'
 
 export class CelParser extends CstParser {
@@ -32,7 +33,13 @@ export class CelParser extends CstParser {
   }
 
   public expr = this.RULE('expr', () => {
-    this.SUBRULE(this.conditionalOr)
+    this.SUBRULE(this.conditionalOr, { LABEL: 'conditionalOr' })
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark)
+      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+      this.CONSUME(Colon)
+      this.SUBRULE2(this.expr, { LABEL: 'rhs' })
+    })
   })
 
   private conditionalAnd = this.RULE('conditionalAnd', () => {
