@@ -42,6 +42,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] Size (`size(foo)`)
   - [x] Unary Operators (`!true`, `-123`)
   - [x] Custom Functions (`myFunction()`)
+  - [x] Comments (`// This is a comment`)
 
 ## Installation
 
