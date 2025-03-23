@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       cel-js:
-        specifier: 0.3.1
-        version: 0.3.1
+        specifier: 0.4.0
+        version: 0.4.0
     devDependencies:
       tsx:
         specifier: 4.10.0
@@ -171,8 +171,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  cel-js@0.3.1:
-    resolution: {integrity: sha512-6F0A4zSkHeZsQi+4WqejeTbi3rUq1itiBduOStfWiRbqGWkKbAbx7lLaxSh6r67RIA+Pp3XOxfTNYfhkKemTJA==}
+  cel-js@0.4.0:
+    resolution: {integrity: sha512-ANcaOr9HyrU2n+5VjYD5MFqYVy4gSWCgTj04vcyti1NyG1+VyeWwWbobj5P/mLZR/gwmdYFWnV++k5bdfBqgUQ==}
     engines: {node: '>=18.0.0'}
 
   chevrotain@11.0.3:
@@ -194,8 +194,8 @@ packages:
   lodash-es@4.17.21:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
 
-  ramda@0.30.0:
-    resolution: {integrity: sha512-13Y0iMhIQuAm/wNGBL/9HEqIfRGmNmjKnTPlKWfA9f7dnDkr8d45wQ+S7+ZLh/Pq9PdcGxkqKUEA7ySu1QSd9Q==}
+  ramda@0.30.1:
+    resolution: {integrity: sha512-tEF5I22zJnuclswcZMc8bDIrwRHRzf+NqVEmqg50ShAZMP7MWeR/RGDthfM/p+BlqvF2fXAzpn8i+SJcYD3alw==}
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
@@ -293,10 +293,10 @@ snapshots:
   '@esbuild/win32-x64@0.20.2':
     optional: true
 
-  cel-js@0.3.1:
+  cel-js@0.4.0:
     dependencies:
       chevrotain: 11.0.3
-      ramda: 0.30.0
+      ramda: 0.30.1
 
   chevrotain@11.0.3:
     dependencies:
@@ -342,7 +342,7 @@ snapshots:
 
   lodash-es@4.17.21: {}
 
-  ramda@0.30.0: {}
+  ramda@0.30.1: {}
 
   resolve-pkg-maps@1.0.0: {}
 
