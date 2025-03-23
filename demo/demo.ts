@@ -29,6 +29,10 @@ import { evaluate, parse } from 'cel-js'
   const context = { user: { role: 'admin' } }
   console.log(`${identifierExpr} => ${evaluate(identifierExpr, context)}`) // => true
 
+  // Ternary operator
+  const ternaryExpr = 'user.role == "admin" ? "owner" : "user"'
+  console.log(`${ternaryExpr} => ${evaluate(ternaryExpr, context)}`) // => 'owner'
+
   // Array expressions
   const arrayExpr = '[1, 2]'
   console.log(`${arrayExpr} => ${evaluate(arrayExpr)}`) // => [1, 2]
