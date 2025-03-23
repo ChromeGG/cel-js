@@ -1,13 +1,13 @@
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import sonarjs from 'eslint-plugin-sonarjs';
-import vitestPlugin from 'eslint-plugin-vitest';
+import eslint from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import sonarjs from 'eslint-plugin-sonarjs'
+import vitestPlugin from 'eslint-plugin-vitest'
 
 export default tseslint.config(
   // Base configurations
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
-  
+
   // Add SonarJS rules
   {
     plugins: {
@@ -17,12 +17,16 @@ export default tseslint.config(
       ...sonarjs.configs.recommended.rules,
     },
   },
-  
+
   // Global settings
   {
     ignores: ['dist/**'],
+    rules: {
+      'sonarjs/slow-regex': 'off',
+      'sonarjs/concise-regex': 'off',
+    },
   },
-  
+
   // Override for test files
   {
     files: ['**/*.spec.ts'],
@@ -37,6 +41,7 @@ export default tseslint.config(
       'vitest/consistent-test-filename': 'off',
       'vitest/prefer-lowercase-title': 'off',
       'vitest/prefer-expect-assertions': 'off',
+      'sonarjs/no-nested-functions': 'off',
     },
-  }
-);
+  },
+)

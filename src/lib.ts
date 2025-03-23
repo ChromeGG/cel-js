@@ -37,7 +37,6 @@ export function parse(expression: string): ParseResult {
   return { isSuccess: true, cst }
 }
 
-// TODO mention about this library in other Google's CEL repos
 export function evaluate(
   expression: string | CstNode,
   context?: Record<string, unknown>,

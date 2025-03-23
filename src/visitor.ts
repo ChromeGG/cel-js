@@ -197,7 +197,7 @@ export class CelVisitor
       const right = this.visit(ctx.rhs)
       const operator = ctx.ComparisonOperator![0]
 
-      // todo fix type assertion
+      // maybe we can make the function more type safe by mapping input w/ output types
       return getResult(operator, left, right) as boolean
     }
 
