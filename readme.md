@@ -23,7 +23,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] map
     - [x] null
   - [x] Conditional Operators
-    - [ ] Ternary (`condition ? true : false`)
+    - [x] Ternary (`condition ? true : false`)
     - [x] Logical And (`&&`)
     - [x] Logical Or (`||`)
   - [x] Equality Operators (`==`, `!=`)

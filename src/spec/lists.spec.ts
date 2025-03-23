@@ -104,15 +104,6 @@ describe('lists expressions', () => {
       expect(result).toThrow(new CelEvaluationError('invalid_argument: 0.1'))
     })
 
-    it.todo('should access first element using 0u', () => {
-      // TODO: Implement zero_based_uint
-      const expr = '[7, 8, 9][0u]'
-
-      const result = evaluate(expr)
-
-      expect(result).toBe(7)
-    })
-
     it('should access list a singleton', () => {
       const expr = '["foo"][0]'
 

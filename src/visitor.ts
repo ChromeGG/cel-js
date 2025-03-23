@@ -76,8 +76,24 @@ export class CelVisitor
 
   private functions: Record<string, CallableFunction>
 
-  public expr(ctx: ExprCstChildren) {
-    return this.visit(ctx.conditionalOr) as unknown
+  /**
+   * Evaluates the expression including conditional ternary expressions in the form: condition ? trueExpr : falseExpr
+   *
+   * @param ctx - The expression context containing the condition and optional ternary branches
+   * @returns The result of evaluating the expression
+   */
+  public expr(ctx: ExprCstChildren): unknown {
+    const condition = this.visit(ctx.conditionalOr[0])
+
+    // If no ternary operator is present, just return the condition
+    if (!ctx.QuestionMark) return condition
+
+    // Evaluate the appropriate branch based on the condition (logical true/false)
+    if (condition) {
+      return this.visit(ctx.lhs![0])
+    } else {
+      return this.visit(ctx.rhs![0])
+    }
   }
 
   /**
@@ -181,7 +197,7 @@ export class CelVisitor
       const right = this.visit(ctx.rhs)
       const operator = ctx.ComparisonOperator![0]
 
-      // todo fix type assertion
+      // maybe we can make the function more type safe by mapping input w/ output types
       return getResult(operator, left, right) as boolean
     }
 
