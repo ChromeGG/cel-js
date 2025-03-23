@@ -24,8 +24,6 @@ export type ConditionalAndCstChildren = {
   rhs?: RelationCstNode[]
 }
 
-
-
 export interface ConditionalOrCstNode extends CstNode {
   name: 'conditionalOr'
   children: ConditionalOrCstChildren
