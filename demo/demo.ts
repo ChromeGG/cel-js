@@ -53,8 +53,15 @@ import { evaluate, parse } from 'cel-js'
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'
   console.log(
-    `${functionExpr} => ${evaluate(functionExpr, {}, { max: Math.max })}`
+    `${functionExpr} => ${evaluate(functionExpr, {}, { max: Math.max })}`,
   ) // => 7
+
+  // Comment support
+  const commentedExpr = `
+    "foo" + // some comment
+    "bar"
+  `
+  console.log(`${commentedExpr} => ${evaluate(commentedExpr)}`) // => 'foobar'
 }
 
 // Parse an expression, useful for validation purposes before persisting

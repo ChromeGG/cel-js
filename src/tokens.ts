@@ -1,5 +1,11 @@
 import { createToken, Lexer } from 'chevrotain'
 
+export const Comment = createToken({
+  name: 'Comment',
+  pattern: /\/\/[^\n]*/,
+  group: Lexer.SKIPPED,
+})
+
 export const WhiteSpace = createToken({
   name: 'WhiteSpace',
   pattern: /\s+/,
@@ -180,7 +186,7 @@ export const MultiplicationToken = createToken({
 
 export const Division = createToken({
   name: 'Division',
-  pattern: /\//,
+  pattern: /\/(?!\/)/, // Match / but not //
   categories: MultiplicationOperator,
 })
 
@@ -214,6 +220,7 @@ export const Identifier = createToken({
 
 // The order of tokens is important
 export const allTokens = [
+  Comment,
   WhiteSpace,
 
   CloseParenthesis,
