@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       cel-js:
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.5.0
+        version: 0.5.0
     devDependencies:
       tsx:
         specifier: 4.10.0
@@ -171,8 +171,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  cel-js@0.4.0:
-    resolution: {integrity: sha512-ANcaOr9HyrU2n+5VjYD5MFqYVy4gSWCgTj04vcyti1NyG1+VyeWwWbobj5P/mLZR/gwmdYFWnV++k5bdfBqgUQ==}
+  cel-js@0.5.0:
+    resolution: {integrity: sha512-VOJi47DeznqsZ8kXRqFlFpTQVd1JUjW0sWtB8fN/rRcJStO+2Ua6AoBLnWsCJWHLihBz0EDWwwvuCQuJoaVz6w==}
     engines: {node: '>=18.0.0'}
 
   chevrotain@11.0.3:
@@ -293,7 +293,7 @@ snapshots:
   '@esbuild/win32-x64@0.20.2':
     optional: true
 
-  cel-js@0.4.0:
+  cel-js@0.5.0:
     dependencies:
       chevrotain: 11.0.3
       ramda: 0.30.1

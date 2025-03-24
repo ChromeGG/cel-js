@@ -57,7 +57,7 @@ import { evaluate, parse } from 'cel-js'
   ) // => 7
 
   // Comment support
-  const commentedExpr = `
+  const commentedExpr = `// multi-line comment
     "foo" + // some comment
     "bar"
   `
