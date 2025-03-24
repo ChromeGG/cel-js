@@ -16,6 +16,15 @@ describe('Comments', () => {
     ).toBe(3)
   })
 
+  it('multi-line comments', () => {
+    expect(
+      evaluate(`
+        "foo" + // some comment
+        "bar"
+      `),
+    ).toBe('foobar')
+  })
+
   it('should not parse // inside a string literal as a comment', () => {
     const result = evaluate('"This contains // but is not a comment"')
     expect(result).toBe('This contains // but is not a comment')
