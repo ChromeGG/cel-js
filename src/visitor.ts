@@ -409,7 +409,23 @@ export class CelVisitor
     }
 
     if (ctx.Integer) {
-      return parseInt(ctx.Integer[0].image)
+      return parseInt(ctx.Integer[0].image, 10)
+    }
+
+    if (ctx.UnsignedInteger) {
+      // Remove the 'u' or 'U' suffix and parse as integer
+      return parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
+    }
+
+    if (ctx.HexInteger) {
+      return parseInt(ctx.HexInteger[0].image.substring(2), 16)
+    }
+
+    if (ctx.HexUnsignedInteger) {
+      // Remove the 'u' or 'U' suffix and parse as hex
+      const hex = ctx.HexUnsignedInteger[0].image
+      const valueWithoutSuffix = hex.replace(/[uU]$/, '')
+      return parseInt(valueWithoutSuffix.substring(2), 16)
     }
 
     if (ctx.ReservedIdentifiers) {
