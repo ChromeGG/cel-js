@@ -52,7 +52,22 @@ export const Float = createToken({
   pattern: /-?\d+\.\d+/,
 })
 
+export const HexInteger = createToken({
+  name: 'HexInteger',
+  pattern: /0x[0-9a-fA-F]+/,
+})
+
 export const Integer = createToken({ name: 'Integer', pattern: /0|[1-9]\d*/ })
+
+export const HexUnsignedInteger = createToken({
+  name: 'HexUnsignedInteger',
+  pattern: /0x[0-9a-fA-F]+[uU]/,
+})
+
+export const UnsignedInteger = createToken({
+  name: 'UnsignedInteger',
+  pattern: /(0|[1-9]\d*)[uU]/,
+})
 
 export const BooleanLiteral = createToken({
   name: 'BooleanLiteral',
@@ -235,6 +250,9 @@ export const allTokens = [
   QuestionMark,
 
   Float,
+  HexUnsignedInteger,
+  HexInteger,
+  UnsignedInteger,
   Integer,
   True,
   False,

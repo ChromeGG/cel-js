@@ -11,6 +11,14 @@ describe('atomic expressions', () => {
     expect(result).toBe(1)
   })
 
+  it('should evaluate a hexadecimal number', () => {
+    const expr = '0xA'
+
+    const result = evaluate(expr)
+
+    expect(result).toBe(10)
+  })
+
   it('should evaluate a true boolean literal', () => {
     const expr = 'true'
 
