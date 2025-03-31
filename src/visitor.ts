@@ -382,7 +382,6 @@ export class CelVisitor
    * - Map expressions
    * - Macro expressions
    */
-  // eslint-disable-next-line sonarjs/cognitive-complexity
   atomicExpression(ctx: AtomicExpressionCstChildren) {
     if (ctx.Null) {
       return null
