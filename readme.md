@@ -18,6 +18,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] double
     - [x] bool
     - [x] string
+    - [x] hexadecimal
     - [ ] bytes
     - [x] list
     - [x] map
