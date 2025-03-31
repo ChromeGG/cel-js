@@ -1,5 +1,8 @@
 import { CstParser } from 'chevrotain'
 import {
+  HexUnsignedInteger,
+  HexInteger,
+  UnsignedInteger,
   Integer,
   allTokens,
   ReservedIdentifiers,
@@ -184,6 +187,9 @@ export class CelParser extends CstParser {
       { ALT: () => this.CONSUME(Null) },
       { ALT: () => this.CONSUME(StringLiteral) },
       { ALT: () => this.CONSUME(Float) },
+      { ALT: () => this.CONSUME(HexUnsignedInteger) },
+      { ALT: () => this.CONSUME(HexInteger) },
+      { ALT: () => this.CONSUME(UnsignedInteger) },
       { ALT: () => this.CONSUME(Integer) },
       { ALT: () => this.CONSUME(ReservedIdentifiers) },
       { ALT: () => this.SUBRULE(this.listExpression) },

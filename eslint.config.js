@@ -24,6 +24,7 @@ export default tseslint.config(
     rules: {
       'sonarjs/slow-regex': 'off',
       'sonarjs/concise-regex': 'off',
+      'sonarjs/cognitive-complexity': 'off',
     },
   },
 

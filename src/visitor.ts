@@ -409,7 +409,19 @@ export class CelVisitor
     }
 
     if (ctx.Integer) {
-      return parseInt(ctx.Integer[0].image)
+      return parseInt(ctx.Integer[0].image, 10)
+    }
+
+    if (ctx.UnsignedInteger) {
+      return parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
+    }
+
+    if (ctx.HexInteger) {
+      return parseInt(ctx.HexInteger[0].image.slice(2), 16)
+    }
+
+    if (ctx.HexUnsignedInteger) {
+      return parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
     }
 
     if (ctx.ReservedIdentifiers) {
