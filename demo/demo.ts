@@ -21,7 +21,7 @@ import { evaluate, parse } from 'cel-js'
   console.log(`${booleanExpr} => ${evaluate(booleanExpr)}`) // => true
 
   // String concatenation
-  const stringExpr = '"foo" + "bar"'
+  const stringExpr = `"foo" + 'bar'`
   console.log(`${stringExpr} => ${evaluate(stringExpr)}`) // => 'foobar'
 
   // Identifier expression with context

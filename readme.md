@@ -18,6 +18,11 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] double
     - [x] bool
     - [x] string
+      - [x] single-quote string
+      - [x] double-quote string
+      - [ ] raw string
+      - [ ] triple-quote string
+      - [ ] byte string
     - [x] hexadecimal
     - [ ] bytes
     - [x] list
