@@ -90,7 +90,7 @@ export const Null = createToken({ name: 'Null', pattern: /null/ })
 
 export const StringLiteral = createToken({
   name: 'StringLiteral',
-  pattern: /"(?:[^"\\]|\\.)*"/,
+  pattern: /(?:"(?:[^"\n\\]|\\.)*")|(?:'(?:[^'\n\\]|\\.)*')/,
 })
 
 export const reservedIdentifiers = [
