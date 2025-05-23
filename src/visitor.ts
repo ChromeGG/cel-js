@@ -452,7 +452,11 @@ export class CelVisitor
 
     const identifierName = ctx.Identifier[0].image
     // If this is a standalone identifier and is reserved, throw
-    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && reservedIdentifiers.includes(identifierName)) {
+    if (
+      !ctx.identifierDotExpression &&
+      !ctx.identifierIndexExpression &&
+      reservedIdentifiers.includes(identifierName)
+    ) {
       throw new Error('Detected reserved identifier. This is not allowed')
     }
     const data = this.context

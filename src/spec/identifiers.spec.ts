@@ -93,7 +93,9 @@ describe('identifiers', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(`Detected reserved identifier. This is not allowed`)
+      expect(result).toThrow(
+        `Detected reserved identifier. This is not allowed`,
+      )
     })
 
     it('should throw if reserved is used as a statment', () => {
@@ -101,7 +103,9 @@ describe('identifiers', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(`Detected reserved identifier. This is not allowed`)
+      expect(result).toThrow(
+        `Detected reserved identifier. This is not allowed`,
+      )
     })
 
     it('should not throw if reserved is at the start of the identifier', () => {
@@ -121,7 +125,7 @@ describe('identifiers', () => {
     })
 
     it('should not throw if reserved is start of an identifire string', () => {
-      const expr = 'asx.b'  
+      const expr = 'asx.b'
 
       const result = evaluate(expr, { asx: { b: 2 } })
 
@@ -129,7 +133,7 @@ describe('identifiers', () => {
     })
 
     it('should not throw if reserved is in the middle of an identifire string', () => {
-      const expr = 'xasx.b'  
+      const expr = 'xasx.b'
 
       const result = evaluate(expr, { xasx: { b: 2 } })
 
@@ -137,7 +141,7 @@ describe('identifiers', () => {
     })
 
     it('should not throw if reserved is at the end of an identifire string', () => {
-      const expr = 'xas.b'  
+      const expr = 'xas.b'
 
       const result = evaluate(expr, { xas: { b: 2 } })
 
