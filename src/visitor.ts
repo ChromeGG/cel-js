@@ -412,7 +412,7 @@ export class CelVisitor
     if (ctx.Integer) {
       return parseInt(ctx.Integer[0].image, 10)
     }
-    
+
     if (ctx.UnsignedInteger) {
       return parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
     }
