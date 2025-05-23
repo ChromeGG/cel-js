@@ -30,6 +30,7 @@ import {
   size,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
+import { reservedIdentifiers } from './tokens.js'
 
 /** Mode in which visitors are executed */
 enum Mode {
@@ -411,7 +412,7 @@ export class CelVisitor
     if (ctx.Integer) {
       return parseInt(ctx.Integer[0].image, 10)
     }
-
+    
     if (ctx.UnsignedInteger) {
       return parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
     }
@@ -422,10 +423,6 @@ export class CelVisitor
 
     if (ctx.HexUnsignedInteger) {
       return parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
-    }
-
-    if (ctx.ReservedIdentifiers) {
-      throw new Error('Detected reserved identifier. This is not allowed')
     }
 
     if (ctx.identifierExpression) {
@@ -453,8 +450,13 @@ export class CelVisitor
       throw new CelEvaluationError('has() requires a field selection')
     }
 
+    const identifierName = ctx.Identifier[0].image
+    // If this is a standalone identifier and is reserved, throw
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && reservedIdentifiers.includes(identifierName)) {
+      throw new Error('Detected reserved identifier. This is not allowed')
+    }
     const data = this.context
-    const result = this.getIdentifier(data, ctx.Identifier[0].image)
+    const result = this.getIdentifier(data, identifierName)
 
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return result

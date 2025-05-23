@@ -86,4 +86,62 @@ describe('identifiers', () => {
 
     expect(result).toThrow(`Identifier "a" not found in context: {"b":2}`)
   })
+
+  describe('reserved identifiers', () => {
+    it('should throw if reserved identifier is used', () => {
+      const expr = 'as'
+
+      const result = () => evaluate(expr)
+
+      expect(result).toThrow(`Detected reserved identifier. This is not allowed`)
+    })
+
+    it('should throw if reserved is used as a statment', () => {
+      const expr = 'as + 1'
+
+      const result = () => evaluate(expr)
+
+      expect(result).toThrow(`Detected reserved identifier. This is not allowed`)
+    })
+
+    it('should not throw if reserved is at the start of the identifier', () => {
+      const expr = 'as.b'
+
+      const result = evaluate(expr, { as: { b: 2 } })
+
+      expect(result).toBe(2)
+    })
+
+    it('should not throw if reserved is at the start of the identifier', () => {
+      const expr = 'b.as'
+
+      const result = evaluate(expr, { b: { as: 2 } })
+
+      expect(result).toBe(2)
+    })
+
+    it('should not throw if reserved is start of an identifire string', () => {
+      const expr = 'asx.b'  
+
+      const result = evaluate(expr, { asx: { b: 2 } })
+
+      expect(result).toBe(2)
+    })
+
+    it('should not throw if reserved is in the middle of an identifire string', () => {
+      const expr = 'xasx.b'  
+
+      const result = evaluate(expr, { xasx: { b: 2 } })
+
+      expect(result).toBe(2)
+    })
+
+    it('should not throw if reserved is at the end of an identifire string', () => {
+      const expr = 'xas.b'  
+
+      const result = evaluate(expr, { xas: { b: 2 } })
+
+      expect(result).toBe(2)
+    })
+  })
 })
