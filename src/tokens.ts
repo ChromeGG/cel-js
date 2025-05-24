@@ -113,13 +113,6 @@ export const reservedIdentifiers = [
   'while',
 ]
 
-const reserverIdentifiersPattern = reservedIdentifiers.join('|')
-
-export const ReservedIdentifiers = createToken({
-  name: 'ReservedIdentifiers',
-  pattern: new RegExp(reserverIdentifiersPattern),
-})
-
 export const LogicalOrOperator = createToken({
   name: 'LogicalOrOperator',
   pattern: /\|\|/,
@@ -258,7 +251,6 @@ export const allTokens = [
   False,
   Null,
   StringLiteral,
-  ReservedIdentifiers,
 
   LogicalOrOperator,
   LogicalAndOperator,
