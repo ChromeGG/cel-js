@@ -3,6 +3,7 @@ import { CelParser } from './parser.js'
 import {
   AdditionCstChildren,
   AtomicExpressionCstChildren,
+  PrimaryExpressionCstChildren,
   ConditionalAndCstChildren,
   ConditionalOrCstChildren,
   ExprCstChildren,
@@ -29,6 +30,9 @@ import {
   has,
   size,
   bytes,
+  timestamp,
+  duration,
+  Duration,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -49,6 +53,8 @@ const defaultFunctions = {
   has,
   size,
   bytes,
+  timestamp,
+  duration,
 }
 
 export class CelVisitor
@@ -268,7 +274,7 @@ export class CelVisitor
   listExpression(ctx: ListExpressionCstChildren) {
     const result = []
     if (!ctx.lhs) {
-      if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+      if (!ctx.identifierDotExpression && !ctx.Index) {
         return []
       }
       return this.getIndexSection(ctx, [])
@@ -284,7 +290,7 @@ export class CelVisitor
       }
     }
 
-    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+    if (!ctx.identifierDotExpression && !ctx.Index) {
       return result
     }
 
@@ -294,7 +300,7 @@ export class CelVisitor
   mapExpression(ctx: MapExpressionCstChildren) {
     const mapExpression: Record<string, unknown> = {}
     if (!ctx.keyValues) {
-      if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+      if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
         return {}
       }
       return this.getIndexSection(ctx, {})
@@ -309,7 +315,7 @@ export class CelVisitor
       mapExpression[key] = value
     }
 
-    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return mapExpression
     }
 
@@ -322,8 +328,8 @@ export class CelVisitor
   ) {
     const expressions = [
       ...(ctx.identifierDotExpression || []),
-      ...(ctx.identifierIndexExpression || []),
-      ...(ctx.Index || []),
+      ...('identifierIndexExpression' in ctx ? ctx.identifierIndexExpression || [] : []),
+      ...('Index' in ctx ? ctx.Index || [] : []),
     ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
 
     return expressions.reduce((acc: unknown, expression) => {
@@ -412,14 +418,9 @@ export class CelVisitor
    * - Map expressions
    * - Macro expressions
    */
-  atomicExpression(ctx: AtomicExpressionCstChildren) {
+  primaryExpression(ctx: PrimaryExpressionCstChildren) {
     if (ctx.Null) {
       return null
-    }
-
-    // Check if we are in a has() macro, and if so, throw an error if we are not in a field selection
-    if (this.mode === Mode.has && !ctx.identifierExpression) {
-      throw new CelEvaluationError('has() does not support atomic expressions')
     }
 
     if (ctx.parenthesisExpression) {
@@ -491,7 +492,64 @@ export class CelVisitor
       return this.visit(ctx.macrosExpression)
     }
 
-    throw new Error('Atomic expression not recognized')
+    throw new Error('Primary expression not recognized')
+  }
+
+  atomicExpression(ctx: AtomicExpressionCstChildren) {
+    // Check if we are in a has() macro
+    if (this.mode === Mode.has) {
+      // Allow if we have dot expressions at the atomic level
+      if (ctx.identifierDotExpression || ctx.atomicIndexExpression) {
+        // This is fine - we have field selections
+      } else {
+        // Check if the primary expression contains an identifier with field selections
+        const primaryExpr = ctx.primaryExpression[0]
+        if (primaryExpr.children.identifierExpression) {
+          const identifierExpr = primaryExpr.children.identifierExpression[0]
+          if (!identifierExpr.children.identifierDotExpression && !identifierExpr.children.identifierIndexExpression) {
+            throw new CelEvaluationError('has() requires a field selection')
+          }
+        } else {
+          throw new CelEvaluationError('has() does not support atomic expressions')
+        }
+      }
+    }
+
+    // Start with the primary expression
+    let result = this.visit(ctx.primaryExpression)
+
+    // Apply any chained method calls or index operations in order
+    const allExpressions = [
+      ...(ctx.identifierDotExpression || []).map(expr => ({ type: 'dot', expr })),
+      ...(ctx.atomicIndexExpression || []).map(expr => ({ type: 'index', expr }))
+    ].sort((a, b) => (getPosition(a.expr) > getPosition(b.expr) ? 1 : -1))
+
+    for (const { type, expr } of allExpressions) {
+      if (type === 'dot') {
+        result = this.visit(expr, result)
+      } else if (type === 'index') {
+        // Handle indexing
+        const index = this.visit(expr)
+        
+        // Handle array indexing
+        if (Array.isArray(result)) {
+          const indexType = getCelType(index)
+          if (indexType != CelType.int && indexType != CelType.uint) {
+            throw new CelEvaluationError(`invalid_argument: ${index}`)
+          }
+
+          if (index < 0 || index >= result.length) {
+            throw new CelEvaluationError(`Index out of bounds: ${index}`)
+          }
+
+          result = result[index]
+        } else {
+          result = this.getIdentifier(result, index)
+        }
+      }
+    }
+
+    return result
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
@@ -570,6 +628,16 @@ export class CelVisitor
     ctx: IdentifierDotExpressionCstChildren,
     collection: unknown,
   ): unknown {
+    // Handle timestamp methods
+    if (collection instanceof Date) {
+      return this.handleTimestampMethod(methodName, collection)
+    }
+
+    // Handle duration methods  
+    if (typeof collection === 'object' && collection !== null && 'seconds' in collection && 'nanoseconds' in collection) {
+      return this.handleDurationMethod(methodName, collection as Duration)
+    }
+
     switch (methodName) {
       case 'all':
         return this.handleAllMethod(ctx, collection)
@@ -581,6 +649,8 @@ export class CelVisitor
         return this.handleFilterMethod(ctx, collection)
       case 'map':
         return this.handleMapMethod(ctx, collection)
+      case 'size':
+        return this.handleSizeMethod(ctx, collection)
       default:
         throw new CelEvaluationError(`Unknown method: ${methodName}`)
     }
@@ -1368,6 +1438,37 @@ export class CelVisitor
   }
 
   /**
+   * Handles the .size() method call
+   */
+  private handleSizeMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): number {
+    // Validate arguments - size() takes no arguments when called as method
+    if (ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('size() method takes no arguments')
+    }
+
+    // Use the existing size macro logic
+    if (Array.isArray(collection)) {
+      return collection.length
+    }
+
+    if (typeof collection === 'string') {
+      return collection.length
+    }
+
+    if (typeof collection === 'object' && collection !== null) {
+      if (collection instanceof Uint8Array) {
+        return collection.length
+      }
+      return Object.keys(collection).length
+    }
+
+    throw new CelEvaluationError('size() can only be called on strings, lists, maps, or bytes')
+  }
+
+  /**
    * Processes a byte string content and converts it to a Uint8Array.
    * Handles escape sequences including hex (\x41), octal (\101), and common escapes.
    */
@@ -1442,5 +1543,47 @@ export class CelVisitor
     }
     
     return new Uint8Array(bytes)
+  }
+
+  /**
+   * Handles method calls on timestamp objects
+   */
+  private handleTimestampMethod(methodName: string, timestamp: Date): unknown {
+    switch (methodName) {
+      case 'getFullYear':
+        return timestamp.getUTCFullYear()
+      case 'getMonth':
+        return timestamp.getUTCMonth()
+      case 'getDate':
+        return timestamp.getUTCDate()
+      case 'getHours':
+        return timestamp.getUTCHours()
+      case 'getMinutes':
+        return timestamp.getUTCMinutes()
+      case 'getSeconds':
+        return timestamp.getUTCSeconds()
+      case 'getDay':
+        return timestamp.getUTCDay()
+      case 'getTime':
+        return timestamp.getTime()
+      default:
+        throw new CelEvaluationError(`Unknown timestamp method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles method calls on duration objects
+   */
+  private handleDurationMethod(methodName: string, duration: Duration): unknown {
+    switch (methodName) {
+      case 'getSeconds':
+        return duration.seconds
+      case 'getMilliseconds':
+        return duration.seconds * 1000 + duration.nanoseconds / 1000000
+      case 'getNanoseconds':
+        return duration.seconds * 1e9 + duration.nanoseconds
+      default:
+        throw new CelEvaluationError(`Unknown duration method: ${methodName}`)
+    }
   }
 }

@@ -201,7 +201,7 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseBracket)
   })
 
-  private atomicExpression = this.RULE('atomicExpression', () => {
+  private primaryExpression = this.RULE('primaryExpression', () => {
     this.OR([
       { ALT: () => this.SUBRULE(this.parenthesisExpression) },
       { ALT: () => this.CONSUME(BooleanLiteral) },
@@ -220,5 +220,15 @@ export class CelParser extends CstParser {
       { ALT: () => this.SUBRULE(this.macrosExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
+  })
+
+  private atomicExpression = this.RULE('atomicExpression', () => {
+    this.SUBRULE(this.primaryExpression)
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        { ALT: () => this.SUBRULE(this.indexExpression, { LABEL: 'atomicIndexExpression' }) },
+      ])
+    })
   })
 }

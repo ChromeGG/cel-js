@@ -24,6 +24,11 @@ import {
 } from './cst-definitions.js'
 import { equals } from 'ramda'
 
+export interface Duration {
+  seconds: number
+  nanoseconds: number
+}
+
 export enum CelType {
   int = 'int',
   uint = 'uint',
@@ -33,6 +38,8 @@ export enum CelType {
   null = 'null',
   list = 'list',
   map = 'map',
+  timestamp = 'timestamp',
+  duration = 'duration',
 }
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
@@ -59,6 +66,12 @@ const isBoolean = (value: unknown): value is boolean =>
 
 const isMap = (value: unknown): value is Record<string, unknown> =>
   getCelType(value) === CelType.map
+
+const isTimestamp = (value: unknown): value is Date =>
+  getCelType(value) === CelType.timestamp
+
+const isDuration = (value: unknown): value is Duration =>
+  getCelType(value) === CelType.duration
 
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
@@ -91,6 +104,14 @@ export const getCelType = (value: unknown): CelType => {
 
   if (Array.isArray(value)) {
     return CelType.list
+  }
+
+  if (value instanceof Date) {
+    return CelType.timestamp
+  }
+
+  if (typeof value === 'object' && value !== null && 'seconds' in value && 'nanoseconds' in value) {
+    return CelType.duration
   }
 
   if (typeof value === 'object') {
@@ -137,6 +158,21 @@ const additionOperation = (left: unknown, right: unknown) => {
     return [...left, ...right]
   }
 
+  // Timestamp + Duration = Timestamp
+  if (isTimestamp(left) && isDuration(right)) {
+    const timestamp = new Date(left.getTime())
+    timestamp.setTime(timestamp.getTime() + right.seconds * 1000 + right.nanoseconds / 1000000)
+    return timestamp
+  }
+
+  // Duration + Duration = Duration
+  if (isDuration(left) && isDuration(right)) {
+    return {
+      seconds: left.seconds + right.seconds,
+      nanoseconds: left.nanoseconds + right.nanoseconds
+    }
+  }
+
   throw new CelTypeError(Operations.addition, left, right)
 }
 
@@ -145,12 +181,43 @@ const subtractionOperation = (left: unknown, right: unknown) => {
     return left - right
   }
 
+  // Timestamp - Duration = Timestamp
+  if (isTimestamp(left) && isDuration(right)) {
+    const timestamp = new Date(left.getTime())
+    timestamp.setTime(timestamp.getTime() - right.seconds * 1000 - right.nanoseconds / 1000000)
+    return timestamp
+  }
+
+  // Timestamp - Timestamp = Duration
+  if (isTimestamp(left) && isTimestamp(right)) {
+    const millisDiff = left.getTime() - right.getTime()
+    const seconds = Math.floor(millisDiff / 1000)
+    const nanoseconds = (millisDiff % 1000) * 1000000
+    return { seconds, nanoseconds }
+  }
+
+  // Duration - Duration = Duration
+  if (isDuration(left) && isDuration(right)) {
+    return {
+      seconds: left.seconds - right.seconds,
+      nanoseconds: left.nanoseconds - right.nanoseconds
+    }
+  }
+
   throw new CelTypeError(Operations.subtraction, left, right)
 }
 
 const multiplicationOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
     return left * right
+  }
+
+  // Duration * scalar = Duration
+  if (isDuration(left) && isCalculable(right)) {
+    return {
+      seconds: Math.floor(left.seconds * right + left.nanoseconds * right / 1e9),
+      nanoseconds: Math.round((left.nanoseconds * right) % 1e9)
+    }
   }
 
   throw new CelTypeError(Operations.multiplication, left, right)
@@ -164,6 +231,14 @@ const divisionOperation = (left: unknown, right: unknown) => {
   // CEL does not support float division
   if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
     return left / right
+  }
+
+  // Duration / scalar = Duration
+  if (isDuration(left) && isCalculable(right)) {
+    return {
+      seconds: Math.floor(left.seconds / right + left.nanoseconds / right / 1e9),
+      nanoseconds: Math.round((left.nanoseconds / right) % 1e9)
+    }
   }
 
   throw new CelTypeError(Operations.division, left, right)
@@ -226,6 +301,36 @@ const comparisonOperation = (
         return left > right
       case Operations.greaterOrEqualThan:
         return left >= right
+    }
+  }
+
+  // Timestamp comparisons
+  if (isTimestamp(left) && isTimestamp(right)) {
+    switch (operation) {
+      case Operations.lessThan:
+        return left.getTime() < right.getTime()
+      case Operations.lessOrEqualThan:
+        return left.getTime() <= right.getTime()
+      case Operations.greaterThan:
+        return left.getTime() > right.getTime()
+      case Operations.greaterOrEqualThan:
+        return left.getTime() >= right.getTime()
+    }
+  }
+
+  // Duration comparisons
+  if (isDuration(left) && isDuration(right)) {
+    const leftTotalNanos = left.seconds * 1e9 + left.nanoseconds
+    const rightTotalNanos = right.seconds * 1e9 + right.nanoseconds
+    switch (operation) {
+      case Operations.lessThan:
+        return leftTotalNanos < rightTotalNanos
+      case Operations.lessOrEqualThan:
+        return leftTotalNanos <= rightTotalNanos
+      case Operations.greaterThan:
+        return leftTotalNanos > rightTotalNanos
+      case Operations.greaterOrEqualThan:
+        return leftTotalNanos >= rightTotalNanos
     }
   }
 
@@ -428,4 +533,94 @@ export const bytes = (input: unknown): Uint8Array => {
   }
 
   throw new CelEvaluationError(`Cannot convert ${typeof input} to bytes`)
+}
+
+/**
+ * Parse a timestamp from an RFC3339 string
+ */
+export const timestamp = (input: unknown): Date => {
+  if (typeof input !== 'string') {
+    throw new CelEvaluationError('timestamp function requires a string argument')
+  }
+
+  // Handle case where timezone is missing (assume UTC)
+  let dateString = input
+  if (!input.includes('Z') && !input.includes('+') && !input.includes('-', 10)) {
+    dateString = input + 'Z'
+  }
+
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) {
+    throw new CelEvaluationError(`Invalid timestamp format: ${input}`)
+  }
+
+  return date
+}
+
+/**
+ * Parse a duration from a duration string
+ */
+export const duration = (input: unknown): Duration => {
+  if (typeof input !== 'string') {
+    throw new CelEvaluationError('duration function requires a string argument')
+  }
+
+  let totalSeconds = 0
+  let totalNanoseconds = 0
+  
+  // Handle negative durations
+  const isNegative = input.startsWith('-')
+  const durationStr = isNegative ? input.substring(1) : input
+
+  // Parse different time units (ms must come before s to avoid conflicts)
+  const patterns = [
+    { regex: /(\d+(?:\.\d+)?)h/g, multiplier: 3600 },
+    { regex: /(\d+(?:\.\d+)?)ms/g, multiplier: 0.001 },
+    { regex: /(\d+(?:\.\d+)?)us/g, multiplier: 0.000001 },
+    { regex: /(\d+(?:\.\d+)?)ns/g, multiplier: 0.000000001 },
+    { regex: /(\d+(?:\.\d+)?)m/g, multiplier: 60 },
+    { regex: /(\d+(?:\.\d+)?)s/g, multiplier: 1 }
+  ]
+
+  let hasMatch = false
+  let processedStr = durationStr
+  
+  for (const { regex, multiplier } of patterns) {
+    let match
+    while ((match = regex.exec(processedStr)) !== null) {
+      hasMatch = true
+      const value = parseFloat(match[1])
+      const seconds = value * multiplier
+      
+      // Split into seconds and nanoseconds
+      const wholeSeconds = Math.floor(seconds)
+      const fractionalSeconds = seconds - wholeSeconds
+      
+      totalSeconds += wholeSeconds
+      totalNanoseconds += Math.round(fractionalSeconds * 1e9)
+      
+      // Remove the matched part to avoid conflicts
+      processedStr = processedStr.replace(match[0], '')
+    }
+    // Reset regex for next iteration
+    regex.lastIndex = 0
+  }
+
+  if (!hasMatch) {
+    throw new CelEvaluationError(`Invalid duration format: ${input}`)
+  }
+
+  // Normalize nanoseconds to seconds
+  const extraSeconds = Math.floor(totalNanoseconds / 1e9)
+  totalSeconds += extraSeconds
+  totalNanoseconds = totalNanoseconds % 1e9
+
+  if (isNegative) {
+    totalSeconds = -totalSeconds
+    if (totalNanoseconds !== 0) {
+      totalNanoseconds = -totalNanoseconds
+    }
+  }
+
+  return { seconds: totalSeconds, nanoseconds: totalNanoseconds }
 }
