@@ -410,6 +410,166 @@ describe('lists expressions', () => {
       })
     })
   })
+
+  describe('exists_one', () => {
+    describe('list', () => {
+      it('should return true when exactly one element satisfies condition', () => {
+        const expr = '[1, 2, 3].exists_one(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when no elements satisfy condition', () => {
+        const expr = '[1, 2, 3].exists_one(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false when multiple elements satisfy condition', () => {
+        const expr = '[1, 2, 3].exists_one(v, v > 1)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false for empty list', () => {
+        const expr = '[].exists_one(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with string elements', () => {
+        const expr = '["hello", "world", "hi"].exists_one(s, size(s) == 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with boolean elements - exactly one true', () => {
+        const expr = '[false, true, false].exists_one(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when multiple boolean elements are true', () => {
+        const expr = '[true, true, false].exists_one(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with complex conditions', () => {
+        const expr = '[11, 21, 30, 25].exists_one(n, n % 10 == 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when multiple elements match complex condition', () => {
+        const expr = '[10, 20, 30].exists_one(n, n % 10 == 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.exists_one(n, n > threshold)'
+
+        const result = evaluate(expr, { numbers: [1, 2, 15, 8], threshold: 10 })
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with nested exists_one calls', () => {
+        const expr = '[[1, 0], [3, 4], [5, 6]].exists_one(arr, arr.exists_one(n, n == 0))'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should handle edge case with single element list', () => {
+        const expr = '[42].exists_one(v, v == 42)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when single element does not match', () => {
+        const expr = '[42].exists_one(v, v == 99)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+    })
+
+    describe('map', () => {
+      it('should return true when exactly one value satisfies condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.exists_one(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when no values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.exists_one(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false when multiple values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.exists_one(v, v > 1)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false for empty map', () => {
+        const expr = '{}.exists_one(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+    })
+
+    describe('error cases', () => {
+      it('should throw when called on non-collection', () => {
+        const expr = '42.exists_one(v, v > 0)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('Given string is not a valid CEL expression')
+      })
+
+      it('should throw when predicate is missing', () => {
+        const expr = '[1, 2, 3].exists_one(v)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('exists_one() requires exactly two arguments: variable and predicate')
+      })
+    })
+  })
 })
 
 describe('custom functions', () => {
