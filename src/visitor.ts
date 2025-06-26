@@ -148,8 +148,17 @@ export class CelVisitor
   conditionalOr(ctx: ConditionalOrCstChildren): boolean {
     let left = this.visit(ctx.lhs)
 
+    // Short circuit if left is true. Required for proper logical OR evaluation.
+    if (left === true) {
+      return true
+    }
+
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
+        // Short circuit - if we already have true, don't evaluate further
+        if (left === true) {
+          return
+        }
         const right = this.visit(rhsOperand)
         const operator = ctx.LogicalOrOperator![0]
 
@@ -183,6 +192,10 @@ export class CelVisitor
 
     if (ctx.rhs) {
       ctx.rhs.forEach((rhsOperand) => {
+        // Short circuit - if we already have false, don't evaluate further
+        if (left === false) {
+          return
+        }
         const right = this.visit(rhsOperand)
         const operator = ctx.LogicalAndOperator![0]
 
@@ -289,15 +302,10 @@ export class CelVisitor
     let valueType = ''
     for (const keyValuePair of ctx.keyValues) {
       const [key, value] = this.visit(keyValuePair)
-      if (valueType === '') {
-        valueType = getCelType(value)
-      }
       if (getCelType(key) != CelType.string) {
         throw new CelEvaluationError(`invalid_argument: ${key}`)
       }
-      if (valueType !== getCelType(value)) {
-        throw new CelEvaluationError(`invalid_argument: ${value}`)
-      }
+      // CEL maps can contain heterogeneous values, so don't enforce type uniformity
       mapExpression[key] = value
     }
 
