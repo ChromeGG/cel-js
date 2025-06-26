@@ -28,6 +28,7 @@ import {
   getUnaryResult,
   has,
   size,
+  bytes,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -47,6 +48,7 @@ const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 const defaultFunctions = {
   has,
   size,
+  bytes,
 }
 
 export class CelVisitor
@@ -397,6 +399,27 @@ export class CelVisitor
       return this.visit(ctx.parenthesisExpression)
     }
 
+    if (ctx.ByteStringLiteral) {
+      // For byte strings, remove the 'b' prefix and quotes, then convert to Uint8Array
+      const byteString = ctx.ByteStringLiteral[0].image
+      const content = byteString.slice(2, -1) // Remove 'b"' and closing quote
+      return this.processByteString(content)
+    }
+
+    if (ctx.TripleQuoteStringLiteral) {
+      // For triple-quote strings, remove the triple quotes and process escape sequences
+      const tripleQuoteString = ctx.TripleQuoteStringLiteral[0].image
+      const content = tripleQuoteString.slice(3, -3) // Remove ''' or """
+      // Process escape sequences like regular strings
+      return content.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r').replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/\\'/g, "'")
+    }
+
+    if (ctx.RawStringLiteral) {
+      // For raw strings, remove the 'r' prefix and the quotes, but preserve all content as-is
+      const rawString = ctx.RawStringLiteral[0].image
+      return rawString.slice(2, -1) // Remove 'r"' and closing quote
+    }
+
     if (ctx.StringLiteral) {
       return ctx.StringLiteral[0].image.slice(1, -1)
     }
@@ -504,5 +527,82 @@ export class CelVisitor
     }
 
     return value
+  }
+
+  /**
+   * Processes a byte string content and converts it to a Uint8Array.
+   * Handles escape sequences including hex (\x41), octal (\101), and common escapes.
+   */
+  private processByteString(content: string): Uint8Array {
+    const bytes: number[] = []
+    let i = 0
+    
+    while (i < content.length) {
+      if (content[i] === '\\' && i + 1 < content.length) {
+        const nextChar = content[i + 1]
+        
+        if (nextChar === 'x' && i + 3 <= content.length) {
+          // Hex escape sequence \x41
+          const hexDigits = content.slice(i + 2, i + 4)
+          if (/^[0-9a-fA-F]{2}$/.test(hexDigits)) {
+            bytes.push(parseInt(hexDigits, 16))
+            i += 4
+            continue
+          }
+        } else if (/^[0-7]/.test(nextChar)) {
+          // Octal escape sequence \101 (up to 3 digits)
+          let octalDigits = ''
+          let j = i + 1
+          while (j < content.length && j < i + 4 && /^[0-7]$/.test(content[j])) {
+            octalDigits += content[j]
+            j++
+          }
+          if (octalDigits.length > 0) {
+            bytes.push(parseInt(octalDigits, 8))
+            i = j
+            continue
+          }
+        } else {
+          // Common escape sequences
+          switch (nextChar) {
+            case 'n':
+              bytes.push(10) // \n
+              i += 2
+              continue
+            case 't':
+              bytes.push(9) // \t
+              i += 2
+              continue
+            case 'r':
+              bytes.push(13) // \r
+              i += 2
+              continue
+            case '\\':
+              bytes.push(92) // \\
+              i += 2
+              continue
+            case '"':
+              bytes.push(34) // \"
+              i += 2
+              continue
+            case "'":
+              bytes.push(39) // \'
+              i += 2
+              continue
+            default:
+              // Unknown escape, treat as literal
+              bytes.push(content.charCodeAt(i))
+              i++
+              continue
+          }
+        }
+      }
+      
+      // Regular character
+      bytes.push(content.charCodeAt(i))
+      i++
+    }
+    
+    return new Uint8Array(bytes)
   }
 }

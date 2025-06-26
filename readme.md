@@ -20,11 +20,11 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] string
       - [x] single-quote string
       - [x] double-quote string
-      - [ ] raw string
-      - [ ] triple-quote string
-      - [ ] byte string
+      - [x] raw string
+      - [x] triple-quote string
+      - [x] byte string
     - [x] hexadecimal
-    - [ ] bytes
+    - [x] bytes
     - [x] list
     - [x] map
     - [x] null

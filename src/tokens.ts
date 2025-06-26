@@ -88,6 +88,21 @@ export const False = createToken({
 
 export const Null = createToken({ name: 'Null', pattern: /null/ })
 
+export const ByteStringLiteral = createToken({
+  name: 'ByteStringLiteral',
+  pattern: /b(?:"(?:[^"\n\\]|\\.)*")|b(?:'(?:[^'\n\\]|\\.)*')/,
+})
+
+export const TripleQuoteStringLiteral = createToken({
+  name: 'TripleQuoteStringLiteral',
+  pattern: /(?:"""(?:[^"\\]|\\.|"(?!""))*""")|(?:'''(?:[^'\\]|\\.|'(?!''))*''')/,
+})
+
+export const RawStringLiteral = createToken({
+  name: 'RawStringLiteral',
+  pattern: /r(?:"(?:[^"])*")|r(?:'(?:[^'])*')/,
+})
+
 export const StringLiteral = createToken({
   name: 'StringLiteral',
   pattern: /(?:"(?:[^"\n\\]|\\.)*")|(?:'(?:[^'\n\\]|\\.)*')/,
@@ -250,6 +265,9 @@ export const allTokens = [
   True,
   False,
   Null,
+  ByteStringLiteral,
+  TripleQuoteStringLiteral,
+  RawStringLiteral,
   StringLiteral,
 
   LogicalOrOperator,

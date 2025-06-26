@@ -389,3 +389,43 @@ export const has = (path: unknown): boolean => {
   // If the path itself is undefined, it means the field/index doesn't exist
   return path !== undefined
 }
+
+/**
+ * Converts various input types to a Uint8Array (bytes).
+ *
+ * @param input - The input to convert: string, array of numbers, or existing Uint8Array
+ * @returns Uint8Array representing the bytes
+ * @throws CelEvaluationError if input cannot be converted to bytes
+ *
+ * @example
+ * bytes("hello") // returns Uint8Array([104, 101, 108, 108, 111])
+ * bytes([65, 66, 67]) // returns Uint8Array([65, 66, 67])
+ */
+export const bytes = (input: unknown): Uint8Array => {
+  if (input instanceof Uint8Array) {
+    return input
+  }
+
+  if (isString(input)) {
+    // Convert string to UTF-8 bytes
+    const encoder = new TextEncoder()
+    return encoder.encode(input as string)
+  }
+
+  if (isArray(input)) {
+    const arr = input as unknown[]
+    // Check that all elements are numbers between 0-255
+    for (const item of arr) {
+      if (!isCalculable(item)) {
+        throw new CelEvaluationError(`Invalid byte value: ${item} (must be a number)`)
+      }
+      const num = item as number
+      if (!Number.isInteger(num) || num < 0 || num > 255) {
+        throw new CelEvaluationError(`Invalid byte value: ${num} (must be integer 0-255)`)
+      }
+    }
+    return new Uint8Array(arr as number[])
+  }
+
+  throw new CelEvaluationError(`Cannot convert ${typeof input} to bytes`)
+}
