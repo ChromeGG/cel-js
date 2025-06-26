@@ -38,6 +38,7 @@ import {
   max,
   min,
   floor,
+  type,
   ceil,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
@@ -67,6 +68,7 @@ const defaultFunctions = {
   min,
   floor,
   ceil,
+  type,
 }
 
 export class CelVisitor

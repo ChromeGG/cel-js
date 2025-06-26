@@ -29,6 +29,8 @@ export interface Duration {
   nanoseconds: number
 }
 
+
+
 export enum CelType {
   int = 'int',
   uint = 'uint',
@@ -79,11 +81,7 @@ export const getCelType = (value: unknown): CelType => {
   }
 
   if (typeof value === 'number') {
-    if (Number.isInteger(value) && value >= 0) {
-      return CelType.uint
-    }
-
-    if (Number.isInteger(value) && value <= 0) {
+    if (Number.isInteger(value)) {
       return CelType.int
     }
 
@@ -493,6 +491,21 @@ export const size = (arr: unknown) => {
 export const has = (path: unknown): boolean => {
   // If the path itself is undefined, it means the field/index doesn't exist
   return path !== undefined
+}
+
+/**
+ * CEL type() function that returns the CEL type of a value as a string.
+ *
+ * @param value - The value to get the type of
+ * @returns string - The CEL type name (int, uint, float, string, bool, null, list, map, timestamp, duration)
+ *
+ * @example
+ * type(42) // returns "int"
+ * type("hello") // returns "string"
+ * type([1, 2, 3]) // returns "list"
+ */
+export const type = (value: unknown): string => {
+  return getCelType(value)
 }
 
 /**
