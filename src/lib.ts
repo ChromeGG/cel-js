@@ -1,12 +1,28 @@
 import { CELLexer } from './tokens.js'
 import { CelParser } from './parser.js'
 import { CelVisitor } from './visitor.js'
+import { Duration } from './helper.js'
 import { CstNode } from 'chevrotain'
 import { CelParseError } from './errors/CelParseError.js'
 
 export { CelParseError } from './errors/CelParseError.js'
 export { CelEvaluationError } from './errors/CelEvaluationError.js'
 export { CelTypeError } from './errors/CelTypeError.js'
+export { Duration } from './helper.js'
+
+/**
+ * Possible return types from CEL expressions
+ */
+export type CelValue = 
+  | number          // int, uint, float
+  | string          // string
+  | boolean         // bool
+  | null            // null
+  | Array<any>      // list
+  | Record<string, any> // map
+  | Date            // timestamp
+  | Duration        // duration
+  | Uint8Array      // bytes
 
 const parserInstance = new CelParser()
 
@@ -41,7 +57,7 @@ export function evaluate(
   expression: string | CstNode,
   context?: Record<string, unknown>,
   functions?: Record<string, CallableFunction>,
-) {
+): CelValue {
   const result =
     typeof expression === 'string'
       ? parse(expression)
@@ -54,5 +70,5 @@ export function evaluate(
     )
   }
 
-  return toAstVisitorInstance.visit(result.cst) as unknown
+  return toAstVisitorInstance.visit(result.cst) as CelValue
 }
