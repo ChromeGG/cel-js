@@ -565,6 +565,8 @@ export class CelVisitor
     switch (methodName) {
       case 'all':
         return this.handleAllMethod(ctx, collection)
+      case 'exists':
+        return this.handleExistsMethod(ctx, collection)
       default:
         throw new CelEvaluationError(`Unknown method: ${methodName}`)
     }
@@ -684,6 +686,122 @@ export class CelVisitor
     }
 
     return true
+  }
+
+  /**
+   * Handles the .exists(x, p) method call
+   */
+  private handleExistsMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): boolean {
+    // Validate collection type
+    if (!Array.isArray(collection) && (typeof collection !== 'object' || collection === null)) {
+      throw new CelEvaluationError('exists() can only be called on lists or maps')
+    }
+
+    // Validate arguments - need exactly 2 arguments: variable and predicate
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('exists() requires exactly two arguments: variable and predicate')
+    }
+
+    const variableExpr = ctx.arg
+    const predicateExpr = ctx.args[0]
+
+    // Handle arrays
+    if (Array.isArray(collection)) {
+      if (collection.length === 0) {
+        return false // Empty arrays return false (no elements to satisfy condition)
+      }
+      return this.evaluateExistsForArray(collection, variableExpr, predicateExpr)
+    }
+
+    // Handle maps (objects)
+    if (typeof collection === 'object') {
+      const values = Object.values(collection)
+      if (values.length === 0) {
+        return false // Empty objects return false (no elements to satisfy condition)
+      }
+      return this.evaluateExistsForArray(values, variableExpr, predicateExpr)
+    }
+
+    return false
+  }
+
+  /**
+   * Evaluates the exists() predicate for each element in an array
+   */
+  private evaluateExistsForArray(
+    array: unknown[],
+    variableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    // Empty arrays return false
+    if (array.length === 0) {
+      return false
+    }
+
+    // Extract variable name from the first argument
+    let variableName: string
+    
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      variableName = extractedName
+    } else {
+      throw new CelEvaluationError('First argument to exists() must be a variable identifier')
+    }
+
+    // Evaluate predicate for each element - short-circuit on first match
+    for (const element of array) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = element
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          return true // Short-circuit: return true as soon as one element satisfies the condition
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return false // No element satisfied the condition
   }
 
   /**

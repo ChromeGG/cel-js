@@ -40,7 +40,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] Index Notation (`foo["bar"]`)
   - [x] [Macros](https://github.com/google/cel-spec/blob/master/doc/langdef.md#macros): (`has`, `size`, etc.)
     - [x] All (`e.all(x, p)`)
-    - [ ] Exists (`e.exists(x, p)`)
+    - [x] Exists (`e.exists(x, p)`)
     - [ ] Exists one (`e.exists_one(x, p)`)
     - [ ] Filter (`e.filter(x, p)`)
     - [x] Has (`has(foo.bar)`)

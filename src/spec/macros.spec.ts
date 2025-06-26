@@ -282,6 +282,134 @@ describe('lists expressions', () => {
       })
     })
   })
+
+  describe('exists', () => {
+    describe('list', () => {
+      it('should return true when at least one element satisfies condition', () => {
+        const expr = '[1, 2, 3].exists(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when no elements satisfy condition', () => {
+        const expr = '[1, 2, 3].exists(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false for empty list', () => {
+        const expr = '[].exists(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with string elements', () => {
+        const expr = '["hello", "world"].exists(s, size(s) > 4)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with boolean elements', () => {
+        const expr = '[false, false, true].exists(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when all elements fail condition', () => {
+        const expr = '[false, false, false].exists(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with complex conditions', () => {
+        const expr = '[11, 21, 30].exists(n, n % 10 == 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.exists(n, n > threshold)'
+
+        const result = evaluate(expr, { numbers: [1, 2, 15], threshold: 10 })
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with nested exists calls', () => {
+        const expr = '[[1, 0], [3, 4]].exists(arr, arr.exists(n, n == 0))'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should short-circuit on first match', () => {
+        const expr = '[1, 2, 3, 4, 5].exists(v, v == 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+    })
+
+    describe('map', () => {
+      it('should return true when at least one value satisfies condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.exists(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when no values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.exists(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return false for empty map', () => {
+        const expr = '{}.exists(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+    })
+
+    describe('error cases', () => {
+      it('should throw when called on non-collection', () => {
+        const expr = '42.exists(v, v > 0)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('Given string is not a valid CEL expression')
+      })
+
+      it('should throw when predicate is missing', () => {
+        const expr = '[1, 2, 3].exists(v)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('exists() requires exactly two arguments: variable and predicate')
+      })
+    })
+  })
 })
 
 describe('custom functions', () => {
