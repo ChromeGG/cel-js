@@ -675,3 +675,95 @@ export function string(value: unknown): string {
   // For objects and arrays, use JSON representation
   return JSON.stringify(value)
 }
+
+/**
+ * Returns the absolute value of a number.
+ *
+ * @param value - The input number
+ * @returns The absolute value of the input
+ * @throws CelEvaluationError if input is not a number
+ *
+ * @example
+ * abs(-5) // returns 5
+ * abs(3.14) // returns 3.14
+ */
+export const abs = (value: unknown): number => {
+  if (typeof value !== 'number') {
+    throw new CelEvaluationError(`abs() requires a number, got ${typeof value}`)
+  }
+  return Math.abs(value)
+}
+
+/**
+ * Returns the maximum of two numbers.
+ *
+ * @param a - First number
+ * @param b - Second number
+ * @returns The maximum of the two input numbers
+ * @throws CelEvaluationError if either input is not a number
+ *
+ * @example
+ * max(5, 3) // returns 5
+ * max(-2, -7) // returns -2
+ */
+export const max = (a: unknown, b: unknown): number => {
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    throw new CelEvaluationError(`max() requires two numbers, got ${typeof a} and ${typeof b}`)
+  }
+  return Math.max(a, b)
+}
+
+/**
+ * Returns the minimum of two numbers.
+ *
+ * @param a - First number
+ * @param b - Second number
+ * @returns The minimum of the two input numbers
+ * @throws CelEvaluationError if either input is not a number
+ *
+ * @example
+ * min(5, 3) // returns 3
+ * min(-2, -7) // returns -7
+ */
+export const min = (a: unknown, b: unknown): number => {
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    throw new CelEvaluationError(`min() requires two numbers, got ${typeof a} and ${typeof b}`)
+  }
+  return Math.min(a, b)
+}
+
+/**
+ * Returns the floor (largest integer less than or equal to) of a number.
+ *
+ * @param value - The input number
+ * @returns The floor of the input number
+ * @throws CelEvaluationError if input is not a number
+ *
+ * @example
+ * floor(3.7) // returns 3
+ * floor(-2.3) // returns -3
+ */
+export const floor = (value: unknown): number => {
+  if (typeof value !== 'number') {
+    throw new CelEvaluationError(`floor() requires a number, got ${typeof value}`)
+  }
+  return Math.floor(value)
+}
+
+/**
+ * Returns the ceiling (smallest integer greater than or equal to) of a number.
+ *
+ * @param value - The input number
+ * @returns The ceiling of the input number
+ * @throws CelEvaluationError if input is not a number
+ *
+ * @example
+ * ceil(3.2) // returns 4
+ * ceil(-2.7) // returns -2
+ */
+export const ceil = (value: unknown): number => {
+  if (typeof value !== 'number') {
+    throw new CelEvaluationError(`ceil() requires a number, got ${typeof value}`)
+  }
+  return Math.ceil(value)
+}

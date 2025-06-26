@@ -34,6 +34,11 @@ import {
   duration,
   Duration,
   string,
+  abs,
+  max,
+  min,
+  floor,
+  ceil,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -57,6 +62,11 @@ const defaultFunctions = {
   timestamp,
   duration,
   string,
+  abs,
+  max,
+  min,
+  floor,
+  ceil,
 }
 
 export class CelVisitor
