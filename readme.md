@@ -42,7 +42,7 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] All (`e.all(x, p)`)
     - [x] Exists (`e.exists(x, p)`)
     - [x] Exists one (`e.exists_one(x, p)`)
-    - [ ] Filter (`e.filter(x, p)`)
+    - [x] Filter (`e.filter(x, p)`)
     - [x] Has (`has(foo.bar)`)
     - [ ] Map (`e.map(x, t)` and `e.map(x, p, t)`)
     - [x] Size (`size(foo)`)

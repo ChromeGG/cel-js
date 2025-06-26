@@ -570,6 +570,166 @@ describe('lists expressions', () => {
       })
     })
   })
+
+  describe('filter', () => {
+    describe('list', () => {
+      it('should return filtered array with elements that satisfy condition', () => {
+        const expr = '[1, 2, 3, 4, 5].filter(v, v > 3)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([4, 5])
+      })
+
+      it('should return empty array when no elements satisfy condition', () => {
+        const expr = '[1, 2, 3].filter(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([])
+      })
+
+      it('should return all elements when all satisfy condition', () => {
+        const expr = '[1, 2, 3].filter(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([1, 2, 3])
+      })
+
+      it('should return empty array for empty list', () => {
+        const expr = '[].filter(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([])
+      })
+
+      it('should work with string elements', () => {
+        const expr = '["hello", "world", "hi", "test"].filter(s, size(s) > 3)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual(["hello", "world", "test"])
+      })
+
+      it('should work with boolean elements', () => {
+        const expr = '[true, false, true, false].filter(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([true, true])
+      })
+
+      it('should work with complex conditions', () => {
+        const expr = '[10, 15, 20, 25, 30].filter(n, n % 10 == 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([10, 20, 30])
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.filter(n, n > threshold)'
+
+        const result = evaluate(expr, { numbers: [1, 8, 15, 3, 12], threshold: 10 })
+
+        expect(result).toEqual([15, 12])
+      })
+
+      it('should work with nested filter calls', () => {
+        const expr = '[[1, 2], [3, 4], [5, 6]].filter(arr, arr.filter(n, n > 3) != [])'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([[3, 4], [5, 6]])
+      })
+
+      it('should preserve order of elements', () => {
+        const expr = '[5, 1, 8, 3, 9, 2].filter(v, v > 4)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([5, 8, 9])
+      })
+
+      it('should work with numbers only', () => {
+        const expr = '[1, 3, 5, 7, 2].filter(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([3, 5, 7])
+      })
+    })
+
+    describe('map', () => {
+      it('should return filtered map with values that satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3, "d": 4}.filter(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"c": 3, "d": 4})
+      })
+
+      it('should return empty map when no values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.filter(v, v > 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({})
+      })
+
+      it('should return all entries when all values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.filter(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"a": 1, "b": 2, "c": 3})
+      })
+
+      it('should return empty map for empty map', () => {
+        const expr = '{}.filter(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({})
+      })
+
+      it('should work with string values', () => {
+        const expr = '{"name": "John", "city": "NYC", "age": "25", "country": "USA"}.filter(v, size(v) >= 3)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"name": "John", "city": "NYC", "country": "USA"})
+      })
+
+      it('should preserve key-value relationships', () => {
+        const expr = '{"low": 1, "medium": 5, "high": 10}.filter(v, v >= 5)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"medium": 5, "high": 10})
+      })
+    })
+
+    describe('error cases', () => {
+      it('should throw when called on non-collection', () => {
+        const expr = '42.filter(v, v > 0)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('Given string is not a valid CEL expression')
+      })
+
+      it('should throw when predicate is missing', () => {
+        const expr = '[1, 2, 3].filter(v)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('filter() requires exactly two arguments: variable and predicate')
+      })
+    })
+  })
 })
 
 describe('custom functions', () => {

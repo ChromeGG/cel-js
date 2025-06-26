@@ -569,6 +569,8 @@ export class CelVisitor
         return this.handleExistsMethod(ctx, collection)
       case 'exists_one':
         return this.handleExistsOneMethod(ctx, collection)
+      case 'filter':
+        return this.handleFilterMethod(ctx, collection)
       default:
         throw new CelEvaluationError(`Unknown method: ${methodName}`)
     }
@@ -926,6 +928,190 @@ export class CelVisitor
     }
 
     return matchCount === 1 // Return true only if exactly one element satisfied the condition
+  }
+
+  /**
+   * Handles the .filter(x, p) method call
+   */
+  private handleFilterMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): unknown {
+    // Validate collection type
+    if (!Array.isArray(collection) && (typeof collection !== 'object' || collection === null)) {
+      throw new CelEvaluationError('filter() can only be called on lists or maps')
+    }
+
+    // Validate arguments - need exactly 2 arguments: variable and predicate
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('filter() requires exactly two arguments: variable and predicate')
+    }
+
+    const variableExpr = ctx.arg
+    const predicateExpr = ctx.args[0]
+
+    // Handle arrays
+    if (Array.isArray(collection)) {
+      return this.filterArray(collection, variableExpr, predicateExpr)
+    }
+
+    // Handle maps (objects)
+    if (typeof collection === 'object') {
+      return this.filterMap(collection as Record<string, unknown>, variableExpr, predicateExpr)
+    }
+
+    return collection
+  }
+
+  /**
+   * Filters an array based on the predicate
+   */
+  private filterArray(
+    array: unknown[],
+    variableExpr: any,
+    predicateExpr: any,
+  ): unknown[] {
+    // Empty arrays return empty array
+    if (array.length === 0) {
+      return []
+    }
+
+    // Extract variable name from the first argument
+    let variableName: string
+    
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      variableName = extractedName
+    } else {
+      throw new CelEvaluationError('First argument to filter() must be a variable identifier')
+    }
+
+    // Filter elements based on predicate
+    const filteredArray: unknown[] = []
+    
+    for (const element of array) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = element
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          filteredArray.push(element)
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return filteredArray
+  }
+
+  /**
+   * Filters a map based on the predicate applied to values
+   */
+  private filterMap(
+    map: Record<string, unknown>,
+    variableExpr: any,
+    predicateExpr: any,
+  ): Record<string, unknown> {
+    // Extract variable name from the first argument
+    let variableName: string
+    
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      variableName = extractedName
+    } else {
+      throw new CelEvaluationError('First argument to filter() must be a variable identifier')
+    }
+
+    // Filter map entries based on predicate applied to values
+    const filteredMap: Record<string, unknown> = {}
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          filteredMap[key] = value
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return filteredMap
   }
 
   /**
