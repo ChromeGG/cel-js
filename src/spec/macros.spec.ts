@@ -162,6 +162,126 @@ describe('lists expressions', () => {
       expect(result).toThrow(new CelTypeError(Operations.addition, 123, 123))
     })
   })
+
+  describe('all', () => {
+    describe('list', () => {
+      it('should return true when all elements satisfy condition', () => {
+        const expr = '[1, 2, 3].all(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when not all elements satisfy condition', () => {
+        const expr = '[1, 2, 3].all(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return true for empty list (vacuous truth)', () => {
+        const expr = '[].all(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with string elements', () => {
+        const expr = '["hello", "world"].all(s, size(s) > 3)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with boolean elements', () => {
+        const expr = '[true, true, true].all(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when at least one element fails condition', () => {
+        const expr = '[true, false, true].all(b, b)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should work with complex conditions', () => {
+        const expr = '[10, 20, 30].all(n, n % 10 == 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.all(n, n > threshold)'
+
+        const result = evaluate(expr, { numbers: [5, 10, 15], threshold: 4 })
+
+        expect(result).toBe(true)
+      })
+
+      it('should work with nested all calls', () => {
+        const expr = '[[1, 2], [3, 4]].all(arr, arr.all(n, n > 0))'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+    })
+
+    describe('map', () => {
+      it('should return true when all values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.all(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+
+      it('should return false when not all values satisfy condition', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.all(v, v > 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(false)
+      })
+
+      it('should return true for empty map', () => {
+        const expr = '{}.all(v, v > 0)'
+
+        const result = evaluate(expr)
+
+        expect(result).toBe(true)
+      })
+    })
+
+    describe('error cases', () => {
+      it('should throw when called on non-collection', () => {
+        const expr = '42.all(v, v > 0)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('Given string is not a valid CEL expression')
+      })
+
+      it('should throw when predicate is missing', () => {
+        const expr = '[1, 2, 3].all(v)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('all() requires exactly two arguments: variable and predicate')
+      })
+    })
+  })
 })
 
 describe('custom functions', () => {

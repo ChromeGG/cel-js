@@ -100,6 +100,8 @@ export type ListExpressionCstChildren = {
   Comma?: IToken[]
   rhs?: ExprCstNode[]
   CloseBracket: IToken[]
+  identifierDotExpression?: IdentifierDotExpressionCstNode[]
+  identifierIndexExpression?: IndexExpressionCstNode[]
   Index?: IndexExpressionCstNode[]
 }
 
@@ -114,6 +116,7 @@ export type MapExpressionCstChildren = {
   CloseCurlyBracket: IToken[]
   identifierDotExpression?: IdentifierDotExpressionCstNode[]
   identifierIndexExpression?: IndexExpressionCstNode[]
+  Index?: IndexExpressionCstNode[]
 }
 
 export interface MapKeyValuesCstNode extends CstNode {
@@ -151,6 +154,7 @@ export type IdentifierExpressionCstChildren = {
   Identifier: IToken[]
   identifierDotExpression?: IdentifierDotExpressionCstNode[]
   identifierIndexExpression?: IndexExpressionCstNode[]
+  Index?: IndexExpressionCstNode[]
 }
 
 export interface IdentifierDotExpressionCstNode extends CstNode {
@@ -161,6 +165,11 @@ export interface IdentifierDotExpressionCstNode extends CstNode {
 export type IdentifierDotExpressionCstChildren = {
   Dot: IToken[]
   Identifier: IToken[]
+  OpenParenthesis?: IToken[]
+  arg?: ExprCstNode[]
+  Comma?: IToken[]
+  args?: ExprCstNode[]
+  CloseParenthesis?: IToken[]
 }
 
 export interface IndexExpressionCstNode extends CstNode {

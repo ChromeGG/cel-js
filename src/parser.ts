@@ -110,8 +110,16 @@ export class CelParser extends CstParser {
       })
     })
     this.CONSUME(CloseBracket)
-    this.OPTION2(() => {
-      this.SUBRULE(this.indexExpression, { LABEL: 'Index' })
+    this.MANY2(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'Index',
+            }),
+        },
+      ])
     })
   })
 
@@ -174,6 +182,17 @@ export class CelParser extends CstParser {
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
     this.CONSUME(Dot)
     this.CONSUME(Identifier)
+    this.OPTION(() => {
+      this.CONSUME(OpenParenthesis)
+      this.OPTION2(() => {
+        this.SUBRULE(this.expr, { LABEL: 'arg' })
+        this.MANY(() => {
+          this.CONSUME(Comma)
+          this.SUBRULE2(this.expr, { LABEL: 'args' })
+        })
+      })
+      this.CONSUME(CloseParenthesis)
+    })
   })
 
   private indexExpression = this.RULE('indexExpression', () => {

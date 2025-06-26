@@ -255,7 +255,10 @@ export class CelVisitor
   listExpression(ctx: ListExpressionCstChildren) {
     const result = []
     if (!ctx.lhs) {
-      return []
+      if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+        return []
+      }
+      return this.getIndexSection(ctx, [])
     }
 
     const left = this.visit(ctx.lhs)
@@ -268,28 +271,20 @@ export class CelVisitor
       }
     }
 
-    if (!ctx.Index) {
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
       return result
     }
 
-    const index = this.visit(ctx.Index)
-
-    const indexType = getCelType(index)
-    if (indexType != CelType.int && indexType != CelType.uint) {
-      throw new CelEvaluationError(`invalid_argument: ${index}`)
-    }
-
-    if (index < 0 || index >= result.length) {
-      throw new CelEvaluationError(`Index out of bounds: ${index}`)
-    }
-
-    return result[index]
+    return this.getIndexSection(ctx, result)
   }
 
   mapExpression(ctx: MapExpressionCstChildren) {
     const mapExpression: Record<string, unknown> = {}
     if (!ctx.keyValues) {
-      return {}
+      if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
+        return {}
+      }
+      return this.getIndexSection(ctx, {})
     }
     let valueType = ''
     for (const keyValuePair of ctx.keyValues) {
@@ -306,7 +301,7 @@ export class CelVisitor
       mapExpression[key] = value
     }
 
-    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+    if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression && !ctx.Index) {
       return mapExpression
     }
 
@@ -314,20 +309,44 @@ export class CelVisitor
   }
 
   private getIndexSection(
-    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren,
+    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren | ListExpressionCstChildren,
     mapExpression: unknown,
   ) {
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...(ctx.identifierIndexExpression || []),
+      ...(ctx.Index || []),
     ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
 
     return expressions.reduce((acc: unknown, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        return this.getIdentifier(acc, expression.children.Identifier[0].image)
+        const identifierName = expression.children.Identifier[0].image
+        
+        // Check if this is a method call
+        if (expression.children.OpenParenthesis) {
+          return this.handleMethodCall(identifierName, expression.children, acc)
+        }
+        
+        return this.getIdentifier(acc, identifierName)
       }
 
+      // Handle index expressions (both identifierIndexExpression and Index)
       const index = this.visit(expression.children.expr[0])
+      
+      // Handle array indexing
+      if (Array.isArray(acc)) {
+        const indexType = getCelType(index)
+        if (indexType != CelType.int && indexType != CelType.uint) {
+          throw new CelEvaluationError(`invalid_argument: ${index}`)
+        }
+
+        if (index < 0 || index >= acc.length) {
+          throw new CelEvaluationError(`Index out of bounds: ${index}`)
+        }
+
+        return acc[index]
+      }
+      
       return this.getIdentifier(acc, index)
     }, mapExpression)
   }
@@ -497,6 +516,12 @@ export class CelVisitor
     param: unknown,
   ): unknown {
     const identifierName = ctx.Identifier[0].image
+    
+    // Check if this is a method call
+    if (ctx.OpenParenthesis) {
+      return this.handleMethodCall(identifierName, ctx, param)
+    }
+    
     return this.getIdentifier(param, identifierName)
   }
 
@@ -527,6 +552,138 @@ export class CelVisitor
     }
 
     return value
+  }
+
+  /**
+   * Handles method calls on collections like .all(x, p)
+   */
+  private handleMethodCall(
+    methodName: string,
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): unknown {
+    switch (methodName) {
+      case 'all':
+        return this.handleAllMethod(ctx, collection)
+      default:
+        throw new CelEvaluationError(`Unknown method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the .all(x, p) method call
+   */
+  private handleAllMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): boolean {
+    // Validate collection type
+    if (!Array.isArray(collection) && (typeof collection !== 'object' || collection === null)) {
+      throw new CelEvaluationError('all() can only be called on lists or maps')
+    }
+
+    // Validate arguments - need exactly 2 arguments: variable and predicate
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('all() requires exactly two arguments: variable and predicate')
+    }
+
+    const variableExpr = ctx.arg
+    const predicateExpr = ctx.args[0]
+
+    // Handle arrays
+    if (Array.isArray(collection)) {
+      if (collection.length === 0) {
+        return true // Empty arrays return true (vacuous truth)
+      }
+      return this.evaluateAllForArray(collection, variableExpr, predicateExpr)
+    }
+
+    // Handle maps (objects)
+    if (typeof collection === 'object') {
+      const values = Object.values(collection)
+      if (values.length === 0) {
+        return true // Empty objects return true (vacuous truth)
+      }
+      return this.evaluateAllForArray(values, variableExpr, predicateExpr)
+    }
+
+    return true
+  }
+
+  /**
+   * Evaluates the all() predicate for each element in an array
+   */
+  private evaluateAllForArray(
+    array: unknown[],
+    variableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    // Empty arrays return true (vacuous truth)
+    if (array.length === 0) {
+      return true
+    }
+
+    // Extract variable name from the first argument
+    let variableName: string
+    
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      variableName = extractedName
+    } else {
+      throw new CelEvaluationError('First argument to all() must be a variable identifier')
+    }
+
+    // Evaluate predicate for each element
+    for (const element of array) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = element
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (!result) {
+          return false
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return true
   }
 
   /**
