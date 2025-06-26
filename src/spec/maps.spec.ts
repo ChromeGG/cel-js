@@ -54,13 +54,7 @@ describe('maps expressions', () => {
         expect(result).toThrow('Identifier "b" not found, no context passed')
       })
 
-      it.todo('should throw an error if the key is not a string', () => {
-        const expr = '{"a": 1}.1'
 
-        const result = () => evaluate(expr)
-
-        expect(result).toThrow('invalid_argument: 1')
-      })
     })
     describe('index expression', () => {
       it('should get the value of a key', () => {

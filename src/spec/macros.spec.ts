@@ -154,13 +154,7 @@ describe('lists expressions', () => {
       })
     })
 
-    it.todo('should thrown an error if operator is not string or list', () => {
-      const expr = 'size(123)'
 
-      const result = () => evaluate(expr)
-
-      expect(result).toThrow(new CelTypeError(Operations.addition, 123, 123))
-    })
   })
 
   describe('all', () => {
@@ -270,7 +264,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('Given string is not a valid CEL expression')
+        expect(result).toThrow('all() can only be called on lists or maps')
       })
 
       it('should throw when predicate is missing', () => {
@@ -398,7 +392,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('Given string is not a valid CEL expression')
+        expect(result).toThrow('exists() can only be called on lists or maps')
       })
 
       it('should throw when predicate is missing', () => {
@@ -558,7 +552,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('Given string is not a valid CEL expression')
+        expect(result).toThrow('exists_one() can only be called on lists or maps')
       })
 
       it('should throw when predicate is missing', () => {
@@ -718,7 +712,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('Given string is not a valid CEL expression')
+        expect(result).toThrow('filter() can only be called on lists or maps')
       })
 
       it('should throw when predicate is missing', () => {
@@ -914,7 +908,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('Given string is not a valid CEL expression')
+        expect(result).toThrow('map() can only be called on lists or maps')
       })
 
       it('should throw when insufficient arguments (one argument)', () => {

@@ -3,21 +3,17 @@ import { expect, describe, it } from 'vitest'
 import { evaluate } from '..'
 
 describe('CEL Edge Cases & Missing Features', () => {
-  describe('String Methods (Missing in our implementation)', () => {
-    it('should support string methods when implemented', () => {
-      // These will fail until we implement string methods
-      const tests = [
-        { expr: '"hello".startsWith("he")', expected: true },
-        { expr: '"hello".endsWith("lo")', expected: true },
-        { expr: '"hello world".contains("world")', expected: true },
-        { expr: '"a,b,c".split(",")', expected: ["a", "b", "c"] },
-        { expr: '"hello".size()', expected: 5 }, // This should work as size(string)
-      ]
-
-      // For now, test that these fail appropriately
+  describe('String Methods (Now implemented)', () => {
+    it('should support implemented string methods', () => {
+      // Test the string methods we've implemented
+      expect(evaluate('"hello".endsWith("lo")')).toBe(true)
+      expect(evaluate('"hello world".contains("world")')).toBe(true)
+      expect(evaluate('"a,b,c".split(",")')).toEqual(["a", "b", "c"])
+      expect(evaluate('"hello".size()')).toBe(5)
+      expect(evaluate('"  hello  ".trim()')).toBe('hello')
+      
+      // Test methods we haven't implemented yet - these should still throw
       expect(() => evaluate('"hello".startsWith("he")')).toThrow()
-      expect(() => evaluate('"hello".endsWith("lo")')).toThrow()
-      expect(() => evaluate('"hello world".contains("world")')).toThrow()
     })
   })
 

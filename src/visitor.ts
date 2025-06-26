@@ -33,6 +33,7 @@ import {
   timestamp,
   duration,
   Duration,
+  string,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -55,6 +56,7 @@ const defaultFunctions = {
   bytes,
   timestamp,
   duration,
+  string,
 }
 
 export class CelVisitor
@@ -636,6 +638,11 @@ export class CelVisitor
     // Handle duration methods  
     if (typeof collection === 'object' && collection !== null && 'seconds' in collection && 'nanoseconds' in collection) {
       return this.handleDurationMethod(methodName, collection as Duration)
+    }
+
+    // Handle string methods (but not size, which is handled below)
+    if (typeof collection === 'string' && methodName !== 'size') {
+      return this.handleStringMethod(methodName, ctx, collection)
     }
 
     switch (methodName) {
@@ -1466,6 +1473,111 @@ export class CelVisitor
     }
 
     throw new CelEvaluationError('size() can only be called on strings, lists, maps, or bytes')
+  }
+
+  /**
+   * Handles string method calls
+   */
+  private handleStringMethod(
+    methodName: string,
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): unknown {
+    switch (methodName) {
+      case 'contains':
+        return this.handleStringContains(ctx, str)
+      case 'endsWith':
+        return this.handleStringEndsWith(ctx, str)
+      case 'trim':
+        return this.handleStringTrim(ctx, str)
+      case 'split':
+        return this.handleStringSplit(ctx, str)
+      default:
+        throw new CelEvaluationError(`Unknown string method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the string.contains(substring) method
+   */
+  private handleStringContains(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): boolean {
+    // Validate arguments - contains() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('contains() requires exactly one argument')
+    }
+
+    const substring = this.visit(ctx.arg)
+    
+    if (typeof substring !== 'string') {
+      throw new CelEvaluationError('contains() argument must be a string')
+    }
+
+    return str.includes(substring)
+  }
+
+  /**
+   * Handles the string.endsWith(suffix) method
+   */
+  private handleStringEndsWith(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): boolean {
+    // Validate arguments - endsWith() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('endsWith() requires exactly one argument')
+    }
+
+    const suffix = this.visit(ctx.arg)
+    
+    if (typeof suffix !== 'string') {
+      throw new CelEvaluationError('endsWith() argument must be a string')
+    }
+
+    return str.endsWith(suffix)
+  }
+
+  /**
+   * Handles the string.trim() method
+   */
+  private handleStringTrim(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - trim() takes no arguments
+    if (ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('trim() takes no arguments')
+    }
+
+    return str.trim()
+  }
+
+  /**
+   * Handles the string.split(separator) method
+   */
+  private handleStringSplit(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string[] {
+    // Validate arguments - split() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('split() requires exactly one argument')
+    }
+
+    const separator = this.visit(ctx.arg)
+    
+    if (typeof separator !== 'string') {
+      throw new CelEvaluationError('split() argument must be a string')
+    }
+
+    // Handle empty separator case - split into individual characters
+    if (separator === '') {
+      return str === '' ? [] : str.split('')
+    }
+
+    return str.split(separator)
   }
 
   /**

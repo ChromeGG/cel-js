@@ -624,3 +624,54 @@ export const duration = (input: unknown): Duration => {
 
   return { seconds: totalSeconds, nanoseconds: totalNanoseconds }
 }
+
+/**
+ * Convert a value to a string representation
+ */
+export function string(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return value.toString()
+  }
+  if (typeof value === 'boolean') {
+    return value.toString()
+  }
+  if (value === null || value === undefined) {
+    return 'null'
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  if (typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+    // Duration object
+    const duration = value as Duration
+    const seconds = Math.abs(duration.seconds)
+    const nanoseconds = Math.abs(duration.nanoseconds)
+    
+    let result = ''
+    if (duration.seconds < 0 || duration.nanoseconds < 0) {
+      result += '-'
+    }
+    
+    if (seconds > 0) {
+      result += `${seconds}s`
+    }
+    
+    if (nanoseconds > 0) {
+      if (nanoseconds % 1000000 === 0) {
+        result += `${nanoseconds / 1000000}ms`
+      } else if (nanoseconds % 1000 === 0) {
+        result += `${nanoseconds / 1000}us`
+      } else {
+        result += `${nanoseconds}ns`
+      }
+    }
+    
+    return result || '0s'
+  }
+  
+  // For objects and arrays, use JSON representation
+  return JSON.stringify(value)
+}
