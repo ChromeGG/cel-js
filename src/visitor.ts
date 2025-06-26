@@ -571,6 +571,8 @@ export class CelVisitor
         return this.handleExistsOneMethod(ctx, collection)
       case 'filter':
         return this.handleFilterMethod(ctx, collection)
+      case 'map':
+        return this.handleMapMethod(ctx, collection)
       default:
         throw new CelEvaluationError(`Unknown method: ${methodName}`)
     }
@@ -1112,6 +1114,249 @@ export class CelVisitor
     }
 
     return filteredMap
+  }
+
+  /**
+   * Handles the .map(x, t) or .map(x, p, t) method call
+   */
+  private handleMapMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): unknown {
+    // Validate collection type
+    if (!Array.isArray(collection) && (typeof collection !== 'object' || collection === null)) {
+      throw new CelEvaluationError('map() can only be called on lists or maps')
+    }
+
+    // Validate arguments - need either 2 arguments (variable, transform) or 3 arguments (variable, predicate, transform)
+    if (!ctx.arg || !ctx.args || (ctx.args.length !== 1 && ctx.args.length !== 2)) {
+      throw new CelEvaluationError('map() requires either two arguments (variable, transform) or three arguments (variable, predicate, transform)')
+    }
+
+    const variableExpr = ctx.arg
+    const isThreeArguments = ctx.args.length === 2
+    
+    if (isThreeArguments) {
+      // Three arguments: variable, predicate, transform
+      const predicateExpr = ctx.args[0]
+      const transformExpr = ctx.args[1]
+      
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        return this.mapArrayWithFilter(collection, variableExpr, predicateExpr, transformExpr)
+      }
+
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        return this.mapMapWithFilter(collection as Record<string, unknown>, variableExpr, predicateExpr, transformExpr)
+      }
+    } else {
+      // Two arguments: variable, transform
+      const transformExpr = ctx.args[0]
+      
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        return this.mapArray(collection, variableExpr, transformExpr)
+      }
+
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        return this.mapMap(collection as Record<string, unknown>, variableExpr, transformExpr)
+      }
+    }
+
+    return collection
+  }
+
+  /**
+   * Maps an array by transforming each element
+   */
+  private mapArray(
+    array: unknown[],
+    variableExpr: any,
+    transformExpr: any,
+  ): unknown[] {
+    // Empty arrays return empty array
+    if (array.length === 0) {
+      return []
+    }
+
+    const variableName = this.extractVariableName(variableExpr, 'map()')
+    const mappedArray: unknown[] = []
+    
+    for (const element of array) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = element
+
+      try {
+        const transformedValue = this.visit(transformExpr)
+        mappedArray.push(transformedValue)
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return mappedArray
+  }
+
+  /**
+   * Maps a map by transforming each value
+   */
+  private mapMap(
+    map: Record<string, unknown>,
+    variableExpr: any,
+    transformExpr: any,
+  ): Record<string, unknown> {
+    const variableName = this.extractVariableName(variableExpr, 'map()')
+    const mappedMap: Record<string, unknown> = {}
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        const transformedValue = this.visit(transformExpr)
+        mappedMap[key] = transformedValue
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return mappedMap
+  }
+
+  /**
+   * Maps an array by filtering then transforming elements
+   */
+  private mapArrayWithFilter(
+    array: unknown[],
+    variableExpr: any,
+    predicateExpr: any,
+    transformExpr: any,
+  ): unknown[] {
+    // Empty arrays return empty array
+    if (array.length === 0) {
+      return []
+    }
+
+    const variableName = this.extractVariableName(variableExpr, 'map()')
+    const mappedArray: unknown[] = []
+    
+    for (const element of array) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = element
+
+      try {
+        // First evaluate the predicate
+        const predicateResult = this.visit(predicateExpr)
+        if (predicateResult) {
+          // If predicate is true, transform the element
+          const transformedValue = this.visit(transformExpr)
+          mappedArray.push(transformedValue)
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return mappedArray
+  }
+
+  /**
+   * Maps a map by filtering then transforming values
+   */
+  private mapMapWithFilter(
+    map: Record<string, unknown>,
+    variableExpr: any,
+    predicateExpr: any,
+    transformExpr: any,
+  ): Record<string, unknown> {
+    const variableName = this.extractVariableName(variableExpr, 'map()')
+    const mappedMap: Record<string, unknown> = {}
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        // First evaluate the predicate
+        const predicateResult = this.visit(predicateExpr)
+        if (predicateResult) {
+          // If predicate is true, transform the value
+          const transformedValue = this.visit(transformExpr)
+          mappedMap[key] = transformedValue
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return mappedMap
+  }
+
+  /**
+   * Extracts variable name from expression - helper method to reduce code duplication
+   */
+  private extractVariableName(variableExpr: any, methodName: string): string {
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      return extractedName
+    } else {
+      throw new CelEvaluationError(`First argument to ${methodName} must be a variable identifier`)
+    }
   }
 
   /**

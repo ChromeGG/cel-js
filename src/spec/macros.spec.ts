@@ -730,6 +730,210 @@ describe('lists expressions', () => {
       })
     })
   })
+
+  describe('map', () => {
+    describe('list - two arguments (transform all)', () => {
+      it('should transform all elements with simple expression', () => {
+        const expr = '[1, 2, 3].map(v, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([2, 4, 6])
+      })
+
+      it('should transform string elements', () => {
+        const expr = '["hello", "world"].map(s, size(s))'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([5, 5])
+      })
+
+      it('should transform with complex expressions', () => {
+        const expr = '[1, 2, 3].map(v, v * v + 1)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([2, 5, 10])
+      })
+
+      it('should return empty array for empty list', () => {
+        const expr = '[].map(v, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([])
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.map(n, n + offset)'
+
+        const result = evaluate(expr, { numbers: [1, 2, 3], offset: 10 })
+
+        expect(result).toEqual([11, 12, 13])
+      })
+
+      it('should preserve order', () => {
+        const expr = '[5, 1, 3].map(v, v * 10)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([50, 10, 30])
+      })
+
+      it('should handle nested map calls', () => {
+        const expr = '[[1, 2], [3, 4]].map(arr, arr.map(n, n * 2))'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([[2, 4], [6, 8]])
+      })
+    })
+
+    describe('list - three arguments (filter then transform)', () => {
+      it('should filter and transform elements', () => {
+        const expr = '[1, 2, 3, 4, 5].map(v, v > 2, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([6, 8, 10])
+      })
+
+      it('should return empty array when no elements match predicate', () => {
+        const expr = '[1, 2, 3].map(v, v > 5, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([])
+      })
+
+      it('should transform all elements when all match predicate', () => {
+        const expr = '[1, 2, 3].map(v, v > 0, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([2, 4, 6])
+      })
+
+      it('should work with string filtering and transformation', () => {
+        const expr = '["hello", "hi", "world"].map(s, size(s) > 2, size(s))'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([5, 5])
+      })
+
+      it('should work with complex conditions and transformations', () => {
+        const expr = '[1, 2, 3, 4, 5].map(n, n % 2 == 0, n * n)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual([4, 16])
+      })
+
+      it('should work with variable from context', () => {
+        const expr = 'numbers.map(n, n > threshold, n * multiplier)'
+
+        const result = evaluate(expr, { numbers: [1, 5, 10, 15], threshold: 7, multiplier: 3 })
+
+        expect(result).toEqual([30, 45])
+      })
+    })
+
+    describe('map - two arguments (transform all)', () => {
+      it('should transform all values', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.map(v, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"a": 2, "b": 4, "c": 6})
+      })
+
+      it('should transform string values', () => {
+        const expr = '{"name": "John", "city": "NYC"}.map(v, size(v))'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"name": 4, "city": 3})
+      })
+
+      it('should return empty map for empty map', () => {
+        const expr = '{}.map(v, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({})
+      })
+
+      it('should preserve keys', () => {
+        const expr = '{"x": 10, "y": 20}.map(v, v / 10)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"x": 1, "y": 2})
+      })
+    })
+
+    describe('map - three arguments (filter then transform)', () => {
+      it('should filter and transform values', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3, "d": 4}.map(v, v > 2, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"c": 6, "d": 8})
+      })
+
+      it('should return empty map when no values match predicate', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.map(v, v > 5, v * 2)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({})
+      })
+
+      it('should transform all values when all match predicate', () => {
+        const expr = '{"a": 1, "b": 2, "c": 3}.map(v, v > 0, v + 10)'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"a": 11, "b": 12, "c": 13})
+      })
+
+      it('should work with string filtering and transformation', () => {
+        const expr = '{"name": "John", "age": "25", "city": "NYC"}.map(v, size(v) > 3, size(v))'
+
+        const result = evaluate(expr)
+
+        expect(result).toEqual({"name": 4})
+      })
+    })
+
+    describe('error cases', () => {
+      it('should throw when called on non-collection', () => {
+        const expr = '42.map(v, v * 2)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('Given string is not a valid CEL expression')
+      })
+
+      it('should throw when insufficient arguments (one argument)', () => {
+        const expr = '[1, 2, 3].map(v)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('map() requires either two arguments (variable, transform) or three arguments (variable, predicate, transform)')
+      })
+
+      it('should throw when too many arguments (four arguments)', () => {
+        const expr = '[1, 2, 3].map(v, v > 1, v * 2, v + 1)'
+
+        const result = () => evaluate(expr)
+
+        expect(result).toThrow('map() requires either two arguments (variable, transform) or three arguments (variable, predicate, transform)')
+      })
+    })
+  })
 })
 
 describe('custom functions', () => {
