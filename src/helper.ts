@@ -37,6 +37,7 @@ export enum CelType {
   float = 'float',
   string = 'string',
   bool = 'bool',
+  bytes = 'bytes',
   null = 'null',
   list = 'list',
   map = 'map',
@@ -75,6 +76,22 @@ const isTimestamp = (value: unknown): value is Date =>
 const isDuration = (value: unknown): value is Duration =>
   getCelType(value) === CelType.duration
 
+const isBytes = (value: unknown): value is Uint8Array =>
+  getCelType(value) === CelType.bytes
+
+/**
+ * Compare two Uint8Arrays lexicographically
+ */
+const compareBytes = (left: Uint8Array, right: Uint8Array): number => {
+  const minLength = Math.min(left.length, right.length)
+  for (let i = 0; i < minLength; i++) {
+    if (left[i] !== right[i]) {
+      return left[i] - right[i]
+    }
+  }
+  return left.length - right.length
+}
+
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
     return CelType.null
@@ -106,6 +123,10 @@ export const getCelType = (value: unknown): CelType => {
 
   if (value instanceof Date) {
     return CelType.timestamp
+  }
+
+  if (value instanceof Uint8Array) {
+    return CelType.bytes
   }
 
   if (typeof value === 'object' && value !== null && 'seconds' in value && 'nanoseconds' in value) {
@@ -154,6 +175,14 @@ const additionOperation = (left: unknown, right: unknown) => {
       throw new CelTypeError(Operations.addition, left[0], right[0])
     }
     return [...left, ...right]
+  }
+
+  // Bytes concatenation
+  if (isBytes(left) && isBytes(right)) {
+    const result = new Uint8Array(left.length + right.length)
+    result.set(left, 0)
+    result.set(right, left.length)
+    return result
   }
 
   // Timestamp + Duration = Timestamp
@@ -332,6 +361,37 @@ const comparisonOperation = (
     }
   }
 
+  // Bytes comparisons
+  if (isBytes(left) && isBytes(right)) {
+    const comparison = compareBytes(left, right)
+    switch (operation) {
+      case Operations.lessThan:
+        return comparison < 0
+      case Operations.lessOrEqualThan:
+        return comparison <= 0
+      case Operations.greaterThan:
+        return comparison > 0
+      case Operations.greaterOrEqualThan:
+        return comparison >= 0
+    }
+  }
+
+  // Boolean comparisons (false < true)
+  if (isBoolean(left) && isBoolean(right)) {
+    const leftValue = left ? 1 : 0
+    const rightValue = right ? 1 : 0
+    switch (operation) {
+      case Operations.lessThan:
+        return leftValue < rightValue
+      case Operations.lessOrEqualThan:
+        return leftValue <= rightValue
+      case Operations.greaterThan:
+        return leftValue > rightValue
+      case Operations.greaterOrEqualThan:
+        return leftValue >= rightValue
+    }
+  }
+
   if (operation === Operations.equals) {
     return equals(left, right)
   }
@@ -468,7 +528,7 @@ export const getPosition = (
 }
 
 export const size = (arr: unknown) => {
-  if (isString(arr) || isArray(arr)) {
+  if (isString(arr) || isArray(arr) || isBytes(arr)) {
     return arr.length
   }
 
@@ -491,6 +551,20 @@ export const size = (arr: unknown) => {
 export const has = (path: unknown): boolean => {
   // If the path itself is undefined, it means the field/index doesn't exist
   return path !== undefined
+}
+
+/**
+ * CEL dyn() function that converts a value to dynamic type.
+ * This is mainly used for cross-type comparisons and operations.
+ *
+ * @param value - The value to convert to dynamic type
+ * @returns The same value, but treated as dynamic for type operations
+ *
+ * @example
+ * dyn(1) == 1.0  // Cross-type comparison enabled
+ */
+export const dyn = (value: unknown): unknown => {
+  return value
 }
 
 /**

@@ -49,7 +49,7 @@ export const QuestionMark = createToken({ name: 'QuestionMark', pattern: /\?/ })
 
 export const Float = createToken({
   name: 'Float',
-  pattern: /-?\d+\.\d+/,
+  pattern: /-?\d+(?:\.\d+(?:[eE][+-]?\d+)?|(?:[eE][+-]?\d+))/,
 })
 
 export const HexInteger = createToken({

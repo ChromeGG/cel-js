@@ -28,6 +28,7 @@ import {
   getResult,
   getUnaryResult,
   has,
+  dyn,
   size,
   bytes,
   timestamp,
@@ -58,6 +59,7 @@ const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
 const defaultFunctions = {
   has,
+  dyn,
   size,
   bytes,
   timestamp,
