@@ -123,8 +123,14 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       const testDescMatch = testContent.match(/description:\s*"([^"]*)"/);
       if (testDescMatch) test.description = testDescMatch[1]
       
-      const exprMatch = testContent.match(/expr:\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/);
-      if (exprMatch) test.expr = exprMatch[2]
+      const exprMatch = testContent.match(/expr:\s*"([^"\\]*(\\.[^"\\]*)*)"/);
+      if (!exprMatch) {
+        // Try single quotes if double quotes didn't work
+        const exprMatchSingle = testContent.match(/expr:\s*'([^'\\]*(\\.[^'\\]*)*)'/);
+        if (exprMatchSingle) test.expr = exprMatchSingle[1];
+      } else {
+        test.expr = exprMatch[1];
+      }
       
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);
       if (disableCheckMatch) test.disable_check = disableCheckMatch[1] === 'true'
@@ -206,8 +212,20 @@ function parseValue(content: string): any {
     if (trimmed.includes('list_value: {}')) {
       return { list_value: {} }
     }
-    // TODO: Handle non-empty lists if needed
-    return { list_value: { values: [] } }
+    
+    // Parse list values
+    const values = []
+    const valuesMatch = trimmed.match(/values:\s*\{([^}]*)\}/g)
+    if (valuesMatch) {
+      for (const valueStr of valuesMatch) {
+        const valueContent = valueStr.match(/values:\s*\{([^}]*)\}/)?.[1]
+        if (valueContent) {
+          const parsedValue = parseValue(valueContent)
+          values.push(parsedValue)
+        }
+      }
+    }
+    return { list_value: { values } }
   }
   
   if (trimmed.includes('map_value:')) {
@@ -215,8 +233,26 @@ function parseValue(content: string): any {
     if (trimmed.includes('map_value: {}')) {
       return { map_value: {} }
     }
-    // TODO: Handle non-empty maps if needed
-    return { map_value: { entries: [] } }
+    
+    // Parse map entries
+    const entries = []
+    const entriesMatch = trimmed.match(/entries\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g)
+    if (entriesMatch) {
+      for (const entryStr of entriesMatch) {
+        const entryContent = entryStr.match(/entries\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/)?.[1]
+        if (entryContent) {
+          const keyMatch = entryContent.match(/key:\s*\{([^}]*)\}/)
+          const valueMatch = entryContent.match(/value:\s*\{([^}]*)\}/)
+          
+          if (keyMatch && valueMatch) {
+            const key = parseValue(keyMatch[1])
+            const value = parseValue(valueMatch[1])
+            entries.push({ key, value })
+          }
+        }
+      }
+    }
+    return { map_value: { entries } }
   }
   
   if (trimmed.includes('errors')) {
@@ -229,6 +265,72 @@ function parseValue(content: string): any {
   return {}
 }
 
+// Process textproto byte string with escape sequences
+function processTextprotoByteString(str: string): Uint8Array {
+  const bytes: number[] = []
+  let i = 0
+  
+  while (i < str.length) {
+    if (str[i] === '\\' && i + 1 < str.length) {
+      const next = str[i + 1]
+      
+      // Octal escape sequences \000 to \377
+      if (/^[0-7]/.test(next)) {
+        let octalDigits = ''
+        let j = i + 1
+        while (j < str.length && j < i + 4 && /^[0-7]$/.test(str[j])) {
+          octalDigits += str[j]
+          j++
+        }
+        if (octalDigits.length > 0) {
+          bytes.push(parseInt(octalDigits, 8))
+          i = j
+          continue
+        }
+      }
+      
+      // Other escape sequences
+      switch (next) {
+        case 'n':
+          bytes.push(10)
+          i += 2
+          continue
+        case 't':
+          bytes.push(9)
+          i += 2
+          continue
+        case 'r':
+          bytes.push(13)
+          i += 2
+          continue
+        case '\\':
+          bytes.push(92)
+          i += 2
+          continue
+        case '"':
+          bytes.push(34)
+          i += 2
+          continue
+        case "'":
+          bytes.push(39)
+          i += 2
+          continue
+        default:
+          // Unknown escape, add both characters
+          bytes.push(str.charCodeAt(i))
+          i++
+          continue
+      }
+    }
+    
+    // Regular character
+    bytes.push(str.charCodeAt(i))
+    i++
+  }
+  
+  return new Uint8Array(bytes)
+}
+
 // Convert conformance test value to JavaScript value
 export function conformanceValueToJS(value: ConformanceTestValue): any {
   if (value.int64_value !== undefined) return value.int64_value
@@ -236,12 +338,8 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
   if (value.double_value !== undefined) return value.double_value
   if (value.string_value !== undefined) return value.string_value
   if (value.bytes_value !== undefined) {
-    // Convert byte string to Uint8Array
-    const bytes = new Uint8Array(value.bytes_value.length)
-    for (let i = 0; i < value.bytes_value.length; i++) {
-      bytes[i] = value.bytes_value.charCodeAt(i)
-    }
-    return bytes
+    // Convert byte string with escape sequences to Uint8Array
+    return processTextprotoByteString(value.bytes_value)
   }
   if (value.bool_value !== undefined) return value.bool_value
   if (value.null_value !== undefined) return null

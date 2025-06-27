@@ -12,8 +12,8 @@ describe('CEL Edge Cases & Missing Features', () => {
       expect(evaluate('"hello".size()')).toBe(5)
       expect(evaluate('"  hello  ".trim()')).toBe('hello')
       
-      // Test methods we haven't implemented yet - these should still throw
-      expect(() => evaluate('"hello".startsWith("he")')).toThrow()
+      // startsWith is also implemented
+      expect(evaluate('"hello".startsWith("he")')).toBe(true)
     })
   })
 
@@ -114,12 +114,11 @@ describe('CEL Edge Cases & Missing Features', () => {
       expect(result).toBe(2) // Emoji might be 2 UTF-16 code units
     })
 
-    it('should handle escape sequences in strings (currently raw)', () => {
+    it('should handle escape sequences in strings', () => {
       const expr = '"line1\\nline2\\ttab\\r\\n"'
       const result = evaluate(expr)
-      // Currently our implementation doesn't process escape sequences
-      expect(result).toBe("line1\\nline2\\ttab\\r\\n")
-      // TODO: Should be: expect(result).toBe("line1\nline2\ttab\r\n")
+      // Escape sequences should be processed correctly
+      expect(result).toBe("line1\nline2\ttab\r\n")
     })
   })
 

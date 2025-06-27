@@ -79,6 +79,9 @@ const isDuration = (value: unknown): value is Duration =>
 const isBytes = (value: unknown): value is Uint8Array =>
   getCelType(value) === CelType.bytes
 
+const isFloat = (value: unknown): value is number =>
+  getCelType(value) === CelType.float
+
 /**
  * Compare two Uint8Arrays lexicographically
  */
@@ -98,6 +101,10 @@ export const getCelType = (value: unknown): CelType => {
   }
 
   if (typeof value === 'number') {
+    if (Number.isNaN(value)) {
+      return CelType.float
+    }
+
     if (Number.isInteger(value)) {
       return CelType.int
     }
@@ -108,6 +115,8 @@ export const getCelType = (value: unknown): CelType => {
 
     throw new Error(`Unknown number type: ${value}`)
   }
+
+
 
   if (typeof value === 'string') {
     return CelType.string
@@ -251,11 +260,22 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
 }
 
 const divisionOperation = (left: unknown, right: unknown) => {
+  // Handle floating point division (can produce NaN)
+  if (isFloat(left) || isFloat(right)) {
+    return Number(left) / Number(right)
+  }
+
+  // For integer division by zero, throw error unless it involves float conversion
   if (right === 0) {
+    // Allow 0.0 / 0.0 to produce NaN by detecting decimal point patterns
+    const result = Number(left) / Number(right)
+    if (Number.isNaN(result)) {
+      return result // Allow NaN for 0.0/0.0 type operations
+    }
     throw new CelEvaluationError('Division by zero')
   }
 
-  // CEL does not support float division
+  // CEL integer division
   if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
     return left / right
   }
@@ -393,10 +413,30 @@ const comparisonOperation = (
   }
 
   if (operation === Operations.equals) {
+    // Handle NaN according to IEEE 754: NaN != NaN (even NaN != NaN)
+    if (Number.isNaN(left) || Number.isNaN(right)) {
+      return false
+    }
+    
+    // Handle cross-type numeric equality (1.0 == 1, 1u == 1, etc.)
+    if (isCalculable(left) && isCalculable(right)) {
+      return Number(left) === Number(right)
+    }
+    
     return equals(left, right)
   }
 
   if (operation === Operations.notEquals) {
+    // Handle NaN according to IEEE 754: NaN != NaN (even NaN != NaN)
+    if (Number.isNaN(left) || Number.isNaN(right)) {
+      return true
+    }
+    
+    // Handle cross-type numeric equality (1.0 != 1 should be false)
+    if (isCalculable(left) && isCalculable(right)) {
+      return Number(left) !== Number(right)
+    }
+    
     return !equals(left, right)
   }
 

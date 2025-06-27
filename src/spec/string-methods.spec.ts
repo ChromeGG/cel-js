@@ -101,8 +101,8 @@ describe('String Methods', () => {
   describe('trim() method', () => {
     it('should remove leading and trailing whitespace', () => {
       expect(evaluate('"  hello world  ".trim()')).toBe('hello world')
-      expect(evaluate('"\\thello\\t".trim()')).toBe('\\thello\\t')
-      expect(evaluate('"\\nhello\\n".trim()')).toBe('\\nhello\\n')
+      expect(evaluate('"\\thello\\t".trim()')).toBe('hello')
+      expect(evaluate('"\\nhello\\n".trim()')).toBe('hello')
     })
 
     it('should handle strings with no whitespace', () => {
@@ -113,16 +113,16 @@ describe('String Methods', () => {
     it('should handle empty strings', () => {
       expect(evaluate('"".trim()')).toBe('')
       expect(evaluate('"   ".trim()')).toBe('')
-      expect(evaluate('"\\t\\n\\r ".trim()')).toBe('\\t\\n\\r')
+      expect(evaluate('"\\t\\n\\r ".trim()')).toBe('')
     })
 
     it('should handle mixed whitespace characters', () => {
-      expect(evaluate('"  \\t\\n hello world \\r\\n\\t  ".trim()')).toBe('\\t\\n hello world \\r\\n\\t')
+      expect(evaluate('"  \\t\\n hello world \\r\\n\\t  ".trim()')).toBe('hello world')
     })
 
     it('should preserve internal whitespace', () => {
       expect(evaluate('"  hello   world  ".trim()')).toBe('hello   world')
-      expect(evaluate('"\\thello\\t\\tworld\\t".trim()')).toBe('\\thello\\t\\tworld\\t')
+      expect(evaluate('"\\thello\\t\\tworld\\t".trim()')).toBe('hello\t\tworld')
     })
 
     it('should handle only leading whitespace', () => {

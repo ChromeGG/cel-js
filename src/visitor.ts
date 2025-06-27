@@ -580,7 +580,24 @@ export class CelVisitor
     }
 
     const identifierName = ctx.Identifier[0].image
-    // If this is a standalone identifier and is reserved, throw
+    
+    // Handle reserved constants - these should never be shadowed
+    if (
+      !ctx.identifierDotExpression &&
+      !ctx.identifierIndexExpression
+    ) {
+      if (identifierName === 'false') {
+        return false
+      }
+      if (identifierName === 'true') {
+        return true
+      }
+      if (identifierName === 'null') {
+        return null
+      }
+    }
+    
+    // If this is a standalone identifier and is reserved (but not a constant), throw
     if (
       !ctx.identifierDotExpression &&
       !ctx.identifierIndexExpression &&
@@ -588,6 +605,7 @@ export class CelVisitor
     ) {
       throw new Error('Detected reserved identifier. This is not allowed')
     }
+    
     const data = this.context
     const result = this.getIdentifier(data, identifierName)
 
@@ -1801,8 +1819,10 @@ export class CelVisitor
         }
       }
       
-      // Regular character
-      bytes.push(content.charCodeAt(i))
+      // Regular character - encode as UTF-8
+      const char = content[i]
+      const encoded = new TextEncoder().encode(char)
+      bytes.push(...Array.from(encoded))
       i++
     }
     
