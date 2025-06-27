@@ -1,14 +1,14 @@
 import { CELLexer } from './tokens.js'
 import { CelParser } from './parser.js'
 import { CelVisitor } from './visitor.js'
-import { Duration } from './helper.js'
+import type { Duration } from './helper.js'
 import { CstNode } from 'chevrotain'
 import { CelParseError } from './errors/CelParseError.js'
 
 export { CelParseError } from './errors/CelParseError.js'
 export { CelEvaluationError } from './errors/CelEvaluationError.js'
 export { CelTypeError } from './errors/CelTypeError.js'
-export { Duration } from './helper.js'
+export type { Duration } from './helper.js'
 
 /**
  * Possible return types from CEL expressions

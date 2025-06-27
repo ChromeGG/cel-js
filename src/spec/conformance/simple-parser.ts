@@ -1,5 +1,33 @@
 import { ConformanceTestFile, ConformanceTestValue } from './types'
 
+function extractBalancedBraces(text: string, startIndex: number): string | null {
+  let braceCount = 0
+  let i = startIndex
+  
+  // Skip the opening brace
+  if (text[i] === '{') {
+    braceCount = 1
+    i++
+  }
+  
+  const start = i
+  
+  while (i < text.length && braceCount > 0) {
+    if (text[i] === '{') {
+      braceCount++
+    } else if (text[i] === '}') {
+      braceCount--
+    }
+    i++
+  }
+  
+  if (braceCount === 0) {
+    return text.substring(start, i - 1).trim()
+  }
+  
+  return null
+}
+
 function extractSections(content: string): string[] {
   const sections: string[] = []
   let pos = 0
@@ -159,11 +187,37 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
         test.eval_error = parseValue(errorMatch[1])
       }
       
-      // Extract value (simplified approach)
-      // Look for value: { ... } pattern
-      const valueMatch = testContent.match(/value:\s*\{\s*([^}]+)\s*\}/)
-      if (valueMatch) {
-        test.value = parseValue(valueMatch[1])
+      // Extract value (handle nested braces)
+      // Look for the pattern 'value: {' that comes AFTER any bindings section
+      const bindingsIndex = testContent.indexOf('bindings')
+      let searchStart = 0
+      
+      if (bindingsIndex !== -1) {
+        // If there are bindings, start searching after the bindings section
+        // Find the end of the bindings block
+        const bindingsStart = testContent.indexOf('{', bindingsIndex)
+        if (bindingsStart !== -1) {
+          let braceCount = 1
+          let pos = bindingsStart + 1
+          while (pos < testContent.length && braceCount > 0) {
+            if (testContent[pos] === '{') braceCount++
+            else if (testContent[pos] === '}') braceCount--
+            pos++
+          }
+          searchStart = pos
+        }
+      }
+      
+      // Now look for value: starting from after bindings
+      const valueStart = testContent.indexOf('value:', searchStart)
+      if (valueStart !== -1) {
+        const braceStart = testContent.indexOf('{', valueStart)
+        if (braceStart !== -1) {
+          const valueContent = extractBalancedBraces(testContent, braceStart)
+          if (valueContent) {
+            test.value = parseValue(valueContent)
+          }
+        }
       }
       
       section.test.push(test)
@@ -178,7 +232,82 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
 function parseValue(content: string): any {
   const trimmed = content.trim()
   
-  // Parse different value types
+  // Parse complex structures first (list_value, map_value)
+  if (trimmed.includes('list_value')) {
+    // Handle empty list  
+    if (trimmed.includes('list_value {}')) {
+      return { list_value: {} }
+    }
+    
+    // Parse list values
+    const values = []
+    const valuesMatch = trimmed.match(/values:\s*\{([^}]*)\}/g)
+    if (valuesMatch) {
+      for (const valueStr of valuesMatch) {
+        const valueContent = valueStr.match(/values:\s*\{([^}]*)\}/)?.[1]
+        if (valueContent) {
+          const parsedValue = parseValue(valueContent)
+          values.push(parsedValue)
+        }
+      }
+    }
+    return { list_value: { values } }
+  }
+  
+  if (trimmed.includes('map_value')) {
+    // Handle empty map
+    if (trimmed.includes('map_value {}')) {
+      return { map_value: {} }
+    }
+    
+    // Parse map entries
+    const entries = []
+    let pos = 0
+    while (true) {
+      const entryStart = trimmed.indexOf('entries {', pos)
+      if (entryStart === -1) break
+      
+      const braceStart = entryStart + 'entries '.length
+      const entryContent = extractBalancedBraces(trimmed, braceStart)
+      
+      if (entryContent) {
+        // Extract key and value using balanced brace extraction
+        const keyStart = entryContent.indexOf('key:')
+        if (keyStart !== -1) {
+          const keyBraceStart = entryContent.indexOf('{', keyStart)
+          if (keyBraceStart !== -1) {
+            const keyContent = extractBalancedBraces(entryContent, keyBraceStart)
+            
+            const valueStart = entryContent.indexOf('value:', keyStart)
+            if (valueStart !== -1) {
+              const valueBraceStart = entryContent.indexOf('{', valueStart)
+              if (valueBraceStart !== -1) {
+                const valueContent = extractBalancedBraces(entryContent, valueBraceStart)
+                
+                if (keyContent && valueContent) {
+                  const key = parseValue(keyContent)
+                  const value = parseValue(valueContent)
+                  entries.push({ key, value })
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      pos = entryStart + 1
+    }
+    return { map_value: { entries } }
+  }
+  
+  if (trimmed.includes('errors')) {
+    const messageMatch = trimmed.match(/message:\s*"([^"]*)"/)
+    return {
+      errors: messageMatch ? [{ message: messageMatch[1] }] : []
+    }
+  }
+  
+  // Parse simple value types
   if (trimmed.includes('int64_value:')) {
     const match = trimmed.match(/int64_value:\s*(-?\d+)/)
     return match ? { int64_value: parseInt(match[1]) } : {}
@@ -211,61 +340,6 @@ function parseValue(content: string): any {
   
   if (trimmed.includes('null_value:')) {
     return { null_value: null }
-  }
-  
-  if (trimmed.includes('list_value:')) {
-    // Handle empty list
-    if (trimmed.includes('list_value: {}')) {
-      return { list_value: {} }
-    }
-    
-    // Parse list values
-    const values = []
-    const valuesMatch = trimmed.match(/values:\s*\{([^}]*)\}/g)
-    if (valuesMatch) {
-      for (const valueStr of valuesMatch) {
-        const valueContent = valueStr.match(/values:\s*\{([^}]*)\}/)?.[1]
-        if (valueContent) {
-          const parsedValue = parseValue(valueContent)
-          values.push(parsedValue)
-        }
-      }
-    }
-    return { list_value: { values } }
-  }
-  
-  if (trimmed.includes('map_value:')) {
-    // Handle empty map
-    if (trimmed.includes('map_value: {}')) {
-      return { map_value: {} }
-    }
-    
-    // Parse map entries
-    const entries = []
-    const entriesMatch = trimmed.match(/entries\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g)
-    if (entriesMatch) {
-      for (const entryStr of entriesMatch) {
-        const entryContent = entryStr.match(/entries\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/)?.[1]
-        if (entryContent) {
-          const keyMatch = entryContent.match(/key:\s*\{([^}]*)\}/)
-          const valueMatch = entryContent.match(/value:\s*\{([^}]*)\}/)
-          
-          if (keyMatch && valueMatch) {
-            const key = parseValue(keyMatch[1])
-            const value = parseValue(valueMatch[1])
-            entries.push({ key, value })
-          }
-        }
-      }
-    }
-    return { map_value: { entries } }
-  }
-  
-  if (trimmed.includes('errors')) {
-    const messageMatch = trimmed.match(/message:\s*"([^"]*)"/)
-    return {
-      errors: messageMatch ? [{ message: messageMatch[1] }] : []
-    }
   }
   
   return {}
