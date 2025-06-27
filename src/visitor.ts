@@ -1709,16 +1709,32 @@ export class CelVisitor
         } else {
           // Common escape sequences
           switch (nextChar) {
+            case 'a':
+              result += '\x07' // Bell/alert
+              i += 2
+              continue
+            case 'b':
+              result += '\b' // Backspace
+              i += 2
+              continue
+            case 'f':
+              result += '\f' // Form feed
+              i += 2
+              continue
             case 'n':
               result += '\n'
+              i += 2
+              continue
+            case 'r':
+              result += '\r'
               i += 2
               continue
             case 't':
               result += '\t'
               i += 2
               continue
-            case 'r':
-              result += '\r'
+            case 'v':
+              result += '\v' // Vertical tab
               i += 2
               continue
             case '\\':

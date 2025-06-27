@@ -127,27 +127,19 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       if (!exprMatch) {
         // Try single quotes if double quotes didn't work
         const exprMatchSingle = testContent.match(/expr:\s*'([^'\\]*(\\.[^'\\]*)*)'/);
-        if (exprMatchSingle) test.expr = exprMatchSingle[1];
+        if (exprMatchSingle) {
+          // Only process escape sequences in expressions that contain double backslashes
+          test.expr = exprMatchSingle[1].includes('\\\\') ? processTextprotoString(exprMatchSingle[1]) : exprMatchSingle[1];
+        }
       } else {
-        test.expr = exprMatch[1];
+        // Only process escape sequences in expressions that contain double backslashes
+        test.expr = exprMatch[1].includes('\\\\') ? processTextprotoString(exprMatch[1]) : exprMatch[1];
       }
       
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);
       if (disableCheckMatch) test.disable_check = disableCheckMatch[1] === 'true'
       
-      // Extract value
-      const valueMatch = testContent.match(/value:\s*\{([^}]*)\}/);
-      if (valueMatch) {
-        test.value = parseValue(valueMatch[1])
-      }
-      
-      // Extract eval_error
-      const errorMatch = testContent.match(/eval_error:\s*\{([^}]*)\}/);
-      if (errorMatch) {
-        test.eval_error = parseValue(errorMatch[1])
-      }
-      
-      // Extract bindings (simplified)
+      // Extract bindings first (simplified)
       const bindingsMatch = testContent.match(/bindings:\s*\{([^}]*)\}/);
       if (bindingsMatch) {
         const bindingContent = bindingsMatch[1]
@@ -157,6 +149,61 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
           test.bindings = {
             [keyMatch[1]]: { value: parseValue(valMatch[1]) }
           }
+        }
+      }
+      
+      // Extract eval_error
+      const errorMatch = testContent.match(/eval_error:\s*\{([^}]*)\}/);
+      if (errorMatch) {
+        test.eval_error = parseValue(errorMatch[1])
+      }
+      
+      // Extract value (after bindings to avoid conflicts)
+      // Use more specific regex that excludes bindings context
+      const lines = testContent.split('\n')
+      let insideBindings = false
+      let valueFound = false
+      for (let i = 0; i < lines.length && !valueFound; i++) {
+        const line = lines[i]
+        if (line.trim().startsWith('bindings')) {
+          insideBindings = true
+          continue
+        }
+        if (insideBindings && line.trim() === '}') {
+          insideBindings = false
+          continue
+        }
+        if (!insideBindings && line.trim().match(/^value:\s*\{/)) {
+          // For complex values, read until we find the closing brace
+          let valueContent = ''
+          let braceCount = 0
+          let started = false
+          
+          // Start from this line and read the full value
+          for (let j = i; j < lines.length; j++) {
+            const valueLine = lines[j]
+            if (valueLine.includes('value:')) {
+              started = true
+            }
+            if (started) {
+              for (const char of valueLine) {
+                if (char === '{') braceCount++
+                if (char === '}') braceCount--
+                valueContent += char
+                if (braceCount === 0 && started) {
+                  // Extract content between first { and last }
+                  const match = valueContent.match(/value:\s*\{(.*)\}/)
+                  if (match) {
+                    test.value = parseValue(match[1])
+                  }
+                  valueFound = true
+                  break
+                }
+              }
+              if (valueFound) break
+            }
+          }
+          break
         }
       }
       
@@ -190,7 +237,7 @@ function parseValue(content: string): any {
   
   if (trimmed.includes('string_value:')) {
     const match = trimmed.match(/string_value:\s*"([^"]*)"/)
-    return match ? { string_value: match[1] } : {}
+    return match ? { string_value: processTextprotoString(match[1]) } : {}
   }
   
   if (trimmed.includes('bytes_value:')) {
@@ -329,6 +376,138 @@ function processTextprotoByteString(str: string): Uint8Array {
   }
   
   return new Uint8Array(bytes)
+}
+
+function processTextprotoString(str: string): string {
+  // First, collect all bytes from escape sequences
+  const bytes: number[] = []
+  let i = 0
+  
+  while (i < str.length) {
+    if (str[i] === '\\' && i + 1 < str.length) {
+      const nextChar = str[i + 1]
+      
+      // Handle hex escape sequences like \xe2
+      if (nextChar === 'x' && i + 4 <= str.length) {
+        const hexStr = str.slice(i + 2, i + 4)
+        if (/^[0-9a-fA-F]{2}$/.test(hexStr)) {
+          bytes.push(parseInt(hexStr, 16))
+          i += 4
+          continue
+        }
+      }
+      
+      // Handle Unicode escape sequences \u270c
+      if (nextChar === 'u' && i + 6 <= str.length) {
+        const hexStr = str.slice(i + 2, i + 6)
+        if (/^[0-9a-fA-F]{4}$/.test(hexStr)) {
+          const codePoint = parseInt(hexStr, 16)
+          // Convert Unicode code point to UTF-8 bytes
+          const utf8Bytes = new TextEncoder().encode(String.fromCharCode(codePoint))
+          bytes.push(...utf8Bytes)
+          i += 6
+          continue
+        }
+      }
+      
+      // Handle Unicode escape sequences \U0001F431
+      if (nextChar === 'U' && i + 10 <= str.length) {
+        const hexStr = str.slice(i + 2, i + 10)
+        if (/^[0-9a-fA-F]{8}$/.test(hexStr)) {
+          const codePoint = parseInt(hexStr, 16)
+          // Convert Unicode code point to UTF-8 bytes
+          const utf8Bytes = new TextEncoder().encode(String.fromCodePoint(codePoint))
+          bytes.push(...utf8Bytes)
+          i += 10
+          continue
+        }
+      }
+      
+      // Handle octal escape sequences like \377, \012, etc.
+      if (nextChar >= '0' && nextChar <= '7' && i + 3 <= str.length) {
+        const octalStr = str.slice(i + 1, i + 4)
+        if (/^[0-7]{3}$/.test(octalStr)) {
+          const value = parseInt(octalStr, 8)
+          if (value <= 255) {
+            bytes.push(value)
+            i += 4
+            continue
+          }
+        }
+        
+        // Try 2-digit octal
+        const octalStr2 = str.slice(i + 1, i + 3)
+        if (/^[0-7]{2}$/.test(octalStr2)) {
+          const value = parseInt(octalStr2, 8)
+          bytes.push(value)
+          i += 3
+          continue
+        }
+        
+        // Try 1-digit octal
+        const value = parseInt(nextChar, 8)
+        bytes.push(value)
+        i += 2
+        continue
+      }
+      
+      // Handle other escape sequences
+      switch (nextChar) {
+        case 'a':
+          bytes.push(7) // \a (bell/alert)
+          i += 2
+          continue
+        case 'b':
+          bytes.push(8) // \b (backspace)
+          i += 2
+          continue
+        case 'f':
+          bytes.push(12) // \f (form feed)
+          i += 2
+          continue
+        case 'n':
+          bytes.push(10) // \n
+          i += 2
+          continue
+        case 'r':
+          bytes.push(13) // \r
+          i += 2
+          continue
+        case 't':
+          bytes.push(9) // \t
+          i += 2
+          continue
+        case 'v':
+          bytes.push(11) // \v (vertical tab)
+          i += 2
+          continue
+        case '\\':
+          bytes.push(92) // \\
+          i += 2
+          continue
+        case '"':
+          bytes.push(34) // \"
+          i += 2
+          continue
+        case "'":
+          bytes.push(39) // \'
+          i += 2
+          continue
+        default:
+          // Unknown escape, treat as literal
+          bytes.push(str.charCodeAt(i))
+          i++
+          continue
+      }
+    } else {
+      // Regular character
+      bytes.push(str.charCodeAt(i))
+      i++
+    }
+  }
+  
+  // Convert bytes to UTF-8 string
+  return new TextDecoder('utf-8').decode(new Uint8Array(bytes))
 }
 
 // Convert conformance test value to JavaScript value
