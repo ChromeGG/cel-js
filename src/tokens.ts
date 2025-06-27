@@ -98,6 +98,11 @@ export const TripleQuoteStringLiteral = createToken({
   pattern: /(?:"""(?:[^"\\]|\\.|"(?!""))*""")|(?:'''(?:[^'\\]|\\.|'(?!''))*''')/,
 })
 
+export const RawTripleQuoteStringLiteral = createToken({
+  name: 'RawTripleQuoteStringLiteral',
+  pattern: /r(?:"""(?:[^"])*""")|r(?:'''(?:[^'])*''')/,
+})
+
 export const RawStringLiteral = createToken({
   name: 'RawStringLiteral',
   pattern: /r(?:"(?:[^"])*")|r(?:'(?:[^'])*')/,
@@ -267,6 +272,7 @@ export const allTokens = [
   Null,
   ByteStringLiteral,
   TripleQuoteStringLiteral,
+  RawTripleQuoteStringLiteral,
   RawStringLiteral,
   StringLiteral,
 

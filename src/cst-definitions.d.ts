@@ -191,6 +191,7 @@ export type PrimaryExpressionCstChildren = {
   Null?: IToken[];
   ByteStringLiteral?: IToken[];
   TripleQuoteStringLiteral?: IToken[];
+  RawTripleQuoteStringLiteral?: IToken[];
   RawStringLiteral?: IToken[];
   StringLiteral?: IToken[];
   Float?: IToken[];

@@ -123,8 +123,8 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       const testDescMatch = testContent.match(/description:\s*"([^"]*)"/);
       if (testDescMatch) test.description = testDescMatch[1]
       
-      const exprMatch = testContent.match(/expr:\s*"([^"]*)"/);
-      if (exprMatch) test.expr = exprMatch[1]
+      const exprMatch = testContent.match(/expr:\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/);
+      if (exprMatch) test.expr = exprMatch[2]
       
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);
       if (disableCheckMatch) test.disable_check = disableCheckMatch[1] === 'true'

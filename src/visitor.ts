@@ -458,6 +458,12 @@ export class CelVisitor
       return content.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r').replace(/\\\\/g, '\\').replace(/\\"/g, '"').replace(/\\'/g, "'")
     }
 
+    if (ctx.RawTripleQuoteStringLiteral) {
+      // For raw triple-quote strings, remove the 'r' prefix and triple quotes, preserve content as-is
+      const rawString = ctx.RawTripleQuoteStringLiteral[0].image
+      return rawString.slice(4, -3) // Remove 'r"""' and closing '"""'
+    }
+
     if (ctx.RawStringLiteral) {
       // For raw strings, remove the 'r' prefix and the quotes, but preserve all content as-is
       const rawString = ctx.RawStringLiteral[0].image
@@ -465,7 +471,8 @@ export class CelVisitor
     }
 
     if (ctx.StringLiteral) {
-      return ctx.StringLiteral[0].image.slice(1, -1)
+      const content = ctx.StringLiteral[0].image.slice(1, -1)
+      return this.processStringEscapes(content)
     }
 
     if (ctx.BooleanLiteral) {
@@ -1592,6 +1599,88 @@ export class CelVisitor
     }
 
     return str.split(separator)
+  }
+
+  /**
+   * Processes a string literal, converting escape sequences to actual characters.
+   * Handles common escape sequences and Unicode escapes.
+   */
+  private processStringEscapes(content: string): string {
+    let result = ''
+    let i = 0
+    
+    while (i < content.length) {
+      if (content[i] === '\\' && i + 1 < content.length) {
+        const nextChar = content[i + 1]
+        
+        if (nextChar === 'u' && i + 5 <= content.length) {
+          // Unicode escape sequence \u270c
+          const hexDigits = content.slice(i + 2, i + 6)
+          if (/^[0-9a-fA-F]{4}$/.test(hexDigits)) {
+            const codePoint = parseInt(hexDigits, 16)
+            result += String.fromCharCode(codePoint)
+            i += 6
+            continue
+          }
+        } else if (nextChar === 'U' && i + 10 <= content.length) {
+          // Unicode escape sequence \U0001F431
+          const hexDigits = content.slice(i + 2, i + 10)
+          if (/^[0-9a-fA-F]{8}$/.test(hexDigits)) {
+            const codePoint = parseInt(hexDigits, 16)
+            result += String.fromCodePoint(codePoint)
+            i += 10
+            continue
+          }
+        } else if (nextChar === 'x' && i + 4 <= content.length) {
+          // Hex escape sequence \x41
+          const hexDigits = content.slice(i + 2, i + 4)
+          if (/^[0-9a-fA-F]{2}$/.test(hexDigits)) {
+            result += String.fromCharCode(parseInt(hexDigits, 16))
+            i += 4
+            continue
+          }
+        } else {
+          // Common escape sequences
+          switch (nextChar) {
+            case 'n':
+              result += '\n'
+              i += 2
+              continue
+            case 't':
+              result += '\t'
+              i += 2
+              continue
+            case 'r':
+              result += '\r'
+              i += 2
+              continue
+            case '\\':
+              result += '\\'
+              i += 2
+              continue
+            case '"':
+              result += '"'
+              i += 2
+              continue
+            case "'":
+              result += "'"
+              i += 2
+              continue
+            default:
+              // Unknown escape, treat as literal
+              result += content[i]
+              i++
+              continue
+          }
+        }
+      }
+      
+      // Regular character
+      result += content[i]
+      i++
+    }
+    
+    return result
   }
 
   /**
