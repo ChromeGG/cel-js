@@ -123,17 +123,18 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       const testDescMatch = testContent.match(/description:\s*"([^"]*)"/);
       if (testDescMatch) test.description = testDescMatch[1]
       
-      const exprMatch = testContent.match(/expr:\s*"([^"\\]*(\\.[^"\\]*)*)"/);
-      if (!exprMatch) {
-        // Try single quotes if double quotes didn't work
-        const exprMatchSingle = testContent.match(/expr:\s*'([^'\\]*(\\.[^'\\]*)*)'/);
-        if (exprMatchSingle) {
-          // Only process escape sequences in expressions that contain double backslashes
-          test.expr = exprMatchSingle[1].includes('\\\\') ? processTextprotoString(exprMatchSingle[1]) : exprMatchSingle[1];
-        }
-      } else {
-        // Only process escape sequences in expressions that contain double backslashes
-        test.expr = exprMatch[1].includes('\\\\') ? processTextprotoString(exprMatch[1]) : exprMatch[1];
+      // Extract expression with proper escape handling
+      const exprDoubleQuoteMatch = testContent.match(/expr:\s*"((?:[^"\\]|\\.)*)"/);
+      const exprSingleQuoteMatch = testContent.match(/expr:\s*'((?:[^'\\]|\\.)*)'/);
+      
+      if (exprDoubleQuoteMatch) {
+        const rawExpr = exprDoubleQuoteMatch[1];
+        // Process escape sequences for textproto strings
+        test.expr = rawExpr.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+      } else if (exprSingleQuoteMatch) {
+        const rawExpr = exprSingleQuoteMatch[1];
+        // Process escape sequences for textproto strings  
+        test.expr = rawExpr.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\');
       }
       
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);

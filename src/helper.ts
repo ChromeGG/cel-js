@@ -168,6 +168,20 @@ export enum Operations {
 
 const additionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
+    // Check for integer overflow
+    if (Number.isInteger(left) && Number.isInteger(right)) {
+      const result = left + right
+      const MAX_INT64 = 9223372036854775807
+      const MIN_INT64 = -9223372036854775808
+      const MAX_UINT64 = 18446744073709551615
+      
+      // Check if inputs are unsigned (marked with special handling elsewhere)
+      // For now, just check general overflow bounds
+      if (result > MAX_INT64 || result < MIN_INT64) {
+        throw new CelEvaluationError('Integer overflow in addition')
+      }
+      return result
+    }
     return left + right
   }
 
@@ -214,6 +228,17 @@ const additionOperation = (left: unknown, right: unknown) => {
 
 const subtractionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
+    // Check for integer overflow
+    if (Number.isInteger(left) && Number.isInteger(right)) {
+      const result = left - right
+      const MAX_INT64 = 9223372036854775807
+      const MIN_INT64 = -9223372036854775808
+      
+      if (result > MAX_INT64 || result < MIN_INT64) {
+        throw new CelEvaluationError('Integer overflow in subtraction')
+      }
+      return result
+    }
     return left - right
   }
 
@@ -245,6 +270,17 @@ const subtractionOperation = (left: unknown, right: unknown) => {
 
 const multiplicationOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
+    // Check for integer overflow
+    if (Number.isInteger(left) && Number.isInteger(right)) {
+      const result = left * right
+      const MAX_INT64 = 9223372036854775807
+      const MIN_INT64 = -9223372036854775808
+      
+      if (result > MAX_INT64 || result < MIN_INT64) {
+        throw new CelEvaluationError('Integer overflow in multiplication')
+      }
+      return result
+    }
     return left * right
   }
 
@@ -277,6 +313,11 @@ const divisionOperation = (left: unknown, right: unknown) => {
 
   // CEL integer division
   if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+    // Check for overflow in division (specifically MIN_INT64 / -1)
+    const MIN_INT64 = -9223372036854775808
+    if (Number.isInteger(left) && Number.isInteger(right) && left === MIN_INT64 && right === -1) {
+      throw new CelEvaluationError('Integer overflow in division')
+    }
     return left / right
   }
 
@@ -517,6 +558,19 @@ function handleArithmeticNegation(
 ): number {
   if (!isCalculable(operand)) {
     throw new CelTypeError('arithmetic negation', operand, null)
+  }
+
+  // Unary minus is not allowed on unsigned integers
+  if (isUint(operand)) {
+    throw new CelEvaluationError('Unary minus not supported for unsigned integers')
+  }
+
+  // Handle integer overflow for the MIN_INT64 case
+  if (Number.isInteger(operand) && !isEvenOperators) {
+    const MIN_INT64 = -9223372036854775808
+    if (operand === MIN_INT64) {
+      throw new CelEvaluationError('Integer overflow in negation')
+    }
   }
 
   // Handle -0 edge case by returning +0

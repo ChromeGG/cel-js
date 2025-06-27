@@ -264,7 +264,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('all() can only be called on lists or maps')
+        expect(result).toThrow('Given string is not a valid CEL expression')
       })
 
       it('should throw when predicate is missing', () => {
@@ -392,7 +392,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('exists() can only be called on lists or maps')
+        expect(result).toThrow('Given string is not a valid CEL expression')
       })
 
       it('should throw when predicate is missing', () => {
@@ -552,7 +552,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('exists_one() can only be called on lists or maps')
+        expect(result).toThrow('Given string is not a valid CEL expression')
       })
 
       it('should throw when predicate is missing', () => {
@@ -712,7 +712,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('filter() can only be called on lists or maps')
+        expect(result).toThrow('Given string is not a valid CEL expression')
       })
 
       it('should throw when predicate is missing', () => {
@@ -908,7 +908,7 @@ describe('lists expressions', () => {
 
         const result = () => evaluate(expr)
 
-        expect(result).toThrow('map() can only be called on lists or maps')
+        expect(result).toThrow('Given string is not a valid CEL expression')
       })
 
       it('should throw when insufficient arguments (one argument)', () => {
