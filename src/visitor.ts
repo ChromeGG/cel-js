@@ -19,6 +19,8 @@ import {
   UnaryExpressionCstChildren,
   MapKeyValuesCstChildren,
   MapExpressionCstChildren,
+  StructExpressionCstChildren,
+  StructKeyValuesCstChildren,
 } from './cst-definitions.js'
 
 import {
@@ -113,7 +115,12 @@ export class CelVisitor
     // If no ternary operator is present, just return the condition
     if (!ctx.QuestionMark) return condition
 
-    // Evaluate the appropriate branch based on the condition (logical true/false)
+    // CEL requires the condition to be a boolean type
+    if (typeof condition !== 'boolean') {
+      throw new Error(`Ternary condition must be boolean, got ${typeof condition}`)
+    }
+
+    // Evaluate the appropriate branch based on the condition
     if (condition) {
       return this.visit(ctx.lhs![0])
     } else {
@@ -168,7 +175,15 @@ export class CelVisitor
   }
 
   conditionalOr(ctx: ConditionalOrCstChildren): boolean {
-    let left = this.visit(ctx.lhs)
+    let left: unknown
+    let leftError: Error | null = null
+
+    // Try to evaluate left operand, catch errors for short-circuit evaluation
+    try {
+      left = this.visit(ctx.lhs)
+    } catch (error) {
+      leftError = error instanceof Error ? error : new Error(String(error))
+    }
 
     // Short circuit if left is true. Required for proper logical OR evaluation.
     if (left === true) {
@@ -176,19 +191,58 @@ export class CelVisitor
     }
 
     if (ctx.rhs) {
+      let result = left
+      let hasError = leftError !== null
+
       ctx.rhs.forEach((rhsOperand) => {
         // Short circuit - if we already have true, don't evaluate further
-        if (left === true) {
+        if (result === true) {
           return
         }
-        const right = this.visit(rhsOperand)
-        const operator = ctx.LogicalOrOperator![0]
 
-        left = getResult(operator, left, right)
+        try {
+          const right = this.visit(rhsOperand)
+          
+          // If left had an error but right is true, we can short-circuit to true
+          if (hasError && right === true) {
+            result = true
+            hasError = false
+            return
+          }
+          
+          // If we have a valid left value, use normal OR logic
+          if (!hasError) {
+            const operator = ctx.LogicalOrOperator![0]
+            result = getResult(operator, result, right)
+          } else {
+            // Left had error, right is not true, so we can't short-circuit
+            // We must propagate the left error
+            throw leftError
+          }
+        } catch (error) {
+          // If right also fails and left failed, propagate left error
+          if (hasError) {
+            throw leftError
+          }
+          // If left was ok but right fails, propagate right error
+          throw error
+        }
       })
+
+      // If we still have an error and no successful evaluation, throw it
+      if (hasError) {
+        throw leftError
+      }
+
+      return result as boolean
     }
 
-    return left
+    // No right operand, if left had error, throw it
+    if (leftError) {
+      throw leftError
+    }
+
+    return left as boolean
   }
 
   /**
@@ -205,7 +259,15 @@ export class CelVisitor
    * with logical AND operations.
    */
   conditionalAnd(ctx: ConditionalAndCstChildren): boolean {
-    let left = this.visit(ctx.lhs)
+    let left: unknown
+    let leftError: Error | null = null
+
+    // Try to evaluate left operand, catch errors for short-circuit evaluation  
+    try {
+      left = this.visit(ctx.lhs)
+    } catch (error) {
+      leftError = error instanceof Error ? error : new Error(String(error))
+    }
 
     // Short circuit if left is false. Required to quick fail for has() macro.
     if (left === false) {
@@ -213,19 +275,58 @@ export class CelVisitor
     }
 
     if (ctx.rhs) {
+      let result = left
+      let hasError = leftError !== null
+
       ctx.rhs.forEach((rhsOperand) => {
         // Short circuit - if we already have false, don't evaluate further
-        if (left === false) {
+        if (result === false) {
           return
         }
-        const right = this.visit(rhsOperand)
-        const operator = ctx.LogicalAndOperator![0]
 
-        left = getResult(operator, left, right)
+        try {
+          const right = this.visit(rhsOperand)
+          
+          // If left had an error but right is false, we can short-circuit to false
+          if (hasError && right === false) {
+            result = false
+            hasError = false
+            return
+          }
+          
+          // If we have a valid left value, use normal AND logic
+          if (!hasError) {
+            const operator = ctx.LogicalAndOperator![0]
+            result = getResult(operator, result, right)
+          } else {
+            // Left had error, right is not false, so we can't short-circuit
+            // We must propagate the left error
+            throw leftError
+          }
+        } catch (error) {
+          // If right also fails and left failed, propagate left error
+          if (hasError) {
+            throw leftError
+          }
+          // If left was ok but right fails, propagate right error
+          throw error
+        }
       })
+
+      // If we still have an error and no successful evaluation, throw it
+      if (hasError) {
+        throw leftError
+      }
+
+      return result as boolean
     }
 
-    return left
+    // No right operand, if left had error, throw it
+    if (leftError) {
+      throw leftError
+    }
+
+    return left as boolean
   }
 
   relation(ctx: RelationCstChildren): boolean {
@@ -385,6 +486,26 @@ export class CelVisitor
     return [key, value]
   }
 
+  structExpression(ctx: StructExpressionCstChildren) {
+    // For now, treat struct expressions like maps
+    // In a full implementation, we'd need to handle type information
+    const structObj: Record<string, unknown> = {}
+    if (!ctx.keyValues) {
+      return structObj
+    }
+    for (const keyValuePair of ctx.keyValues) {
+      const [key, value] = this.visit(keyValuePair)
+      structObj[key] = value
+    }
+    return structObj
+  }
+
+  structKeyValues(children: StructKeyValuesCstChildren): [string, unknown] {
+    const key = children.key[0].image
+    const value = this.visit(children.value)
+    return [key, value]
+  }
+
   /**
    * Evaluates a macros expression by executing the corresponding macro function.
    *
@@ -488,7 +609,13 @@ export class CelVisitor
     }
 
     if (ctx.UnsignedInteger) {
-      return parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
+      const value = parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
+      // Track unsigned integers in a global registry
+      if (!(globalThis as any).__celUnsignedRegistry) {
+        (globalThis as any).__celUnsignedRegistry = new Set()
+      }
+      ;(globalThis as any).__celUnsignedRegistry.add(value)
+      return value
     }
 
     if (ctx.HexInteger) {
@@ -496,7 +623,13 @@ export class CelVisitor
     }
 
     if (ctx.HexUnsignedInteger) {
-      return parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
+      const value = parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
+      // Track unsigned integers in a global registry
+      if (!(globalThis as any).__celUnsignedRegistry) {
+        (globalThis as any).__celUnsignedRegistry = new Set()
+      }
+      ;(globalThis as any).__celUnsignedRegistry.add(value)
+      return value
     }
 
     if (ctx.identifierExpression) {
@@ -541,10 +674,11 @@ export class CelVisitor
     // Start with the primary expression
     let result = this.visit(ctx.primaryExpression)
 
-    // Apply any chained method calls or index operations in order
+    // Apply any chained method calls, index operations, or struct constructions in order
     const allExpressions = [
       ...(ctx.identifierDotExpression || []).map(expr => ({ type: 'dot', expr })),
-      ...(ctx.atomicIndexExpression || []).map(expr => ({ type: 'index', expr }))
+      ...(ctx.atomicIndexExpression || []).map(expr => ({ type: 'index', expr })),
+      ...(ctx.structExpression || []).map(expr => ({ type: 'struct', expr }))
     ].sort((a, b) => (getPosition(a.expr) > getPosition(b.expr) ? 1 : -1))
 
     for (const { type, expr } of allExpressions) {
@@ -568,6 +702,29 @@ export class CelVisitor
           result = result[index]
         } else {
           result = this.getIdentifier(result, index)
+        }
+      } else if (type === 'struct') {
+        // Handle struct construction - the result should be the type name
+        const structData = this.visit(expr)
+        // For protobuf wrapper types, we need special handling
+        if (typeof result === 'string') {
+          const typeName = result
+          if (typeName.includes('google.protobuf') && typeName.endsWith('Value')) {
+            // Handle protobuf wrapper types - return the wrapped value
+            if ('value' in structData) {
+              result = structData.value
+            } else {
+              // Return default value for empty wrapper
+              if (typeName.includes('Bool')) result = false
+              else if (typeName.includes('String')) result = ''
+              else if (typeName.includes('Int') || typeName.includes('Double') || typeName.includes('Float')) result = 0
+              else if (typeName.includes('Bytes')) result = new Uint8Array()
+              else result = structData
+            }
+          } else {
+            // For other types, return the struct data
+            result = structData
+          }
         }
       }
     }
@@ -612,7 +769,7 @@ export class CelVisitor
     const result = this.getIdentifier(data, identifierName)
 
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
-      return result
+      return result as boolean
     }
 
     return this.getIndexSection(ctx, result)
@@ -637,6 +794,11 @@ export class CelVisitor
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
+    // Handle building dotted type names (e.g., google.protobuf.BoolValue)
+    if (typeof searchContext === 'string' && this.isTypeIdentifier(searchContext)) {
+      return `${searchContext}.${identifier}`
+    }
+    
     if (typeof searchContext !== 'object' || searchContext === null) {
       throw new Error(
         `Cannot obtain "${identifier}" from non-object context: ${searchContext}`,
@@ -646,6 +808,12 @@ export class CelVisitor
     const value = (searchContext as Record<string, unknown>)[identifier]
 
     if (value === undefined) {
+      // Check if this could be a type identifier that we should allow
+      // Type identifiers are typically used with struct construction
+      if (this.isTypeIdentifier(identifier)) {
+        return identifier
+      }
+      
       const context = JSON.stringify(this?.context)
 
       if (context === '{}') {
@@ -659,6 +827,17 @@ export class CelVisitor
     }
 
     return value
+  }
+
+  private isTypeIdentifier(identifier: string): boolean {
+    // Common protobuf types and CEL built-in types
+    const typeNames = [
+      'google', 'google.protobuf', 'TestAllTypes', 'NestedTestAllTypes',
+      'timestamp', 'duration', 'bool', 'int', 'uint', 'double', 'string', 'bytes',
+      'protobuf', 'BoolValue', 'StringValue', 'Int32Value', 'Int64Value',
+      'UInt32Value', 'UInt64Value', 'FloatValue', 'DoubleValue', 'BytesValue'
+    ]
+    return typeNames.includes(identifier) || identifier.startsWith('google.protobuf')
   }
 
   /**

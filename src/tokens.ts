@@ -257,12 +257,12 @@ export const allTokens = [
   CloseBracket,
   OpenCurlyBracket,
   CloseCurlyBracket,
+
+  Float,
   Dot,
   Comma,
   Colon,
   QuestionMark,
-
-  Float,
   HexUnsignedInteger,
   HexInteger,
   UnsignedInteger,

@@ -168,15 +168,63 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);
       if (disableCheckMatch) test.disable_check = disableCheckMatch[1] === 'true'
       
-      // Extract bindings first (simplified)
-      const bindingsMatch = testContent.match(/bindings:\s*\{([^}]*)\}/);
-      if (bindingsMatch) {
-        const bindingContent = bindingsMatch[1]
-        const keyMatch = bindingContent.match(/key:\s*"([^"]*)"/);
-        const valMatch = bindingContent.match(/value:\s*\{([^}]*)\}/);
-        if (keyMatch && valMatch) {
-          test.bindings = {
-            [keyMatch[1]]: { value: parseValue(valMatch[1]) }
+      // Extract bindings with a more robust parser that handles nested braces
+      const bindingsStartIndex = testContent.indexOf('bindings:')
+      if (bindingsStartIndex !== -1) {
+        // Find the opening brace after bindings:
+        const openBraceIndex = testContent.indexOf('{', bindingsStartIndex)
+        if (openBraceIndex !== -1) {
+          // Count braces to find the matching closing brace
+          let braceCount = 1
+          let currentIndex = openBraceIndex + 1
+          let closeBraceIndex = -1
+          
+          while (currentIndex < testContent.length && braceCount > 0) {
+            const char = testContent[currentIndex]
+            if (char === '{') braceCount++
+            else if (char === '}') braceCount--
+            
+            if (braceCount === 0) {
+              closeBraceIndex = currentIndex
+              break
+            }
+            currentIndex++
+          }
+          
+          if (closeBraceIndex !== -1) {
+            const bindingContent = testContent.slice(openBraceIndex + 1, closeBraceIndex)
+            const keyMatch = bindingContent.match(/key:\s*"([^"]*)"/);
+            
+            // Find value section more carefully
+            const valueIndex = bindingContent.indexOf('value:')
+            if (keyMatch && valueIndex !== -1) {
+              const valueStart = bindingContent.indexOf('{', valueIndex)
+              if (valueStart !== -1) {
+                // Count braces for the value section
+                let valueBraceCount = 1
+                let valueCurrentIndex = valueStart + 1
+                let valueCloseIndex = -1
+                
+                while (valueCurrentIndex < bindingContent.length && valueBraceCount > 0) {
+                  const char = bindingContent[valueCurrentIndex]
+                  if (char === '{') valueBraceCount++
+                  else if (char === '}') valueBraceCount--
+                  
+                  if (valueBraceCount === 0) {
+                    valueCloseIndex = valueCurrentIndex
+                    break
+                  }
+                  valueCurrentIndex++
+                }
+                
+                if (valueCloseIndex !== -1) {
+                  const valueContent = bindingContent.slice(valueStart + 1, valueCloseIndex)
+                  test.bindings = {
+                    [keyMatch[1]]: { value: parseValue(valueContent) }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -422,45 +470,42 @@ function processTextprotoByteString(str: string): Uint8Array {
 }
 
 function processTextprotoString(str: string): string {
-  // First, collect all bytes from escape sequences
-  const bytes: number[] = []
+  let result = ''
   let i = 0
   
   while (i < str.length) {
     if (str[i] === '\\' && i + 1 < str.length) {
       const nextChar = str[i + 1]
       
-      // Handle hex escape sequences like \xe2
+      // Handle hex escape sequences like \xe2 (these are byte values)
       if (nextChar === 'x' && i + 4 <= str.length) {
         const hexStr = str.slice(i + 2, i + 4)
         if (/^[0-9a-fA-F]{2}$/.test(hexStr)) {
-          bytes.push(parseInt(hexStr, 16))
+          // For hex escapes, decode as individual bytes
+          const byteValue = parseInt(hexStr, 16)
+          result += String.fromCharCode(byteValue)
           i += 4
           continue
         }
       }
       
-      // Handle Unicode escape sequences \u270c
+      // Handle Unicode escape sequences \u270c (these are Unicode code points)
       if (nextChar === 'u' && i + 6 <= str.length) {
         const hexStr = str.slice(i + 2, i + 6)
         if (/^[0-9a-fA-F]{4}$/.test(hexStr)) {
           const codePoint = parseInt(hexStr, 16)
-          // Convert Unicode code point to UTF-8 bytes
-          const utf8Bytes = new TextEncoder().encode(String.fromCharCode(codePoint))
-          bytes.push(...utf8Bytes)
+          result += String.fromCharCode(codePoint)
           i += 6
           continue
         }
       }
       
-      // Handle Unicode escape sequences \U0001F431
+      // Handle Unicode escape sequences \U0001F431 (these are Unicode code points)
       if (nextChar === 'U' && i + 10 <= str.length) {
         const hexStr = str.slice(i + 2, i + 10)
         if (/^[0-9a-fA-F]{8}$/.test(hexStr)) {
           const codePoint = parseInt(hexStr, 16)
-          // Convert Unicode code point to UTF-8 bytes
-          const utf8Bytes = new TextEncoder().encode(String.fromCodePoint(codePoint))
-          bytes.push(...utf8Bytes)
+          result += String.fromCodePoint(codePoint)
           i += 10
           continue
         }
@@ -472,7 +517,7 @@ function processTextprotoString(str: string): string {
         if (/^[0-7]{3}$/.test(octalStr)) {
           const value = parseInt(octalStr, 8)
           if (value <= 255) {
-            bytes.push(value)
+            result += String.fromCharCode(value)
             i += 4
             continue
           }
@@ -482,14 +527,14 @@ function processTextprotoString(str: string): string {
         const octalStr2 = str.slice(i + 1, i + 3)
         if (/^[0-7]{2}$/.test(octalStr2)) {
           const value = parseInt(octalStr2, 8)
-          bytes.push(value)
+          result += String.fromCharCode(value)
           i += 3
           continue
         }
         
         // Try 1-digit octal
         const value = parseInt(nextChar, 8)
-        bytes.push(value)
+        result += String.fromCharCode(value)
         i += 2
         continue
       }
@@ -497,60 +542,59 @@ function processTextprotoString(str: string): string {
       // Handle other escape sequences
       switch (nextChar) {
         case 'a':
-          bytes.push(7) // \a (bell/alert)
+          result += '\x07' // \a (bell/alert)
           i += 2
           continue
         case 'b':
-          bytes.push(8) // \b (backspace)
+          result += '\b' // \b (backspace)
           i += 2
           continue
         case 'f':
-          bytes.push(12) // \f (form feed)
+          result += '\f' // \f (form feed)
           i += 2
           continue
         case 'n':
-          bytes.push(10) // \n
+          result += '\n' // \n
           i += 2
           continue
         case 'r':
-          bytes.push(13) // \r
+          result += '\r' // \r
           i += 2
           continue
         case 't':
-          bytes.push(9) // \t
+          result += '\t' // \t
           i += 2
           continue
         case 'v':
-          bytes.push(11) // \v (vertical tab)
+          result += '\v' // \v (vertical tab)
           i += 2
           continue
         case '\\':
-          bytes.push(92) // \\
+          result += '\\' // \\
           i += 2
           continue
         case '"':
-          bytes.push(34) // \"
+          result += '"' // \"
           i += 2
           continue
         case "'":
-          bytes.push(39) // \'
+          result += "'" // \'
           i += 2
           continue
         default:
           // Unknown escape, treat as literal
-          bytes.push(str.charCodeAt(i))
+          result += str[i]
           i++
           continue
       }
     } else {
-      // Regular character
-      bytes.push(str.charCodeAt(i))
+      // Regular character (including Unicode characters)
+      result += str[i]
       i++
     }
   }
   
-  // Convert bytes to UTF-8 string
-  return new TextDecoder('utf-8').decode(new Uint8Array(bytes))
+  return result
 }
 
 // Convert conformance test value to JavaScript value

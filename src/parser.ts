@@ -202,6 +202,23 @@ export class CelParser extends CstParser {
     this.CONSUME(CloseBracket)
   })
 
+  private structExpression = this.RULE('structExpression', () => {
+    this.CONSUME(OpenCurlyBracket)
+    this.MANY(() => {
+      this.SUBRULE(this.structKeyValues, { LABEL: 'keyValues' })
+    })
+    this.CONSUME(CloseCurlyBracket)
+  })
+
+  private structKeyValues = this.RULE('structKeyValues', () => {
+    this.CONSUME(Identifier, { LABEL: 'key' })
+    this.CONSUME(Colon)
+    this.SUBRULE(this.expr, { LABEL: 'value' })
+    this.OPTION(() => {
+      this.CONSUME(Comma)
+    })
+  })
+
   private primaryExpression = this.RULE('primaryExpression', () => {
     this.OR([
       { ALT: () => this.SUBRULE(this.parenthesisExpression) },
@@ -230,6 +247,7 @@ export class CelParser extends CstParser {
       this.OR([
         { ALT: () => this.SUBRULE(this.identifierDotExpression) },
         { ALT: () => this.SUBRULE(this.indexExpression, { LABEL: 'atomicIndexExpression' }) },
+        { ALT: () => this.SUBRULE(this.structExpression) },
       ])
     })
   })

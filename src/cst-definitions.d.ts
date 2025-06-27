@@ -214,6 +214,30 @@ export type AtomicExpressionCstChildren = {
   primaryExpression: PrimaryExpressionCstNode[];
   identifierDotExpression?: IdentifierDotExpressionCstNode[];
   atomicIndexExpression?: IndexExpressionCstNode[];
+  structExpression?: StructExpressionCstNode[];
+};
+
+export interface StructExpressionCstNode extends CstNode {
+  name: "structExpression";
+  children: StructExpressionCstChildren;
+}
+
+export type StructExpressionCstChildren = {
+  OpenCurlyBracket: IToken[];
+  keyValues?: StructKeyValuesCstNode[];
+  CloseCurlyBracket: IToken[];
+};
+
+export interface StructKeyValuesCstNode extends CstNode {
+  name: "structKeyValues";
+  children: StructKeyValuesCstChildren;
+}
+
+export type StructKeyValuesCstChildren = {
+  key: IToken[];
+  Colon: IToken[];
+  value: ExprCstNode[];
+  Comma?: IToken[];
 };
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
@@ -232,6 +256,8 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
   indexExpression(children: IndexExpressionCstChildren, param?: IN): OUT;
+  structExpression(children: StructExpressionCstChildren, param?: IN): OUT;
+  structKeyValues(children: StructKeyValuesCstChildren, param?: IN): OUT;
   primaryExpression(children: PrimaryExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
 }

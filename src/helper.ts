@@ -21,6 +21,7 @@ import { CelEvaluationError } from './errors/CelEvaluationError.js'
 import {
   IdentifierDotExpressionCstNode,
   IndexExpressionCstNode,
+  StructExpressionCstNode,
 } from './cst-definitions.js'
 import { equals } from 'ramda'
 
@@ -56,7 +57,8 @@ const isInt = (value: unknown): value is number =>
   getCelType(value) === CelType.int
 
 const isUint = (value: unknown): value is number =>
-  getCelType(value) === CelType.uint
+  typeof value === 'number' && 
+  (globalThis as any).__celUnsignedRegistry?.has(value)
 
 const isString = (value: unknown): value is string =>
   getCelType(value) === CelType.string
@@ -168,19 +170,21 @@ export enum Operations {
 
 const additionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
-    // Check for integer overflow
+    // Check for integer overflow using BigInt for precision
     if (Number.isInteger(left) && Number.isInteger(right)) {
-      const result = left + right
-      const MAX_INT64 = 9223372036854775807
-      const MIN_INT64 = -9223372036854775808
-      const MAX_UINT64 = 18446744073709551615
+      const leftBig = BigInt(left)
+      const rightBig = BigInt(right)
+      const result = leftBig + rightBig
       
-      // Check if inputs are unsigned (marked with special handling elsewhere)
-      // For now, just check general overflow bounds
+      const MAX_INT64 = BigInt('9223372036854775807')
+      const MIN_INT64 = BigInt('-9223372036854775808')
+      
+      // Check for overflow
       if (result > MAX_INT64 || result < MIN_INT64) {
         throw new CelEvaluationError('Integer overflow in addition')
       }
-      return result
+      
+      return Number(result)
     }
     return left + right
   }
@@ -228,16 +232,25 @@ const additionOperation = (left: unknown, right: unknown) => {
 
 const subtractionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
-    // Check for integer overflow
+    // Check for integer overflow using BigInt for precision
     if (Number.isInteger(left) && Number.isInteger(right)) {
-      const result = left - right
-      const MAX_INT64 = 9223372036854775807
-      const MIN_INT64 = -9223372036854775808
+      const leftBig = BigInt(left)
+      const rightBig = BigInt(right)
+      const result = leftBig - rightBig
+      
+      // Check for unsigned integer underflow
+      if (isUint(left) && isUint(right) && result < 0) {
+        throw new CelEvaluationError('Unsigned integer underflow in subtraction')
+      }
+      
+      const MAX_INT64 = BigInt('9223372036854775807')
+      const MIN_INT64 = BigInt('-9223372036854775808')
       
       if (result > MAX_INT64 || result < MIN_INT64) {
         throw new CelEvaluationError('Integer overflow in subtraction')
       }
-      return result
+      
+      return Number(result)
     }
     return left - right
   }
@@ -270,16 +283,20 @@ const subtractionOperation = (left: unknown, right: unknown) => {
 
 const multiplicationOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
-    // Check for integer overflow
+    // Check for integer overflow using BigInt for precision
     if (Number.isInteger(left) && Number.isInteger(right)) {
-      const result = left * right
-      const MAX_INT64 = 9223372036854775807
-      const MIN_INT64 = -9223372036854775808
+      const leftBig = BigInt(left)
+      const rightBig = BigInt(right)
+      const result = leftBig * rightBig
+      
+      const MAX_INT64 = BigInt('9223372036854775807')
+      const MIN_INT64 = BigInt('-9223372036854775808')
       
       if (result > MAX_INT64 || result < MIN_INT64) {
         throw new CelEvaluationError('Integer overflow in multiplication')
       }
-      return result
+      
+      return Number(result)
     }
     return left * right
   }
@@ -346,6 +363,17 @@ const moduloOperation = (left: unknown, right: unknown) => {
 }
 
 const logicalAndOperation = (left: unknown, right: unknown) => {
+  // Short-circuit: if right is false, result is false regardless of left type
+  if (right === false) {
+    return false
+  }
+  
+  // Short-circuit: if left is false, result is false regardless of right type  
+  if (left === false) {
+    return false
+  }
+  
+  // Both operands must be boolean for normal evaluation
   if (isBoolean(left) && isBoolean(right)) {
     return left && right
   }
@@ -354,6 +382,17 @@ const logicalAndOperation = (left: unknown, right: unknown) => {
 }
 
 const logicalOrOperation = (left: unknown, right: unknown) => {
+  // Short-circuit: if right is true, result is true regardless of left type
+  if (right === true) {
+    return true
+  }
+  
+  // Short-circuit: if left is true, result is true regardless of right type
+  if (left === true) {
+    return true
+  }
+  
+  // Both operands must be boolean for normal evaluation
   if (isBoolean(left) && isBoolean(right)) {
     return left || right
   }
@@ -612,10 +651,14 @@ export const getUnaryResult = (operators: IToken[], operand: unknown) => {
 }
 
 export const getPosition = (
-  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode,
+  ctx: IdentifierDotExpressionCstNode | IndexExpressionCstNode | StructExpressionCstNode,
 ) => {
   if (ctx.name === 'identifierDotExpression') {
     return ctx.children.Dot[0].startOffset
+  }
+
+  if (ctx.name === 'structExpression') {
+    return ctx.children.OpenCurlyBracket[0].startOffset
   }
 
   return ctx.children.OpenBracket[0].startOffset
