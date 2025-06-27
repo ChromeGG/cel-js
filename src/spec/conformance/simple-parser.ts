@@ -188,7 +188,7 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       }
       
       // Extract value (handle nested braces)
-      // Look for the pattern 'value: {' that comes AFTER any bindings section
+      // Look for the pattern 'value {' or 'value:' that comes AFTER any bindings section
       const bindingsIndex = testContent.indexOf('bindings')
       let searchStart = 0
       
@@ -208,8 +208,17 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
         }
       }
       
-      // Now look for value: starting from after bindings
-      const valueStart = testContent.indexOf('value:', searchStart)
+      // Look for test-level 'value' patterns, avoiding field names like 'int64_value:'
+      let valueStart = -1
+      const searchText = testContent.substring(searchStart)
+      
+      // Use a regex that captures whitespace or start of string before 'value'
+      const valueMatch = searchText.match(/(^|\s)value\s*[:{]/)
+      
+      if (valueMatch) {
+        valueStart = searchStart + valueMatch.index + valueMatch[1].length
+      }
+      
       if (valueStart !== -1) {
         const braceStart = testContent.indexOf('{', valueStart)
         if (braceStart !== -1) {
@@ -241,10 +250,11 @@ function parseValue(content: string): any {
     
     // Parse list values
     const values = []
-    const valuesMatch = trimmed.match(/values:\s*\{([^}]*)\}/g)
+    // Handle both 'values {' and 'values: {' formats
+    const valuesMatch = trimmed.match(/values\s*:?\s*\{([^}]*)\}/g)
     if (valuesMatch) {
       for (const valueStr of valuesMatch) {
-        const valueContent = valueStr.match(/values:\s*\{([^}]*)\}/)?.[1]
+        const valueContent = valueStr.match(/values\s*:?\s*\{([^}]*)\}/)?.[1]
         if (valueContent) {
           const parsedValue = parseValue(valueContent)
           values.push(parsedValue)

@@ -469,8 +469,10 @@ export class CelVisitor
     }
 
     if (ctx.StringLiteral) {
-      const content = ctx.StringLiteral[0].image.slice(1, -1)
-      return this.processStringEscapes(content)
+      const fullString = ctx.StringLiteral[0].image
+      const content = fullString.slice(1, -1)
+      const quoteType = fullString[0] // Get the first character (quote type)
+      return this.processStringEscapes(content, quoteType)
     }
 
     if (ctx.BooleanLiteral) {
@@ -1672,7 +1674,7 @@ export class CelVisitor
    * Processes a string literal, converting escape sequences to actual characters.
    * Handles common escape sequences and Unicode escapes.
    */
-  private processStringEscapes(content: string): string {
+  private processStringEscapes(content: string, quoteType: string = '"'): string {
     let result = ''
     let i = 0
     
@@ -1742,13 +1744,27 @@ export class CelVisitor
               i += 2
               continue
             case '"':
-              result += '"'
-              i += 2
-              continue
+              if (quoteType === '"') {
+                // In double-quoted strings, \" is ignored (escape for the parser)
+                i += 2
+                continue
+              } else {
+                // In single-quoted strings, \" produces a literal double quote
+                result += '"'
+                i += 2
+                continue
+              }
             case "'":
-              result += "'"
-              i += 2
-              continue
+              if (quoteType === "'") {
+                // In single-quoted strings, \' produces a literal single quote
+                result += "'"
+                i += 2
+                continue
+              } else {
+                // In double-quoted strings, \' is ignored (not needed to escape)
+                i += 2
+                continue
+              }
             default:
               // Unknown escape, treat as literal
               result += content[i]
