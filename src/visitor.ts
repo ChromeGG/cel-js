@@ -321,14 +321,12 @@ export class CelVisitor
       }
       return this.getIndexSection(ctx, {})
     }
-    let valueType = ''
     for (const keyValuePair of ctx.keyValues) {
       const [key, value] = this.visit(keyValuePair)
-      if (getCelType(key) != CelType.string) {
-        throw new CelEvaluationError(`invalid_argument: ${key}`)
-      }
-      // CEL maps can contain heterogeneous values, so don't enforce type uniformity
-      mapExpression[key] = value
+      // CEL maps can have keys of any comparable type, but JavaScript objects need string keys
+      // Convert non-string keys to strings for JavaScript compatibility
+      const stringKey = String(key)
+      mapExpression[stringKey] = value
     }
 
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
@@ -377,7 +375,7 @@ export class CelVisitor
         return acc[index]
       }
       
-      return this.getIdentifier(acc, index)
+      return this.getIdentifier(acc, String(index))
     }, mapExpression)
   }
 
@@ -1509,6 +1507,10 @@ export class CelVisitor
         return this.handleStringContains(ctx, str)
       case 'endsWith':
         return this.handleStringEndsWith(ctx, str)
+      case 'startsWith':
+        return this.handleStringStartsWith(ctx, str)
+      case 'matches':
+        return this.handleStringMatches(ctx, str)
       case 'trim':
         return this.handleStringTrim(ctx, str)
       case 'split':
@@ -1558,6 +1560,53 @@ export class CelVisitor
     }
 
     return str.endsWith(suffix)
+  }
+
+  /**
+   * Handles the string.startsWith(prefix) method
+   */
+  private handleStringStartsWith(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): boolean {
+    // Validate arguments - startsWith() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('startsWith() requires exactly one argument')
+    }
+
+    const prefix = this.visit(ctx.arg)
+    
+    if (typeof prefix !== 'string') {
+      throw new CelEvaluationError('startsWith() argument must be a string')
+    }
+
+    return str.startsWith(prefix)
+  }
+
+  /**
+   * Handles the string.matches(pattern) method for regex matching
+   */
+  private handleStringMatches(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): boolean {
+    // Validate arguments - matches() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('matches() requires exactly one argument')
+    }
+
+    const pattern = this.visit(ctx.arg)
+    
+    if (typeof pattern !== 'string') {
+      throw new CelEvaluationError('matches() argument must be a string')
+    }
+
+    try {
+      const regex = new RegExp(pattern)
+      return regex.test(str)
+    } catch (error) {
+      throw new CelEvaluationError(`Invalid regex pattern: ${pattern}`)
+    }
   }
 
   /**
