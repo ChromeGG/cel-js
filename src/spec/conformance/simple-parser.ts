@@ -158,53 +158,11 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
         test.eval_error = parseValue(errorMatch[1])
       }
       
-      // Extract value (after bindings to avoid conflicts)
-      // Use more specific regex that excludes bindings context
-      const lines = testContent.split('\n')
-      let insideBindings = false
-      let valueFound = false
-      for (let i = 0; i < lines.length && !valueFound; i++) {
-        const line = lines[i]
-        if (line.trim().startsWith('bindings')) {
-          insideBindings = true
-          continue
-        }
-        if (insideBindings && line.trim() === '}') {
-          insideBindings = false
-          continue
-        }
-        if (!insideBindings && line.trim().match(/^value:\s*\{/)) {
-          // For complex values, read until we find the closing brace
-          let valueContent = ''
-          let braceCount = 0
-          let started = false
-          
-          // Start from this line and read the full value
-          for (let j = i; j < lines.length; j++) {
-            const valueLine = lines[j]
-            if (valueLine.includes('value:')) {
-              started = true
-            }
-            if (started) {
-              for (const char of valueLine) {
-                if (char === '{') braceCount++
-                if (char === '}') braceCount--
-                valueContent += char
-                if (braceCount === 0 && started) {
-                  // Extract content between first { and last }
-                  const match = valueContent.match(/value:\s*\{(.*)\}/)
-                  if (match) {
-                    test.value = parseValue(match[1])
-                  }
-                  valueFound = true
-                  break
-                }
-              }
-              if (valueFound) break
-            }
-          }
-          break
-        }
+      // Extract value (simplified approach)
+      // Look for value: { ... } pattern
+      const valueMatch = testContent.match(/value:\s*\{\s*([^}]+)\s*\}/)
+      if (valueMatch) {
+        test.value = parseValue(valueMatch[1])
       }
       
       section.test.push(test)

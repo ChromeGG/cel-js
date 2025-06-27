@@ -43,6 +43,7 @@ section {
     const result = parseBasicTextproto(content)
     const test = result.section[0].test[0]
     
+    expect(test.value).toBeDefined()
     expect(test.value.int64_value).toBe(42)
   })
 })
