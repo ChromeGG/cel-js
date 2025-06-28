@@ -93,7 +93,7 @@ describe('lists expressions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError('invalid_argument: 0.1'))
+      expect(result).toThrow(new CelEvaluationError('invalid_argument'))
     })
 
     it('should access list a singleton', () => {
@@ -125,7 +125,7 @@ describe('lists expressions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError(`Index out of bounds: 5`))
+      expect(result).toThrow(new CelEvaluationError('invalid_argument'))
     })
   })
 

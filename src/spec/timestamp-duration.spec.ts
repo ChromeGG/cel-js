@@ -23,8 +23,10 @@ describe('Timestamp and Duration Support', () => {
       expect(() => evaluate('timestamp("invalid-date")')).toThrow()
     })
 
-    it('should throw error for non-string timestamp argument', () => {
-      expect(() => evaluate('timestamp(123)')).toThrow()
+    it('should handle numeric timestamp argument as seconds since epoch', () => {
+      const result = evaluate('timestamp(0)')
+      expect(result).toBeInstanceOf(Date)
+      expect(result.getTime()).toBe(0)
     })
   })
 

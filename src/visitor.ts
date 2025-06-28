@@ -43,6 +43,10 @@ import {
   floor,
   type,
   ceil,
+  double,
+  int,
+  uint,
+  bool,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -73,6 +77,10 @@ const defaultFunctions = {
   floor,
   ceil,
   type,
+  double,
+  int,
+  uint,
+  bool,
 }
 
 export class CelVisitor
@@ -115,13 +123,16 @@ export class CelVisitor
     // If no ternary operator is present, just return the condition
     if (!ctx.QuestionMark) return condition
 
-    // CEL requires the condition to be a boolean type
-    if (typeof condition !== 'boolean') {
+    // CEL treats null as false in ternary conditions
+    const booleanCondition = condition === null ? false : condition
+    
+    // CEL requires the condition to be a boolean type (after null conversion)
+    if (typeof booleanCondition !== 'boolean') {
       throw new Error(`Ternary condition must be boolean, got ${typeof condition}`)
     }
 
     // Evaluate the appropriate branch based on the condition
-    if (condition) {
+    if (booleanCondition) {
       return this.visit(ctx.lhs![0])
     } else {
       return this.visit(ctx.rhs![0])
@@ -466,11 +477,11 @@ export class CelVisitor
       if (Array.isArray(acc)) {
         const indexType = getCelType(index)
         if (indexType != CelType.int && indexType != CelType.uint) {
-          throw new CelEvaluationError(`invalid_argument: ${index}`)
+          throw new CelEvaluationError('invalid_argument')
         }
 
         if (index < 0 || index >= acc.length) {
-          throw new CelEvaluationError(`Index out of bounds: ${index}`)
+          throw new CelEvaluationError('invalid_argument')
         }
 
         return acc[index]
@@ -692,11 +703,11 @@ export class CelVisitor
         if (Array.isArray(result)) {
           const indexType = getCelType(index)
           if (indexType != CelType.int && indexType != CelType.uint) {
-            throw new CelEvaluationError(`invalid_argument: ${index}`)
+            throw new CelEvaluationError('invalid_argument')
           }
 
           if (index < 0 || index >= result.length) {
-            throw new CelEvaluationError(`Index out of bounds: ${index}`)
+            throw new CelEvaluationError('invalid_argument')
           }
 
           result = result[index]
@@ -719,10 +730,20 @@ export class CelVisitor
               else if (typeName.includes('String')) result = ''
               else if (typeName.includes('Int') || typeName.includes('Double') || typeName.includes('Float')) result = 0
               else if (typeName.includes('Bytes')) result = new Uint8Array()
+              else if (typeName === 'google.protobuf.Value') result = null
               else result = structData
             }
           } else {
-            // For other types, return the struct data
+            // For other types, return the struct data with type information
+            if (typeof structData === 'object' && structData !== null) {
+              // Add type metadata to distinguish different message types
+              Object.defineProperty(structData, '__celType', {
+                value: typeName,
+                writable: false,
+                enumerable: false,
+                configurable: false
+              })
+            }
             result = structData
           }
         }
@@ -814,6 +835,11 @@ export class CelVisitor
         return identifier
       }
       
+      // Check if this looks like a protobuf field access (wrapper field names)
+      if (this.isProtobufWrapperField(identifier)) {
+        return null
+      }
+      
       const context = JSON.stringify(this?.context)
 
       if (context === '{}') {
@@ -838,6 +864,16 @@ export class CelVisitor
       'UInt32Value', 'UInt64Value', 'FloatValue', 'DoubleValue', 'BytesValue'
     ]
     return typeNames.includes(identifier) || identifier.startsWith('google.protobuf')
+  }
+
+  private isProtobufWrapperField(identifier: string): boolean {
+    // Common protobuf wrapper field names that should return null when missing
+    const wrapperFields = [
+      'single_bool_wrapper', 'single_bytes_wrapper', 'single_double_wrapper',
+      'single_float_wrapper', 'single_int32_wrapper', 'single_int64_wrapper',
+      'single_string_wrapper', 'single_uint32_wrapper', 'single_uint64_wrapper'
+    ]
+    return wrapperFields.includes(identifier)
   }
 
   /**

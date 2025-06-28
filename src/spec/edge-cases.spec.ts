@@ -31,10 +31,10 @@ describe('CEL Edge Cases & Missing Features', () => {
     })
 
     it('should handle integer overflow appropriately', () => {
-      // This might wrap or throw depending on implementation
+      // This implementation throws on overflow as expected
       const expr = '9223372036854775807 + 1'
-      // Just test that it doesn't crash
-      expect(() => evaluate(expr)).not.toThrow()
+      // Test that it throws an overflow error
+      expect(() => evaluate(expr)).toThrow('Integer overflow in addition')
     })
 
     it('should handle division by zero', () => {

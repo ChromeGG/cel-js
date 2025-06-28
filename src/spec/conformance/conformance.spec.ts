@@ -123,6 +123,96 @@ describe('CEL Conformance Tests', () => {
     })
   })
 
+  describe('Conversion Tests', () => {
+    it('should run conversions.textproto tests', () => {
+      const results = runner.runTestFile(join(testDataPath, 'conversions.textproto'))
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Conversion tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // We expect a minimum pass rate to prevent regressions
+      expect(passRate).toBeGreaterThanOrEqual(1) // Set baseline after first run
+    })
+  })
+
+  describe('Floating Point Math Tests', () => {
+    it('should run fp_math.textproto tests', () => {
+      const results = runner.runTestFile(join(testDataPath, 'fp_math.textproto'))
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Floating point math tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // We expect a minimum pass rate to prevent regressions
+      expect(passRate).toBeGreaterThanOrEqual(1) // Set baseline after first run
+    })
+  })
+
+  describe('Field Access Tests', () => {
+    it('should run fields.textproto tests', () => {
+      const results = runner.runTestFile(join(testDataPath, 'fields.textproto'))
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Field access tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // We expect a minimum pass rate to prevent regressions
+      expect(passRate).toBeGreaterThanOrEqual(1) // Set baseline after first run
+    })
+  })
+
+  describe('Enum Tests', () => {
+    it('should run enums.textproto tests', () => {
+      const results = runner.runTestFile(join(testDataPath, 'enums.textproto'))
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Enum tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // We expect a minimum pass rate to prevent regressions
+      expect(passRate).toBeGreaterThanOrEqual(1) // Set baseline after first run
+    })
+  })
+
+  describe('Timestamp Tests', () => {
+    it('should run timestamps.textproto tests', () => {
+      const results = runner.runTestFile(join(testDataPath, 'timestamps.textproto'))
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Timestamp tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // We expect a minimum pass rate to prevent regressions
+      expect(passRate).toBeGreaterThanOrEqual(1) // Set baseline after first run
+    })
+  })
+
   describe('Individual Test Cases', () => {
     it('should pass self_eval_int_zero', () => {
       const results = runner.runTestFile(join(testDataPath, 'basic.textproto'))

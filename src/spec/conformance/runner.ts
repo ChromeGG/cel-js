@@ -43,6 +43,11 @@ export class ConformanceTestRunner {
     }
 
     try {
+      // Clear unsigned registry to prevent contamination between tests
+      if ((globalThis as any).__celUnsignedRegistry) {
+        (globalThis as any).__celUnsignedRegistry.clear()
+      }
+      
       // Prepare context from bindings
       const context: any = {}
       if (test.bindings) {

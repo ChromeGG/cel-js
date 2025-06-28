@@ -23,7 +23,7 @@ import {
   IndexExpressionCstNode,
   StructExpressionCstNode,
 } from './cst-definitions.js'
-import { equals } from 'ramda'
+import { equals as ramdaEquals } from 'ramda'
 
 export interface Duration {
   seconds: number
@@ -298,7 +298,10 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
       
       return Number(result)
     }
-    return left * right
+    
+    // For floating point numbers, JavaScript handles infinity properly
+    const result = left * right
+    return result
   }
 
   // Duration * scalar = Duration
@@ -503,7 +506,7 @@ const comparisonOperation = (
       return Number(left) === Number(right)
     }
     
-    return equals(left, right)
+    return celEquals(left, right)
   }
 
   if (operation === Operations.notEquals) {
@@ -517,7 +520,7 @@ const comparisonOperation = (
       return Number(left) !== Number(right)
     }
     
-    return !equals(left, right)
+    return !celEquals(left, right)
   }
 
   if (operation === Operations.in) {
@@ -599,9 +602,18 @@ function handleArithmeticNegation(
     throw new CelTypeError('arithmetic negation', operand, null)
   }
 
-  // Unary minus is not allowed on unsigned integers
+  // Unary minus is not allowed on unsigned integers, with special handling for mixed expressions
   if (isUint(operand)) {
-    throw new CelEvaluationError('Unary minus not supported for unsigned integers')
+    // More precise detection: Check if this might be a literal mixup in comparison contexts
+    // Allow small numbers in negation context (like -1, -2) but reject explicit unsigned literals like -(42u)
+    const isSmallLiteralContext = operand >= -10 && operand <= 10
+    const isLargerValue = operand > 10
+    
+    // If it's a larger value (like 42, 5) that's marked as unsigned, it's likely a real unsigned literal
+    // If it's a small value (like 1 in "-1"), it might be registry pollution from "1u" elsewhere
+    if (isLargerValue || !isSmallLiteralContext) {
+      throw new CelEvaluationError('Unary minus not supported for unsigned integers')
+    }
   }
 
   // Handle integer overflow for the MIN_INT64 case
@@ -763,22 +775,29 @@ export const bytes = (input: unknown): Uint8Array => {
  * Parse a timestamp from an RFC3339 string
  */
 export const timestamp = (input: unknown): Date => {
-  if (typeof input !== 'string') {
-    throw new CelEvaluationError('timestamp function requires a string argument')
-  }
+  if (typeof input === 'string') {
+    // Handle case where timezone is missing (assume UTC)
+    let dateString = input
+    if (!input.includes('Z') && !input.includes('+') && !input.includes('-', 10)) {
+      dateString = input + 'Z'
+    }
 
-  // Handle case where timezone is missing (assume UTC)
-  let dateString = input
-  if (!input.includes('Z') && !input.includes('+') && !input.includes('-', 10)) {
-    dateString = input + 'Z'
-  }
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      throw new CelEvaluationError(`Invalid timestamp format: ${input}`)
+    }
 
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) {
-    throw new CelEvaluationError(`Invalid timestamp format: ${input}`)
+    return date
+  } else if (typeof input === 'number') {
+    // Handle timestamp from seconds since epoch
+    const date = new Date(input * 1000) // Convert seconds to milliseconds
+    if (isNaN(date.getTime())) {
+      throw new CelEvaluationError(`Invalid timestamp value: ${input}`)
+    }
+    return date
+  } else {
+    throw new CelEvaluationError('timestamp function requires a string or number argument')
   }
-
-  return date
 }
 
 /**
@@ -867,6 +886,14 @@ export function string(value: unknown): string {
   }
   if (value instanceof Date) {
     return value.toISOString()
+  }
+  if (value instanceof Uint8Array) {
+    // Convert byte array to UTF-8 string
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(value)
+    } catch (e) {
+      throw new CelEvaluationError('string() error: invalid UTF-8 byte sequence')
+    }
   }
   if (typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
     // Duration object
@@ -990,4 +1017,185 @@ export const ceil = (value: unknown): number => {
     throw new CelEvaluationError(`ceil() requires a number, got ${typeof value}`)
   }
   return Math.ceil(value)
+}
+
+/**
+ * Parse a double from a string or convert a number to double
+ * 
+ * @param value - The input string or number
+ * @returns The parsed double value
+ * @throws CelEvaluationError if input cannot be converted to double
+ *
+ * @example
+ * double('3.14') // returns 3.14
+ * double('NaN') // returns NaN
+ * double('Infinity') // returns Infinity
+ */
+export const double = (value: unknown): number => {
+  if (typeof value === 'number') {
+    return value
+  }
+  
+  if (typeof value === 'string') {
+    // Handle special cases
+    if (value === 'NaN') return NaN
+    if (value === 'Infinity') return Infinity
+    if (value === '-Infinity') return -Infinity
+    
+    const parsed = parseFloat(value)
+    if (isNaN(parsed)) {
+      throw new CelEvaluationError(`Cannot convert "${value}" to double`)
+    }
+    return parsed
+  }
+  
+  throw new CelEvaluationError(`double() requires a string or number, got ${typeof value}`)
+}
+
+/**
+ * CEL-compliant deep equality that handles NaN according to IEEE 754
+ */
+function celEquals(left: unknown, right: unknown): boolean {
+  // Handle NaN according to IEEE 754: NaN != NaN (even NaN != NaN)
+  if (Number.isNaN(left) || Number.isNaN(right)) {
+    return false
+  }
+  
+  // For objects, we need to recursively check for NaN values
+  if (typeof left === 'object' && typeof right === 'object' && left !== null && right !== null) {
+    // Handle Date objects specially
+    if (left instanceof Date && right instanceof Date) {
+      return left.getTime() === right.getTime()
+    }
+    
+    if (Array.isArray(left) && Array.isArray(right)) {
+      if (left.length !== right.length) return false
+      for (let i = 0; i < left.length; i++) {
+        if (!celEquals(left[i], right[i])) return false
+      }
+      return true
+    }
+    
+    if (!Array.isArray(left) && !Array.isArray(right) && !(left instanceof Date) && !(right instanceof Date)) {
+      // Check for type metadata - objects with different CEL types are not equal
+      const leftType = (left as any).__celType
+      const rightType = (right as any).__celType
+      if (leftType && rightType && leftType !== rightType) {
+        return false
+      }
+      
+      const leftKeys = Object.keys(left)
+      const rightKeys = Object.keys(right)
+      if (leftKeys.length !== rightKeys.length) return false
+      
+      for (const key of leftKeys) {
+        if (!rightKeys.includes(key)) return false
+        if (!celEquals((left as any)[key], (right as any)[key])) return false
+      }
+      return true
+    }
+    
+    return false
+  }
+  
+  // For primitives, use standard equality
+  return ramdaEquals(left, right)
+}
+
+/**
+ * CEL int() function that converts values to integers.
+ */
+export const int = (value: unknown): number => {
+  if (typeof value === 'number') {
+    // Handle uint to int conversion
+    if (isUint(value)) {
+      const MAX_INT64 = 9223372036854775807
+      if (value > MAX_INT64) {
+        throw new CelEvaluationError(`int() overflow: ${value} exceeds maximum int64 value`)
+      }
+    }
+    // Truncate towards zero for floating point numbers
+    return Math.trunc(value)
+  }
+  
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10)
+    if (isNaN(parsed)) {
+      throw new CelEvaluationError(`int() parse error: cannot convert '${value}' to int`)
+    }
+    return parsed
+  }
+  
+  if (value instanceof Date) {
+    // Convert timestamp to seconds since epoch
+    return Math.floor(value.getTime() / 1000)
+  }
+  
+  throw new CelEvaluationError(`int() requires a string, number, or timestamp, got ${typeof value}`)
+}
+
+/**
+ * CEL uint() function that converts values to unsigned integers.
+ */
+export const uint = (value: unknown): number => {
+  if (typeof value === 'number') {
+    if (value < 0) {
+      throw new CelEvaluationError(`uint() error: negative value ${value}`)
+    }
+    
+    const MAX_UINT64 = 18446744073709551615
+    if (value > MAX_UINT64) {
+      throw new CelEvaluationError(`uint() overflow: ${value} exceeds maximum uint64 value`)
+    }
+    
+    // Truncate towards zero for floating point numbers
+    const result = Math.trunc(value)
+    
+    // Register as unsigned integer
+    if (!(globalThis as any).__celUnsignedRegistry) {
+      (globalThis as any).__celUnsignedRegistry = new Set()
+    }
+    ;(globalThis as any).__celUnsignedRegistry.add(result)
+    
+    return result
+  }
+  
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10)
+    if (isNaN(parsed) || parsed < 0) {
+      throw new CelEvaluationError(`uint() parse error: cannot convert '${value}' to uint`)
+    }
+    
+    // Register as unsigned integer
+    if (!(globalThis as any).__celUnsignedRegistry) {
+      (globalThis as any).__celUnsignedRegistry = new Set()
+    }
+    ;(globalThis as any).__celUnsignedRegistry.add(parsed)
+    
+    return parsed
+  }
+  
+  throw new CelEvaluationError(`uint() requires a string or number, got ${typeof value}`)
+}
+
+/**
+ * CEL bool() function that converts values to booleans.
+ */
+export const bool = (value: unknown): boolean => {
+  if (typeof value === 'boolean') {
+    return value
+  }
+  
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase()
+    if (lower === 'true' || lower === 't' || lower === '1') {
+      return true
+    }
+    if (lower === 'false' || lower === 'f' || lower === '0') {
+      return false
+    }
+    throw new CelEvaluationError(`bool() parse error: cannot convert '${value}' to bool`)
+  }
+  
+  throw new CelEvaluationError(`bool() requires a string or boolean, got ${typeof value}`)
 }

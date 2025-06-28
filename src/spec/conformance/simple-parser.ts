@@ -151,18 +151,55 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       const testDescMatch = testContent.match(/description:\s*"([^"]*)"/);
       if (testDescMatch) test.description = testDescMatch[1]
       
-      // Extract expression with proper escape handling
-      const exprDoubleQuoteMatch = testContent.match(/expr:\s*"((?:[^"\\]|\\.)*)"/);
-      const exprSingleQuoteMatch = testContent.match(/expr:\s*'((?:[^'\\]|\\.)*)'/);
+      // Extract expression with proper escape handling, including multi-line expressions
+      let rawExpr = '';
       
-      if (exprDoubleQuoteMatch) {
-        const rawExpr = exprDoubleQuoteMatch[1];
+      // Handle multi-line expressions that span multiple quoted strings
+      const exprStartMatch = testContent.match(/expr:\s*$/m);
+      if (exprStartMatch) {
+        // Multi-line expression - collect all quoted strings
+        const lines = testContent.split('\n');
+        let inExpr = false;
+        let braceDepth = 0;
+        
+        for (const line of lines) {
+          if (line.match(/expr:\s*$/)) {
+            inExpr = true;
+            continue;
+          }
+          
+          if (inExpr) {
+            // Check if this line starts a new field (not indented or starts with field name)
+            if (line.match(/^\s*[a-zA-Z_]+:\s*/) && braceDepth === 0) {
+              break;
+            }
+            
+            // Extract quoted strings from this line
+            const quotedMatches = line.matchAll(/"((?:[^"\\]|\\.)*)"/g);
+            for (const match of quotedMatches) {
+              rawExpr += match[1];
+            }
+            
+            // Count braces for nested structures
+            braceDepth += (line.match(/\{/g) || []).length;
+            braceDepth -= (line.match(/\}/g) || []).length;
+          }
+        }
+      } else {
+        // Single-line expression
+        const exprDoubleQuoteMatch = testContent.match(/expr:\s*"((?:[^"\\]|\\.)*)"/);
+        const exprSingleQuoteMatch = testContent.match(/expr:\s*'((?:[^'\\]|\\.)*)'/);
+        
+        if (exprDoubleQuoteMatch) {
+          rawExpr = exprDoubleQuoteMatch[1];
+        } else if (exprSingleQuoteMatch) {
+          rawExpr = exprSingleQuoteMatch[1];
+        }
+      }
+      
+      if (rawExpr) {
         // Process escape sequences for textproto strings
         test.expr = rawExpr.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\');
-      } else if (exprSingleQuoteMatch) {
-        const rawExpr = exprSingleQuoteMatch[1];
-        // Process escape sequences for textproto strings  
-        test.expr = rawExpr.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\');
       }
       
       const disableCheckMatch = testContent.match(/disable_check:\s*(true|false)/);
@@ -229,10 +266,16 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
         }
       }
       
-      // Extract eval_error
-      const errorMatch = testContent.match(/eval_error:\s*\{([^}]*)\}/);
-      if (errorMatch) {
-        test.eval_error = parseValue(errorMatch[1])
+      // Extract eval_error (handle multiline)
+      const errorIndex = testContent.indexOf('eval_error')
+      if (errorIndex !== -1) {
+        const errorStart = testContent.indexOf('{', errorIndex)
+        if (errorStart !== -1) {
+          const errorContent = extractBalancedBraces(testContent, errorStart)
+          if (errorContent) {
+            test.eval_error = parseValue(errorContent)
+          }
+        }
       }
       
       // Extract value (handle nested braces)
@@ -472,6 +515,18 @@ function processTextprotoByteString(str: string): Uint8Array {
 function processTextprotoString(str: string): string {
   let result = ''
   let i = 0
+  let bytes: number[] = []
+  
+  // Helper function to process accumulated UTF-8 bytes
+  const flushBytes = () => {
+    if (bytes.length > 0) {
+      // Convert UTF-8 byte sequence to proper Unicode string
+      const buffer = new Uint8Array(bytes)
+      const decoder = new TextDecoder('utf-8')
+      result += decoder.decode(buffer)
+      bytes = []
+    }
+  }
   
   while (i < str.length) {
     if (str[i] === '\\' && i + 1 < str.length) {
@@ -481,9 +536,9 @@ function processTextprotoString(str: string): string {
       if (nextChar === 'x' && i + 4 <= str.length) {
         const hexStr = str.slice(i + 2, i + 4)
         if (/^[0-9a-fA-F]{2}$/.test(hexStr)) {
-          // For hex escapes, decode as individual bytes
+          // Accumulate bytes for UTF-8 decoding
           const byteValue = parseInt(hexStr, 16)
-          result += String.fromCharCode(byteValue)
+          bytes.push(byteValue)
           i += 4
           continue
         }
@@ -493,6 +548,7 @@ function processTextprotoString(str: string): string {
       if (nextChar === 'u' && i + 6 <= str.length) {
         const hexStr = str.slice(i + 2, i + 6)
         if (/^[0-9a-fA-F]{4}$/.test(hexStr)) {
+          flushBytes() // Flush any accumulated bytes first
           const codePoint = parseInt(hexStr, 16)
           result += String.fromCharCode(codePoint)
           i += 6
@@ -504,6 +560,7 @@ function processTextprotoString(str: string): string {
       if (nextChar === 'U' && i + 10 <= str.length) {
         const hexStr = str.slice(i + 2, i + 10)
         if (/^[0-9a-fA-F]{8}$/.test(hexStr)) {
+          flushBytes() // Flush any accumulated bytes first
           const codePoint = parseInt(hexStr, 16)
           result += String.fromCodePoint(codePoint)
           i += 10
@@ -517,6 +574,7 @@ function processTextprotoString(str: string): string {
         if (/^[0-7]{3}$/.test(octalStr)) {
           const value = parseInt(octalStr, 8)
           if (value <= 255) {
+            flushBytes()
             result += String.fromCharCode(value)
             i += 4
             continue
@@ -527,6 +585,7 @@ function processTextprotoString(str: string): string {
         const octalStr2 = str.slice(i + 1, i + 3)
         if (/^[0-7]{2}$/.test(octalStr2)) {
           const value = parseInt(octalStr2, 8)
+          flushBytes()
           result += String.fromCharCode(value)
           i += 3
           continue
@@ -534,6 +593,7 @@ function processTextprotoString(str: string): string {
         
         // Try 1-digit octal
         const value = parseInt(nextChar, 8)
+        flushBytes()
         result += String.fromCharCode(value)
         i += 2
         continue
@@ -542,58 +602,71 @@ function processTextprotoString(str: string): string {
       // Handle other escape sequences
       switch (nextChar) {
         case 'a':
+          flushBytes()
           result += '\x07' // \a (bell/alert)
           i += 2
           continue
         case 'b':
+          flushBytes()
           result += '\b' // \b (backspace)
           i += 2
           continue
         case 'f':
+          flushBytes()
           result += '\f' // \f (form feed)
           i += 2
           continue
         case 'n':
+          flushBytes()
           result += '\n' // \n
           i += 2
           continue
         case 'r':
+          flushBytes()
           result += '\r' // \r
           i += 2
           continue
         case 't':
+          flushBytes()
           result += '\t' // \t
           i += 2
           continue
         case 'v':
+          flushBytes()
           result += '\v' // \v (vertical tab)
           i += 2
           continue
         case '\\':
+          flushBytes()
           result += '\\' // \\
           i += 2
           continue
         case '"':
+          flushBytes()
           result += '"' // \"
           i += 2
           continue
         case "'":
+          flushBytes()
           result += "'" // \'
           i += 2
           continue
         default:
           // Unknown escape, treat as literal
+          flushBytes()
           result += str[i]
           i++
           continue
       }
     } else {
       // Regular character (including Unicode characters)
+      flushBytes() // Flush any accumulated bytes first
       result += str[i]
       i++
     }
   }
   
+  flushBytes() // Flush any remaining bytes
   return result
 }
 
