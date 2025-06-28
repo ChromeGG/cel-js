@@ -91,7 +91,8 @@ o'`
 
     const result = evaluate(expr)
 
-    expect(result).toBe(1.2)
+    expect(Number(result)).toBe(1.2)
+    expect(result.valueOf()).toBe(1.2)
   })
 
   describe('raw strings', () => {

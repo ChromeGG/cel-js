@@ -1,23 +1,30 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { evaluate } from '../index.js'
 
 describe('type() function', () => {
+  beforeEach(() => {
+    // Clear registries to prevent contamination between tests
+    if ((globalThis as any).__celUnsignedRegistry) {
+      (globalThis as any).__celUnsignedRegistry.clear()
+    }
+    if ((globalThis as any).__celFloatRegistry) {
+      (globalThis as any).__celFloatRegistry.clear()
+    }
+  })
   it('should return "int" for integer values', () => {
     expect(evaluate('type(42)')).toBe('int')
     expect(evaluate('type(-5)')).toBe('int')
     expect(evaluate('type(0)')).toBe('int')
   })
 
-  it('should return "int" for unsigned integer values (simplified implementation)', () => {
-    // Note: For now, both 42 and 42u return "int" since we don't preserve type metadata
-    // This could be enhanced later to properly distinguish uint types
-    expect(evaluate('type(42u)')).toBe('int')
-    expect(evaluate('type(0u)')).toBe('int')
+  it('should return "uint" for unsigned integer values', () => {
+    expect(evaluate('type(42u)')).toBe('uint')
+    expect(evaluate('type(0u)')).toBe('uint')
   })
 
-  it('should return "float" for floating point values', () => {
-    expect(evaluate('type(3.14)')).toBe('float')
-    expect(evaluate('type(-2.5)')).toBe('float')
+  it('should return "double" for floating point values', () => {
+    expect(evaluate('type(3.14)')).toBe('double')
+    expect(evaluate('type(-2.5)')).toBe('double')
   })
 
   it('should return "string" for string values', () => {
@@ -30,8 +37,8 @@ describe('type() function', () => {
     expect(evaluate('type(false)')).toBe('bool')
   })
 
-  it('should return "null" for null values', () => {
-    expect(evaluate('type(null)')).toBe('null')
+  it('should return "null_type" for null values', () => {
+    expect(evaluate('type(null)')).toBe('null_type')
   })
 
   it('should return "list" for list values', () => {
@@ -63,6 +70,11 @@ describe('type() function', () => {
     expect(evaluate('type("hello") == "string"')).toBe(true)
     expect(evaluate('type([1, 2]) == "list"')).toBe(true)
     expect(evaluate('type(42) != "string"')).toBe(true)
+    expect(evaluate('type(7) == type(7u)')).toBe(false)
+    
+
+    
+    expect(evaluate('type(0.0) != type(0)')).toBe(true)
   })
 
   it('should work with complex expressions', () => {

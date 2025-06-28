@@ -363,6 +363,7 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
   }
   if (value.bool_value !== undefined) return value.bool_value
   if (value.null_value !== undefined) return null
+  if (value.type_value !== undefined) return value.type_value
   if (value.list_value) {
     return (value.list_value.values || []).map(conformanceValueToJS)
   }

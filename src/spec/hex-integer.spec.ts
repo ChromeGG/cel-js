@@ -19,7 +19,9 @@ describe('hexadecimal integers', () => {
   })
 
   it('should evaluate hex unsigned integers with uppercase suffix', () => {
-    expect(evaluate('0xAU')).toBe(10)
+    const result = evaluate('0xAU')
+    expect(Number(result)).toBe(10)
+    expect(result.valueOf()).toBe(10)
   })
 
   it('should handle hex unsigned integers in arithmetic operations', () => {

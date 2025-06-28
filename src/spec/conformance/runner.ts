@@ -3,6 +3,7 @@ import { join } from 'path'
 import { parseBasicTextproto, conformanceValueToJS } from './simple-parser'
 import { ConformanceTestFile, ConformanceTestCase } from './types'
 import { evaluate } from '../../index'
+import { unwrapValue } from '../../helper'
 
 export interface ConformanceTestResult {
   testName: string
@@ -43,9 +44,12 @@ export class ConformanceTestRunner {
     }
 
     try {
-      // Clear unsigned registry to prevent contamination between tests
+      // Clear registries to prevent contamination between tests
       if ((globalThis as any).__celUnsignedRegistry) {
         (globalThis as any).__celUnsignedRegistry.clear()
+      }
+      if ((globalThis as any).__celFloatRegistry) {
+        (globalThis as any).__celFloatRegistry.clear()
       }
       
       // Prepare context from bindings
@@ -98,25 +102,29 @@ export class ConformanceTestRunner {
   }
 
   private deepEqual(a: any, b: any): boolean {
-    if (a === b) return true
+    // Unwrap values first to handle Number objects vs primitives
+    const unwrappedA = unwrapValue(a)
+    const unwrappedB = unwrapValue(b)
     
-    if (a === null || b === null) return a === b
-    if (a === undefined || b === undefined) return a === b
+    if (unwrappedA === unwrappedB) return true
     
-    if (typeof a !== typeof b) return false
+    if (unwrappedA === null || unwrappedB === null) return unwrappedA === unwrappedB
+    if (unwrappedA === undefined || unwrappedB === undefined) return unwrappedA === unwrappedB
     
-    if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false
-      return a.every((item, index) => this.deepEqual(item, b[index]))
+    if (typeof unwrappedA !== typeof unwrappedB) return false
+    
+    if (Array.isArray(unwrappedA) && Array.isArray(unwrappedB)) {
+      if (unwrappedA.length !== unwrappedB.length) return false
+      return unwrappedA.every((item, index) => this.deepEqual(item, unwrappedB[index]))
     }
     
-    if (typeof a === 'object') {
-      const keysA = Object.keys(a)
-      const keysB = Object.keys(b)
+    if (typeof unwrappedA === 'object') {
+      const keysA = Object.keys(unwrappedA)
+      const keysB = Object.keys(unwrappedB)
       
       if (keysA.length !== keysB.length) return false
       
-      return keysA.every(key => this.deepEqual(a[key], b[key]))
+      return keysA.every(key => this.deepEqual(unwrappedA[key], unwrappedB[key]))
     }
     
     return false

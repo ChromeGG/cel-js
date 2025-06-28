@@ -420,7 +420,7 @@ function parseValue(content: string): any {
   }
   
   if (trimmed.includes('double_value:')) {
-    const match = trimmed.match(/double_value:\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/)
+    const match = trimmed.match(/double_value:\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?|Infinity|-Infinity|NaN)/)
     return match ? { double_value: parseFloat(match[1]) } : {}
   }
   
@@ -437,6 +437,11 @@ function parseValue(content: string): any {
   if (trimmed.includes('bool_value:')) {
     const match = trimmed.match(/bool_value:\s*(true|false)/)
     return match ? { bool_value: match[1] === 'true' } : {}
+  }
+  
+  if (trimmed.includes('type_value:')) {
+    const match = trimmed.match(/type_value:\s*"([^"]*)"/)
+    return match ? { type_value: match[1] } : {}
   }
   
   if (trimmed.includes('null_value:')) {
@@ -682,6 +687,7 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
   }
   if (value.bool_value !== undefined) return value.bool_value
   if (value.null_value !== undefined) return null
+  if (value.type_value !== undefined) return value.type_value
   if (value.list_value) {
     return (value.list_value.values || []).map(conformanceValueToJS)
   }

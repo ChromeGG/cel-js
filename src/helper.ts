@@ -35,11 +35,11 @@ export interface Duration {
 export enum CelType {
   int = 'int',
   uint = 'uint',
-  float = 'float',
+  float = 'double',
   string = 'string',
   bool = 'bool',
   bytes = 'bytes',
-  null = 'null',
+  null = 'null_type',
   list = 'list',
   map = 'map',
   timestamp = 'timestamp',
@@ -57,8 +57,7 @@ const isInt = (value: unknown): value is number =>
   getCelType(value) === CelType.int
 
 const isUint = (value: unknown): value is number =>
-  typeof value === 'number' && 
-  (globalThis as any).__celUnsignedRegistry?.has(value)
+  getCelType(value) === CelType.uint
 
 const isString = (value: unknown): value is string =>
   getCelType(value) === CelType.string
@@ -97,13 +96,43 @@ const compareBytes = (left: Uint8Array, right: Uint8Array): number => {
   return left.length - right.length
 }
 
+// Helper function to extract the actual value from wrapped literals
+export const unwrapValue = (value: unknown): unknown => {
+  if (value instanceof Number) {
+    return value.valueOf()
+  }
+  return value
+}
+
+// Helper function to check if a value is numeric (including wrapped numbers)
+export const isNumeric = (value: unknown): boolean => {
+  if (typeof value === 'number') return true
+  if (value instanceof Number) return true
+  return false
+}
+
 export const getCelType = (value: unknown): CelType => {
   if (value === null) {
     return CelType.null
   }
 
+  // Check for wrapped literals (these will be objects that behave like numbers)
+  if (typeof value === 'object' && value !== null) {
+    if ((value as any).__isFloatLiteral) {
+      return CelType.float
+    }
+    if ((value as any).__isUnsignedLiteral) {
+      return CelType.uint
+    }
+  }
+
   if (typeof value === 'number') {
     if (Number.isNaN(value)) {
+      return CelType.float
+    }
+
+    // Check if this is a float literal wrapper (legacy)
+    if ((value as any)?.__isFloat) {
       return CelType.float
     }
 
@@ -176,10 +205,24 @@ const additionOperation = (left: unknown, right: unknown) => {
       const rightBig = BigInt(right)
       const result = leftBig + rightBig
       
+      // Check uint64 overflow if both operands are unsigned
+      if (isUint(left) && isUint(right)) {
+        const MAX_UINT64 = BigInt('18446744073709551615')
+        if (result > MAX_UINT64) {
+          throw new CelEvaluationError('Unsigned integer overflow in addition')
+        }
+        
+        // Return as uint
+        const numResult = Number(result)
+        const wrappedValue = new Number(numResult)
+        ;(wrappedValue as any).__isUnsignedLiteral = true
+        return wrappedValue
+      }
+      
       const MAX_INT64 = BigInt('9223372036854775807')
       const MIN_INT64 = BigInt('-9223372036854775808')
       
-      // Check for overflow
+      // Check for int64 overflow
       if (result > MAX_INT64 || result < MIN_INT64) {
         throw new CelEvaluationError('Integer overflow in addition')
       }
@@ -289,6 +332,20 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
       const rightBig = BigInt(right)
       const result = leftBig * rightBig
       
+      // Check uint64 overflow if both operands are unsigned
+      if (isUint(left) && isUint(right)) {
+        const MAX_UINT64 = BigInt('18446744073709551615')
+        if (result > MAX_UINT64) {
+          throw new CelEvaluationError('Unsigned integer overflow in multiplication')
+        }
+        
+        // Return as uint
+        const numResult = Number(result)
+        const wrappedValue = new Number(numResult)
+        ;(wrappedValue as any).__isUnsignedLiteral = true
+        return wrappedValue
+      }
+      
       const MAX_INT64 = BigInt('9223372036854775807')
       const MIN_INT64 = BigInt('-9223372036854775808')
       
@@ -322,7 +379,7 @@ const divisionOperation = (left: unknown, right: unknown) => {
   }
 
   // For integer division by zero, throw error unless it involves float conversion
-  if (right === 0) {
+  if (Number(right) === 0) {
     // Allow 0.0 / 0.0 to produce NaN by detecting decimal point patterns
     const result = Number(left) / Number(right)
     if (Number.isNaN(result)) {
@@ -353,7 +410,7 @@ const divisionOperation = (left: unknown, right: unknown) => {
 }
 
 const moduloOperation = (left: unknown, right: unknown) => {
-  if (right === 0) {
+  if (Number(right) === 0) {
     throw new CelEvaluationError('Modulus by zero')
   }
 
@@ -405,9 +462,20 @@ const logicalOrOperation = (left: unknown, right: unknown) => {
 
 const comparisonInOperation = (left: unknown, right: unknown) => {
   if (isArray(right)) {
+    // Handle cross-type numeric equality for 'in' operations
+    if (isCalculable(left)) {
+      return right.some(item => isCalculable(item) && Number(left) === Number(item))
+    }
     return right.includes(left)
   }
   if (isMap(right)) {
+    // Handle cross-type numeric keys for map 'in' operations
+    if (isCalculable(left)) {
+      return Object.keys(right).some(key => {
+        const numKey = Number(key)
+        return !isNaN(numKey) && Number(left) === numKey
+      })
+    }
     return Object.keys(right).includes(left as string)
   }
   throw new CelTypeError(Operations.in, left, right)
@@ -602,18 +670,9 @@ function handleArithmeticNegation(
     throw new CelTypeError('arithmetic negation', operand, null)
   }
 
-  // Unary minus is not allowed on unsigned integers, with special handling for mixed expressions
+  // Unary minus is not allowed on unsigned integers
   if (isUint(operand)) {
-    // More precise detection: Check if this might be a literal mixup in comparison contexts
-    // Allow small numbers in negation context (like -1, -2) but reject explicit unsigned literals like -(42u)
-    const isSmallLiteralContext = operand >= -10 && operand <= 10
-    const isLargerValue = operand > 10
-    
-    // If it's a larger value (like 42, 5) that's marked as unsigned, it's likely a real unsigned literal
-    // If it's a small value (like 1 in "-1"), it might be registry pollution from "1u" elsewhere
-    if (isLargerValue || !isSmallLiteralContext) {
-      throw new CelEvaluationError('Unary minus not supported for unsigned integers')
-    }
+    throw new CelEvaluationError('Unary minus not supported for unsigned integers')
   }
 
   // Handle integer overflow for the MIN_INT64 case
@@ -875,8 +934,8 @@ export function string(value: unknown): string {
   if (typeof value === 'string') {
     return value
   }
-  if (typeof value === 'number') {
-    return value.toString()
+  if (isNumeric(value)) {
+    return String(unwrapValue(value))
   }
   if (typeof value === 'boolean') {
     return value.toString()
@@ -939,10 +998,10 @@ export function string(value: unknown): string {
  * abs(3.14) // returns 3.14
  */
 export const abs = (value: unknown): number => {
-  if (typeof value !== 'number') {
+  if (!isNumeric(value)) {
     throw new CelEvaluationError(`abs() requires a number, got ${typeof value}`)
   }
-  return Math.abs(value)
+  return Math.abs(Number(unwrapValue(value)))
 }
 
 /**
@@ -958,10 +1017,10 @@ export const abs = (value: unknown): number => {
  * max(-2, -7) // returns -2
  */
 export const max = (a: unknown, b: unknown): number => {
-  if (typeof a !== 'number' || typeof b !== 'number') {
+  if (!isNumeric(a) || !isNumeric(b)) {
     throw new CelEvaluationError(`max() requires two numbers, got ${typeof a} and ${typeof b}`)
   }
-  return Math.max(a, b)
+  return Math.max(Number(unwrapValue(a)), Number(unwrapValue(b)))
 }
 
 /**
@@ -977,10 +1036,10 @@ export const max = (a: unknown, b: unknown): number => {
  * min(-2, -7) // returns -7
  */
 export const min = (a: unknown, b: unknown): number => {
-  if (typeof a !== 'number' || typeof b !== 'number') {
+  if (!isNumeric(a) || !isNumeric(b)) {
     throw new CelEvaluationError(`min() requires two numbers, got ${typeof a} and ${typeof b}`)
   }
-  return Math.min(a, b)
+  return Math.min(Number(unwrapValue(a)), Number(unwrapValue(b)))
 }
 
 /**
@@ -995,10 +1054,10 @@ export const min = (a: unknown, b: unknown): number => {
  * floor(-2.3) // returns -3
  */
 export const floor = (value: unknown): number => {
-  if (typeof value !== 'number') {
+  if (!isNumeric(value)) {
     throw new CelEvaluationError(`floor() requires a number, got ${typeof value}`)
   }
-  return Math.floor(value)
+  return Math.floor(Number(unwrapValue(value)))
 }
 
 /**
@@ -1013,10 +1072,10 @@ export const floor = (value: unknown): number => {
  * ceil(-2.7) // returns -2
  */
 export const ceil = (value: unknown): number => {
-  if (typeof value !== 'number') {
+  if (!isNumeric(value)) {
     throw new CelEvaluationError(`ceil() requires a number, got ${typeof value}`)
   }
-  return Math.ceil(value)
+  return Math.ceil(Number(unwrapValue(value)))
 }
 
 /**
@@ -1032,8 +1091,8 @@ export const ceil = (value: unknown): number => {
  * double('Infinity') // returns Infinity
  */
 export const double = (value: unknown): number => {
-  if (typeof value === 'number') {
-    return value
+  if (isNumeric(value)) {
+    return Number(unwrapValue(value))
   }
   
   if (typeof value === 'string') {
@@ -1059,6 +1118,11 @@ function celEquals(left: unknown, right: unknown): boolean {
   // Handle NaN according to IEEE 754: NaN != NaN (even NaN != NaN)
   if (Number.isNaN(left) || Number.isNaN(right)) {
     return false
+  }
+  
+  // Handle cross-type numeric equality first (1.0 == 1, 1u == 1, etc.)
+  if (isCalculable(left) && isCalculable(right)) {
+    return Number(left) === Number(right)
   }
   
   // For objects, we need to recursively check for NaN values
@@ -1106,16 +1170,17 @@ function celEquals(left: unknown, right: unknown): boolean {
  * CEL int() function that converts values to integers.
  */
 export const int = (value: unknown): number => {
-  if (typeof value === 'number') {
+  if (isNumeric(value)) {
+    const numValue = Number(unwrapValue(value))
     // Handle uint to int conversion
     if (isUint(value)) {
       const MAX_INT64 = 9223372036854775807
-      if (value > MAX_INT64) {
-        throw new CelEvaluationError(`int() overflow: ${value} exceeds maximum int64 value`)
+      if (numValue > MAX_INT64) {
+        throw new CelEvaluationError(`int() overflow: ${numValue} exceeds maximum int64 value`)
       }
     }
     // Truncate towards zero for floating point numbers
-    return Math.trunc(value)
+    return Math.trunc(numValue)
   }
   
   if (typeof value === 'string') {
@@ -1138,26 +1203,24 @@ export const int = (value: unknown): number => {
  * CEL uint() function that converts values to unsigned integers.
  */
 export const uint = (value: unknown): number => {
-  if (typeof value === 'number') {
-    if (value < 0) {
-      throw new CelEvaluationError(`uint() error: negative value ${value}`)
+  if (isNumeric(value)) {
+    const numValue = Number(unwrapValue(value))
+    if (numValue < 0) {
+      throw new CelEvaluationError(`uint() error: negative value ${numValue}`)
     }
     
     const MAX_UINT64 = 18446744073709551615
-    if (value > MAX_UINT64) {
-      throw new CelEvaluationError(`uint() overflow: ${value} exceeds maximum uint64 value`)
+    if (numValue > MAX_UINT64) {
+      throw new CelEvaluationError(`uint() overflow: ${numValue} exceeds maximum uint64 value`)
     }
     
     // Truncate towards zero for floating point numbers
-    const result = Math.trunc(value)
+    const result = Math.trunc(numValue)
     
-    // Register as unsigned integer
-    if (!(globalThis as any).__celUnsignedRegistry) {
-      (globalThis as any).__celUnsignedRegistry = new Set()
-    }
-    ;(globalThis as any).__celUnsignedRegistry.add(result)
-    
-    return result
+    // Return wrapped uint value
+    const wrappedValue = new Number(result)
+    ;(wrappedValue as any).__isUnsignedLiteral = true
+    return wrappedValue
   }
   
   if (typeof value === 'string') {

@@ -38,6 +38,7 @@ import {
   Duration,
   string,
   abs,
+  unwrapValue,
   max,
   min,
   floor,
@@ -476,18 +477,21 @@ export class CelVisitor
       // Handle array indexing
       if (Array.isArray(acc)) {
         const indexType = getCelType(index)
-        if (indexType != CelType.int && indexType != CelType.uint) {
+        const indexValue = Number(unwrapValue(index))
+        // Allow float values that are integers (e.g., 0.0, 1.0) to be used as indices
+        if (indexType != CelType.int && indexType != CelType.uint && 
+            !(indexType === CelType.float && Number.isInteger(indexValue))) {
           throw new CelEvaluationError('invalid_argument')
         }
 
-        if (index < 0 || index >= acc.length) {
+        if (indexValue < 0 || indexValue >= acc.length) {
           throw new CelEvaluationError('invalid_argument')
         }
 
-        return acc[index]
+        return acc[indexValue]
       }
       
-      return this.getIdentifier(acc, String(index))
+      return this.getIdentifier(acc, String(unwrapValue(index)))
     }, mapExpression)
   }
 
@@ -612,7 +616,11 @@ export class CelVisitor
     }
 
     if (ctx.Float) {
-      return parseFloat(ctx.Float[0].image)
+      const value = parseFloat(ctx.Float[0].image)
+      // Create a Number object that remembers it was a float literal
+      const wrappedValue = new Number(value)
+      ;(wrappedValue as any).__isFloatLiteral = true
+      return wrappedValue
     }
 
     if (ctx.Integer) {
@@ -621,12 +629,10 @@ export class CelVisitor
 
     if (ctx.UnsignedInteger) {
       const value = parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
-      // Track unsigned integers in a global registry
-      if (!(globalThis as any).__celUnsignedRegistry) {
-        (globalThis as any).__celUnsignedRegistry = new Set()
-      }
-      ;(globalThis as any).__celUnsignedRegistry.add(value)
-      return value
+      // Create a Number object that remembers it was an unsigned literal
+      const wrappedValue = new Number(value)
+      ;(wrappedValue as any).__isUnsignedLiteral = true
+      return wrappedValue
     }
 
     if (ctx.HexInteger) {
@@ -635,12 +641,10 @@ export class CelVisitor
 
     if (ctx.HexUnsignedInteger) {
       const value = parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
-      // Track unsigned integers in a global registry
-      if (!(globalThis as any).__celUnsignedRegistry) {
-        (globalThis as any).__celUnsignedRegistry = new Set()
-      }
-      ;(globalThis as any).__celUnsignedRegistry.add(value)
-      return value
+      // Create a Number object that remembers it was an unsigned literal
+      const wrappedValue = new Number(value)
+      ;(wrappedValue as any).__isUnsignedLiteral = true
+      return wrappedValue
     }
 
     if (ctx.identifierExpression) {

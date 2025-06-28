@@ -7,6 +7,7 @@ export interface ConformanceTestValue {
   bytes_value?: string
   bool_value?: boolean
   null_value?: null
+  type_value?: string
   list_value?: {
     values?: ConformanceTestValue[]
   }
