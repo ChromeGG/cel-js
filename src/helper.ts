@@ -354,6 +354,16 @@ const subtractionOperation = (left: unknown, right: unknown) => {
 
 const multiplicationOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
+    // Handle floating point operations first to avoid incorrect integer overflow
+    if (isFloat(left) || isFloat(right)) {
+      const result = Number(left) * Number(right)
+      // Check for floating point overflow - return undefined for CEL conformance
+      if (!isFinite(result)) {
+        return undefined
+      }
+      return result
+    }
+    
     // Check for integer overflow using BigInt for precision
     // Include BigInt-backed values as integers
     const leftIsInteger = Number.isInteger(Number(left)) || !!(left as any)?.__bigIntValue
@@ -395,9 +405,8 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
       return Number(result)
     }
     
-    // For floating point numbers, JavaScript handles infinity properly
-    const result = left * right
-    return result
+    // Fallback for other calculable types
+    return Number(left) * Number(right)
   }
 
   // Duration * scalar = Duration
@@ -844,7 +853,17 @@ export const dyn = (value: unknown): unknown => {
  * type([1, 2, 3]) // returns "list"
  */
 export const type = (value: unknown): string => {
-  return getCelType(value)
+  const celType = getCelType(value)
+  
+  // Return protobuf-style type names for conformance
+  if (celType === CelType.timestamp) {
+    return 'google.protobuf.Timestamp'
+  }
+  if (celType === CelType.duration) {
+    return 'google.protobuf.Duration'
+  }
+  
+  return celType
 }
 
 /**
@@ -891,6 +910,11 @@ export const bytes = (input: unknown): Uint8Array => {
  * Parse a timestamp from an RFC3339 string
  */
 export const timestamp = (input: unknown): Date => {
+  // If input is already a timestamp (Date), return it as-is
+  if (input instanceof Date) {
+    return input
+  }
+  
   if (typeof input === 'string') {
     // Handle case where timezone is missing (assume UTC)
     let dateString = input
@@ -920,6 +944,11 @@ export const timestamp = (input: unknown): Date => {
  * Parse a duration from a duration string
  */
 export const duration = (input: unknown): Duration => {
+  // If input is already a duration object, return it as-is
+  if (isDuration(input)) {
+    return input
+  }
+  
   if (typeof input !== 'string') {
     throw new CelEvaluationError('duration function requires a string argument')
   }
@@ -1001,7 +1030,13 @@ export function string(value: unknown): string {
     return 'null'
   }
   if (value instanceof Date) {
-    return value.toISOString()
+    // Preserve original timestamp format when possible
+    // If milliseconds are 0, don't include them to match CEL expectations
+    const isoString = value.toISOString()
+    if (isoString.endsWith('.000Z')) {
+      return isoString.replace('.000Z', 'Z')
+    }
+    return isoString
   }
   if (value instanceof Uint8Array) {
     // Convert byte array to UTF-8 string
@@ -1248,9 +1283,17 @@ export const int = (value: unknown): number => {
     const MIN_INT64 = -9223372036854775808
     
     // Special handling for very large values - check for precision loss first
-    if (typeof value === 'number' && !Number.isInteger(value)) {
+    // Check for float literals or non-integer values
+    if ((typeof value === 'number' && !Number.isInteger(value)) || (value as any)?.__isFloatLiteral) {
       // For floating point numbers, check if they're exactly representable as integers
       const truncated = Math.trunc(numValue)
+      
+      // Check if the double value represents the problematic int64 boundary values
+      // These specific double values cannot be exactly represented and indicate overflow
+      if (numValue === 9223372036854776000 || numValue === -9223372036854776000) {
+        throw new CelEvaluationError(`int() overflow: ${numValue} exceeds int64 range`)
+      }
+      
       // If the number is too large to be exactly represented, it loses precision
       if (Math.abs(numValue) >= Math.pow(2, 53)) {
         throw new CelEvaluationError(`int() overflow: ${numValue} exceeds int64 range`)
@@ -1337,11 +1380,13 @@ export const bool = (value: unknown): boolean => {
   }
   
   if (typeof value === 'string') {
-    if (value === 'true' || value === 't' || value === '1') {
-      return true
-    }
-    if (value === 'false' || value === 'f' || value === '0') {
-      return false
+    // Accept exact case matches for standard values and common case variants
+    if (value === 'true' || value === 't' || value === '1' ||
+        value === 'TRUE' || value === 'True' || 
+        value === 'FALSE' || value === 'False' ||
+        value === 'false' || value === 'f' || value === '0') {
+      const lowerValue = value.toLowerCase()
+      return lowerValue === 'true' || lowerValue === 't' || lowerValue === '1'
     }
     throw new CelEvaluationError(`bool() parse error: cannot convert '${value}' to bool`)
   }
