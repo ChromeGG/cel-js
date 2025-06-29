@@ -44,6 +44,7 @@ export enum CelType {
   map = 'map',
   timestamp = 'timestamp',
   duration = 'duration',
+  type = 'type',
 }
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
@@ -124,6 +125,9 @@ export const getCelType = (value: unknown): CelType => {
     if ((value as any).__isUnsignedLiteral) {
       return CelType.uint
     }
+    if ((value as any).__isTypeIdentifier) {
+      return CelType.type
+    }
   }
 
   if (typeof value === 'number') {
@@ -200,9 +204,14 @@ export enum Operations {
 const additionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
     // Check for integer overflow using BigInt for precision
-    if (Number.isInteger(left) && Number.isInteger(right)) {
-      const leftBig = BigInt(left)
-      const rightBig = BigInt(right)
+    // Include BigInt-backed values as integers
+    const leftIsInteger = Number.isInteger(Number(left)) || !!(left as any)?.__bigIntValue
+    const rightIsInteger = Number.isInteger(Number(right)) || !!(right as any)?.__bigIntValue
+    
+    if (leftIsInteger && rightIsInteger) {
+      // Extract BigInt values if available, otherwise convert from number
+      const leftBig = (left as any)?.__bigIntValue || BigInt(Math.trunc(Number(left)))
+      const rightBig = (right as any)?.__bigIntValue || BigInt(Math.trunc(Number(right)))
       const result = leftBig + rightBig
       
       // Check uint64 overflow if both operands are unsigned
@@ -212,10 +221,16 @@ const additionOperation = (left: unknown, right: unknown) => {
           throw new CelEvaluationError('Unsigned integer overflow in addition')
         }
         
-        // Return as uint
+        // Return as uint - handle BigInt-backed values for large results
         const numResult = Number(result)
         const wrappedValue = new Number(numResult)
         ;(wrappedValue as any).__isUnsignedLiteral = true
+        
+        // Store BigInt value if result is larger than MAX_SAFE_INTEGER
+        if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
+          ;(wrappedValue as any).__bigIntValue = result
+        }
+        
         return wrappedValue
       }
       
@@ -276,14 +291,27 @@ const additionOperation = (left: unknown, right: unknown) => {
 const subtractionOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
     // Check for integer overflow using BigInt for precision
-    if (Number.isInteger(left) && Number.isInteger(right)) {
-      const leftBig = BigInt(left)
-      const rightBig = BigInt(right)
+    // Include BigInt-backed values as integers
+    const leftIsInteger = Number.isInteger(Number(left)) || !!(left as any)?.__bigIntValue
+    const rightIsInteger = Number.isInteger(Number(right)) || !!(right as any)?.__bigIntValue
+    
+    if (leftIsInteger && rightIsInteger) {
+      // Extract BigInt values if available, otherwise convert from number
+      const leftBig = (left as any)?.__bigIntValue || BigInt(Math.trunc(Number(left)))
+      const rightBig = (right as any)?.__bigIntValue || BigInt(Math.trunc(Number(right)))
       const result = leftBig - rightBig
       
       // Check for unsigned integer underflow
       if (isUint(left) && isUint(right) && result < 0) {
         throw new CelEvaluationError('Unsigned integer underflow in subtraction')
+      }
+      
+      // If both operands are unsigned and result is valid, return as uint
+      if (isUint(left) && isUint(right)) {
+        const numResult = Number(result)
+        const wrappedValue = new Number(numResult)
+        ;(wrappedValue as any).__isUnsignedLiteral = true
+        return wrappedValue
       }
       
       const MAX_INT64 = BigInt('9223372036854775807')
@@ -327,9 +355,14 @@ const subtractionOperation = (left: unknown, right: unknown) => {
 const multiplicationOperation = (left: unknown, right: unknown) => {
   if (isCalculable(left) && isCalculable(right)) {
     // Check for integer overflow using BigInt for precision
-    if (Number.isInteger(left) && Number.isInteger(right)) {
-      const leftBig = BigInt(left)
-      const rightBig = BigInt(right)
+    // Include BigInt-backed values as integers
+    const leftIsInteger = Number.isInteger(Number(left)) || !!(left as any)?.__bigIntValue
+    const rightIsInteger = Number.isInteger(Number(right)) || !!(right as any)?.__bigIntValue
+    
+    if (leftIsInteger && rightIsInteger) {
+      // Extract BigInt values if available, otherwise convert from number
+      const leftBig = (left as any)?.__bigIntValue || BigInt(Math.trunc(Number(left)))
+      const rightBig = (right as any)?.__bigIntValue || BigInt(Math.trunc(Number(right)))
       const result = leftBig * rightBig
       
       // Check uint64 overflow if both operands are unsigned
@@ -339,10 +372,16 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
           throw new CelEvaluationError('Unsigned integer overflow in multiplication')
         }
         
-        // Return as uint
+        // Return as uint - handle BigInt-backed values for large results
         const numResult = Number(result)
         const wrappedValue = new Number(numResult)
         ;(wrappedValue as any).__isUnsignedLiteral = true
+        
+        // Store BigInt value if result is larger than MAX_SAFE_INTEGER
+        if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
+          ;(wrappedValue as any).__bigIntValue = result
+        }
+        
         return wrappedValue
       }
       
@@ -469,14 +508,9 @@ const comparisonInOperation = (left: unknown, right: unknown) => {
     return right.includes(left)
   }
   if (isMap(right)) {
-    // Handle cross-type numeric keys for map 'in' operations
-    if (isCalculable(left)) {
-      return Object.keys(right).some(key => {
-        const numKey = Number(key)
-        return !isNaN(numKey) && Number(left) === numKey
-      })
-    }
-    return Object.keys(right).includes(left as string)
+    // For map 'in' operations, check if the left operand is a key in the map
+    // We need to check the actual keys in the map object, not just string keys
+    return Object.prototype.hasOwnProperty.call(right, left as PropertyKey)
   }
   throw new CelTypeError(Operations.in, left, right)
 }
@@ -490,6 +524,29 @@ const comparisonOperation = (
     (isCalculable(left) && isCalculable(right)) ||
     (isString(left) && isString(right))
   ) {
+    // Handle BigInt-backed unsigned integer comparisons
+    if (isCalculable(left) && isCalculable(right)) {
+      const leftBigInt = (left as any)?.__bigIntValue
+      const rightBigInt = (right as any)?.__bigIntValue
+      
+      if (leftBigInt || rightBigInt) {
+        // At least one is BigInt-backed
+        const leftValue = leftBigInt ? leftBigInt : BigInt(Math.trunc(Number(left)))
+        const rightValue = rightBigInt ? rightBigInt : BigInt(Math.trunc(Number(right)))
+        
+        switch (operation) {
+          case Operations.lessThan:
+            return leftValue < rightValue
+          case Operations.lessOrEqualThan:
+            return leftValue <= rightValue
+          case Operations.greaterThan:
+            return leftValue > rightValue
+          case Operations.greaterOrEqualThan:
+            return leftValue >= rightValue
+        }
+      }
+    }
+    
     switch (operation) {
       case Operations.lessThan:
         return left < right
@@ -1122,6 +1179,19 @@ function celEquals(left: unknown, right: unknown): boolean {
   
   // Handle cross-type numeric equality first (1.0 == 1, 1u == 1, etc.)
   if (isCalculable(left) && isCalculable(right)) {
+    // Handle BigInt-backed unsigned integers specially
+    const leftBigInt = (left as any)?.__bigIntValue
+    const rightBigInt = (right as any)?.__bigIntValue
+    
+    if (leftBigInt && rightBigInt) {
+      return leftBigInt === rightBigInt
+    } else if (leftBigInt || rightBigInt) {
+      // One is BigInt-backed, one is regular number
+      const leftValue = leftBigInt ? leftBigInt : BigInt(Math.trunc(Number(left)))
+      const rightValue = rightBigInt ? rightBigInt : BigInt(Math.trunc(Number(right)))
+      return leftValue === rightValue
+    }
+    
     return Number(left) === Number(right)
   }
   
@@ -1172,15 +1242,32 @@ function celEquals(left: unknown, right: unknown): boolean {
 export const int = (value: unknown): number => {
   if (isNumeric(value)) {
     const numValue = Number(unwrapValue(value))
-    // Handle uint to int conversion
-    if (isUint(value)) {
-      const MAX_INT64 = 9223372036854775807
-      if (numValue > MAX_INT64) {
-        throw new CelEvaluationError(`int() overflow: ${numValue} exceeds maximum int64 value`)
+    
+    // Check for int64 range for all numeric values
+    const MAX_INT64 = 9223372036854775807
+    const MIN_INT64 = -9223372036854775808
+    
+    // Special handling for very large values - check for precision loss first
+    if (typeof value === 'number' && !Number.isInteger(value)) {
+      // For floating point numbers, check if they're exactly representable as integers
+      const truncated = Math.trunc(numValue)
+      // If the number is too large to be exactly represented, it loses precision
+      if (Math.abs(numValue) >= Math.pow(2, 53)) {
+        throw new CelEvaluationError(`int() overflow: ${numValue} exceeds int64 range`)
       }
     }
-    // Truncate towards zero for floating point numbers
-    return Math.trunc(numValue)
+    
+    // Check for int64 range overflow
+    if (Math.abs(numValue) > MAX_INT64) {
+      throw new CelEvaluationError(`int() overflow: ${numValue} exceeds int64 range`)
+    }
+    
+    const truncated = Math.trunc(numValue)
+    if (truncated > MAX_INT64 || truncated < MIN_INT64) {
+      throw new CelEvaluationError(`int() overflow: ${truncated} exceeds int64 range`)
+    }
+    
+    return truncated
   }
   
   if (typeof value === 'string') {
@@ -1220,7 +1307,7 @@ export const uint = (value: unknown): number => {
     // Return wrapped uint value
     const wrappedValue = new Number(result)
     ;(wrappedValue as any).__isUnsignedLiteral = true
-    return wrappedValue
+    return wrappedValue as any
   }
   
   if (typeof value === 'string') {
@@ -1250,11 +1337,10 @@ export const bool = (value: unknown): boolean => {
   }
   
   if (typeof value === 'string') {
-    const lower = value.toLowerCase()
-    if (lower === 'true' || lower === 't' || lower === '1') {
+    if (value === 'true' || value === 't' || value === '1') {
       return true
     }
-    if (lower === 'false' || lower === 'f' || lower === '0') {
+    if (value === 'false' || value === 'f' || value === '0') {
       return false
     }
     throw new CelEvaluationError(`bool() parse error: cannot convert '${value}' to bool`)

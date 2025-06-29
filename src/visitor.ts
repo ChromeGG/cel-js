@@ -110,6 +110,11 @@ export class CelVisitor
    */
   private mode: Mode = Mode.normal
 
+  /**
+   * Tracks if has() validation has already been done to avoid duplicate checks.
+   */
+  private hasValidationDone: boolean = false
+
   private functions: Record<string, CallableFunction>
 
   /**
@@ -153,6 +158,7 @@ export class CelVisitor
     }
 
     this.mode = Mode.has
+    this.hasValidationDone = false // Track if we've done validation yet
     try {
       const result = this.visit(ctx.arg)
       return this.functions.has(result)
@@ -164,6 +170,7 @@ export class CelVisitor
       return false
     } finally {
       this.mode = Mode.normal
+      this.hasValidationDone = false
     }
   }
 
@@ -628,7 +635,37 @@ export class CelVisitor
     }
 
     if (ctx.UnsignedInteger) {
-      const value = parseInt(ctx.UnsignedInteger[0].image.slice(0, -1), 10)
+      const literal = ctx.UnsignedInteger[0].image.slice(0, -1)
+      
+      // Check for uint64 overflow before parsing to avoid precision loss
+      const MAX_UINT64_STR = '18446744073709551615'
+      if (literal.length > MAX_UINT64_STR.length || 
+          (literal.length === MAX_UINT64_STR.length && literal > MAX_UINT64_STR)) {
+        throw new CelEvaluationError(`Unsigned integer literal ${literal}u exceeds maximum uint64 value`)
+      }
+      
+      // JavaScript's Number.MAX_SAFE_INTEGER is 2^53 - 1, but uint64 can go up to 2^64 - 1
+      // For CEL conformance, we need to handle large integers properly without precision loss
+      // Check if the value is within JavaScript's safe integer range before parsing
+      const MAX_SAFE_INTEGER = 9007199254740991 // 2^53 - 1
+      const MAX_SAFE_INTEGER_STR = '9007199254740991'
+      
+      const isLargeInteger = literal.length > MAX_SAFE_INTEGER_STR.length || 
+                            (literal.length === MAX_SAFE_INTEGER_STR.length && literal > MAX_SAFE_INTEGER_STR)
+      
+      if (isLargeInteger) {
+        // For large unsigned integers, use BigInt internally but still return a Number-like object
+        // This preserves compatibility while avoiding precision loss
+        const bigIntValue = BigInt(literal)
+        const wrappedValue = new Number(Number(bigIntValue))
+        ;(wrappedValue as any).__isUnsignedLiteral = true
+        ;(wrappedValue as any).__bigIntValue = bigIntValue
+        return wrappedValue
+      }
+      
+      // For smaller values, use regular parseInt
+      const value = parseInt(literal, 10)
+      
       // Create a Number object that remembers it was an unsigned literal
       const wrappedValue = new Number(value)
       ;(wrappedValue as any).__isUnsignedLiteral = true
@@ -640,7 +677,30 @@ export class CelVisitor
     }
 
     if (ctx.HexUnsignedInteger) {
-      const value = parseInt(ctx.HexUnsignedInteger[0].image.slice(2, -1), 16)
+      const literal = ctx.HexUnsignedInteger[0].image.slice(2, -1)
+      
+      // Check for uint64 overflow - max uint64 in hex is 0xFFFFFFFFFFFFFFFF
+      const MAX_UINT64_HEX_STR = 'FFFFFFFFFFFFFFFF'
+      if (literal.length > MAX_UINT64_HEX_STR.length || 
+          (literal.length === MAX_UINT64_HEX_STR.length && literal.toUpperCase() > MAX_UINT64_HEX_STR)) {
+        throw new CelEvaluationError(`Unsigned hex integer literal 0x${literal}u exceeds maximum uint64 value`)
+      }
+      
+      const value = parseInt(literal, 16)
+      
+      // JavaScript's Number.MAX_SAFE_INTEGER is 2^53 - 1, but uint64 can go up to 2^64 - 1
+      // Check if the value is within JavaScript's safe integer range
+      const MAX_SAFE_INTEGER = 9007199254740991 // 2^53 - 1
+      
+      if (value > MAX_SAFE_INTEGER) {
+        // For large unsigned integers, use BigInt internally but still return a Number-like object
+        const bigIntValue = BigInt('0x' + literal)
+        const wrappedValue = new Number(Number(bigIntValue))
+        ;(wrappedValue as any).__isUnsignedLiteral = true
+        ;(wrappedValue as any).__bigIntValue = bigIntValue
+        return wrappedValue
+      }
+      
       // Create a Number object that remembers it was an unsigned literal
       const wrappedValue = new Number(value)
       ;(wrappedValue as any).__isUnsignedLiteral = true
@@ -667,22 +727,32 @@ export class CelVisitor
   }
 
   atomicExpression(ctx: AtomicExpressionCstChildren) {
-    // Check if we are in a has() macro
-    if (this.mode === Mode.has) {
-      // Allow if we have dot expressions at the atomic level
-      if (ctx.identifierDotExpression || ctx.atomicIndexExpression) {
-        // This is fine - we have field selections
-      } else {
-        // Check if the primary expression contains an identifier with field selections
+    // Check if we are in a has() macro - only validate the first atomic expression
+    if (this.mode === Mode.has && !this.hasValidationDone) {
+      this.hasValidationDone = true
+      
+      // Check for field access at atomic level or within primary expressions
+      let hasFieldAccess = !!(ctx.identifierDotExpression || ctx.atomicIndexExpression)
+      
+      if (!hasFieldAccess) {
+        // Check if the primary expression contains field selections
         const primaryExpr = ctx.primaryExpression[0]
         if (primaryExpr.children.identifierExpression) {
           const identifierExpr = primaryExpr.children.identifierExpression[0]
-          if (!identifierExpr.children.identifierDotExpression && !identifierExpr.children.identifierIndexExpression) {
-            throw new CelEvaluationError('has() requires a field selection')
-          }
-        } else {
-          throw new CelEvaluationError('has() does not support atomic expressions')
+          hasFieldAccess = !!(identifierExpr.children.identifierDotExpression || identifierExpr.children.identifierIndexExpression)
+        } else if (primaryExpr.children.mapExpression) {
+          // Check for field access within map expressions like {'a': 1}.field
+          const mapExpr = primaryExpr.children.mapExpression[0]
+          hasFieldAccess = !!(mapExpr.children.identifierDotExpression || mapExpr.children.identifierIndexExpression)
+        } else if (primaryExpr.children.listExpression) {
+          // Check for field access within list expressions like [1, 2].field
+          const listExpr = primaryExpr.children.listExpression[0]
+          hasFieldAccess = !!(listExpr.children.identifierDotExpression || listExpr.children.Index)
         }
+      }
+      
+      if (!hasFieldAccess) {
+        throw new CelEvaluationError('has() does not support atomic expressions')
       }
     }
 
@@ -778,6 +848,66 @@ export class CelVisitor
       }
       if (identifierName === 'null') {
         return null
+      }
+      if (identifierName === 'null_type') {
+        const typeId = new String('null_type')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'list') {
+        const typeId = new String('list')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'map') {
+        const typeId = new String('map')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'type') {
+        const typeId = new String('type')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'int') {
+        const typeId = new String('int')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'uint') {
+        const typeId = new String('uint')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'double') {
+        const typeId = new String('double')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'bool') {
+        const typeId = new String('bool')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'string') {
+        const typeId = new String('string')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'bytes') {
+        const typeId = new String('bytes')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'duration') {
+        const typeId = new String('duration')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
+      }
+      if (identifierName === 'timestamp') {
+        const typeId = new String('timestamp')
+        ;(typeId as any).__isTypeIdentifier = true
+        return typeId
       }
     }
     
@@ -2101,6 +2231,17 @@ export class CelVisitor
         return timestamp.getUTCDay()
       case 'getTime':
         return timestamp.getTime()
+      case 'getDayOfMonth':
+        return timestamp.getUTCDate()
+      case 'getDayOfWeek':
+        return timestamp.getUTCDay()
+      case 'getDayOfYear':
+        // Calculate day of year (1-366)
+        const startOfYear = new Date(Date.UTC(timestamp.getUTCFullYear(), 0, 1))
+        const dayOfYear = Math.floor((timestamp.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)) + 1
+        return dayOfYear
+      case 'getMilliseconds':
+        return timestamp.getUTCMilliseconds()
       default:
         throw new CelEvaluationError(`Unknown timestamp method: ${methodName}`)
     }
@@ -2117,6 +2258,10 @@ export class CelVisitor
         return duration.seconds * 1000 + duration.nanoseconds / 1000000
       case 'getNanoseconds':
         return duration.seconds * 1e9 + duration.nanoseconds
+      case 'getHours':
+        return Math.floor(duration.seconds / 3600)
+      case 'getMinutes':
+        return Math.floor(duration.seconds / 60)
       default:
         throw new CelEvaluationError(`Unknown duration method: ${methodName}`)
     }
