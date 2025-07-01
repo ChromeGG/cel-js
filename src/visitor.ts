@@ -47,10 +47,6 @@ enum Mode {
 const COLLECTION_MACROS = ['all', 'exists', 'exists_one', 'filter', 'map'] as const
 type CollectionMacro = typeof COLLECTION_MACROS[number]
 
-/** String macros that operate on strings */
-const STRING_MACROS = ['startsWith', 'contains', 'endsWith'] as const
-type StringMacro = typeof STRING_MACROS[number]
-
 const parserInstance = new CelParser()
 
 const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
@@ -93,13 +89,6 @@ export class CelVisitor
    */
   private isCollectionMacro(identifier: string): boolean {
     return COLLECTION_MACROS.includes(identifier as CollectionMacro)
-  }
-
-  /**
-   * Checks if the given identifier is a string macro.
-   */
-  private isStringMacro(identifier: string): boolean {
-    return STRING_MACROS.includes(identifier as StringMacro)
   }
 
   /**
@@ -164,19 +153,6 @@ export class CelVisitor
       default:
         throw new CelEvaluationError(`Unknown collection macro: ${macroName}`)
     }
-  }
-
-  /**
-   * Placeholder for string macro handling (to be implemented later).
-   */
-  private handleStringMacroCall(
-    macroName: StringMacro,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _str: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _ctx: IdentifierDotExpressionCstChildren,
-  ): never {
-    throw new CelEvaluationError(`String macro ${macroName} not implemented yet`)
   }
 
   /**
@@ -730,10 +706,6 @@ export class CelVisitor
     if (ctx.OpenParenthesis) {
       if (this.isCollectionMacro(identifierName)) {
         return this.handleCollectionMacroCall(identifierName as CollectionMacro, param, ctx)
-      }
-      
-      if (this.isStringMacro(identifierName)) {
-        return this.handleStringMacroCall(identifierName as StringMacro, param, ctx)
       }
       
       throw new CelEvaluationError(`Unknown method: ${identifierName}`)
