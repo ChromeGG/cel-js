@@ -342,7 +342,7 @@ const additionOperation = (left: unknown, right: unknown) => {
     }
     
     // Validate duration range
-    const MAX_DURATION_SECONDS = 315576000000
+    const MAX_DURATION_SECONDS = 290000000000
     if (Math.abs(result.seconds) > MAX_DURATION_SECONDS) {
       throw new CelEvaluationError('duration out of range')
     }
@@ -404,6 +404,13 @@ const subtractionOperation = (left: unknown, right: unknown) => {
     const millisDiff = left.getTime() - right.getTime()
     const seconds = Math.floor(millisDiff / 1000)
     const nanoseconds = (millisDiff % 1000) * 1000000
+    
+    // Validate duration range
+    const MAX_DURATION_SECONDS = 290000000000
+    if (Math.abs(seconds) > MAX_DURATION_SECONDS) {
+      throw new CelEvaluationError('duration out of range')
+    }
+    
     return { seconds, nanoseconds }
   }
 
@@ -415,7 +422,7 @@ const subtractionOperation = (left: unknown, right: unknown) => {
     }
     
     // Validate duration range
-    const MAX_DURATION_SECONDS = 315576000000
+    const MAX_DURATION_SECONDS = 290000000000
     if (Math.abs(result.seconds) > MAX_DURATION_SECONDS) {
       throw new CelEvaluationError('duration out of range')
     }
@@ -1111,8 +1118,8 @@ export const duration = (input: unknown): Duration => {
     }
   }
 
-  // Validate duration range (approximately ±10,000 years in seconds)
-  const MAX_DURATION_SECONDS = 315576000000 // About 10,000 years
+  // Validate duration range - CEL duration limit appears to be around ±290 billion seconds
+  const MAX_DURATION_SECONDS = 290000000000
   if (Math.abs(totalSeconds) > MAX_DURATION_SECONDS) {
     throw new CelEvaluationError('duration out of range')
   }

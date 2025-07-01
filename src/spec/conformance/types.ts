@@ -21,6 +21,10 @@ export interface ConformanceTestValue {
       value: ConformanceTestValue
     }>
   }
+  object_value?: {
+    typeUrl?: string
+    value?: any
+  }
 }
 
 export interface ConformanceTestError {

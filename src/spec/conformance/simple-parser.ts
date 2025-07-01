@@ -207,7 +207,10 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
       if (disableCheckMatch) test.disable_check = disableCheckMatch[1] === 'true'
       
       // Extract bindings with a more robust parser that handles nested braces
-      const bindingsStartIndex = testContent.indexOf('bindings:')
+      let bindingsStartIndex = testContent.indexOf('bindings:')
+      if (bindingsStartIndex === -1) {
+        bindingsStartIndex = testContent.indexOf('bindings {')
+      }
       if (bindingsStartIndex !== -1) {
         // Find the opening brace after bindings:
         const openBraceIndex = testContent.indexOf('{', bindingsStartIndex)
@@ -233,8 +236,11 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
             const bindingContent = testContent.slice(openBraceIndex + 1, closeBraceIndex)
             const keyMatch = bindingContent.match(/key:\s*"([^"]*)"/);
             
-            // Find value section more carefully
-            const valueIndex = bindingContent.indexOf('value:')
+            // Find value section more carefully - handle both 'value:' and 'value {' formats
+            let valueIndex = bindingContent.indexOf('value:')
+            if (valueIndex === -1) {
+              valueIndex = bindingContent.indexOf('value {')
+            }
             if (keyMatch && valueIndex !== -1) {
               const valueStart = bindingContent.indexOf('{', valueIndex)
               if (valueStart !== -1) {
@@ -257,8 +263,16 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
                 
                 if (valueCloseIndex !== -1) {
                   const valueContent = bindingContent.slice(valueStart + 1, valueCloseIndex)
+                  // Handle nested value structures like: value { value { object_value { ... } } }
+                  let parsedValue = parseValue(valueContent)
+                  
+                  // If the parsed value has a nested 'value' field, unwrap it
+                  if (parsedValue && typeof parsedValue === 'object' && 'value' in parsedValue) {
+                    parsedValue = parsedValue.value
+                  }
+                  
                   test.bindings = {
-                    [keyMatch[1]]: { value: parseValue(valueContent) }
+                    [keyMatch[1]]: { value: parsedValue }
                   }
                 }
               }
@@ -332,6 +346,18 @@ export function parseBasicTextproto(content: string): ConformanceTestFile {
 
 function parseValue(content: string): any {
   const trimmed = content.trim()
+  
+  // Handle nested value structures first
+  if (trimmed.match(/^\s*value\s*\{/)) {
+    // This is a nested value { ... } structure
+    const braceStart = trimmed.indexOf('{')
+    if (braceStart !== -1) {
+      const nestedContent = extractBalancedBraces(trimmed, braceStart)
+      if (nestedContent) {
+        return { value: parseValue(nestedContent) }
+      }
+    }
+  }
   
   // Parse complex structures first (list_value, map_value)
   if (trimmed.includes('list_value')) {
@@ -462,6 +488,63 @@ function parseValue(content: string): any {
   
   if (trimmed.includes('null_value:')) {
     return { null_value: null }
+  }
+  
+  if (trimmed.includes('object_value')) {
+    // Parse object_value which contains protobuf messages
+    // Handle the case where object_value has a nested structure
+    const objectValueStart = trimmed.indexOf('object_value')
+    if (objectValueStart !== -1) {
+      const braceStart = trimmed.indexOf('{', objectValueStart)
+      if (braceStart !== -1) {
+        const objectValueContent = extractBalancedBraces(trimmed, braceStart)
+        if (objectValueContent) {
+          // Look for type URL and proto content pattern
+          const typeUrlMatch = objectValueContent.match(/\[([^\]]+)\]\s*\{([^}]*)\}/)
+          if (typeUrlMatch) {
+            const typeUrl = typeUrlMatch[1]
+            const protoContent = typeUrlMatch[2].trim()
+            
+            // Extract field values from proto content
+            const protoObj: any = {}
+            
+            // Parse field assignments like "standalone_enum: BAR" or "single_int64: 17"
+            // Handle multiline content by splitting on newlines first
+            const lines = protoContent.split('\n').map(line => line.trim()).filter(line => line)
+            for (const line of lines) {
+              const fieldMatch = line.match(/(\w+):\s*(.+)/)
+              if (fieldMatch) {
+                const fieldName = fieldMatch[1]
+                const fieldValue = fieldMatch[2].trim()
+                
+                // Handle enum values (they appear as bare identifiers like BAR, FOO)
+                if (/^[A-Z_]+$/.test(fieldValue)) {
+                  // This is likely an enum value name
+                  protoObj[fieldName] = fieldValue
+                } else if (/^-?\d+$/.test(fieldValue)) {
+                  // This is a numeric value
+                  protoObj[fieldName] = parseInt(fieldValue)
+                } else if (fieldValue === 'true' || fieldValue === 'false') {
+                  protoObj[fieldName] = fieldValue === 'true'
+                } else {
+                  // String or other value
+                  protoObj[fieldName] = fieldValue
+                }
+              }
+            }
+            
+            return {
+              object_value: {
+                typeUrl,
+                value: protoObj
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return { object_value: {} }
   }
   
   return {}
@@ -718,6 +801,88 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
       result[key] = val
     }
     return result
+  }
+  if (value.object_value !== undefined) {
+    // Handle protobuf message objects
+    const obj = value.object_value as any
+    if (obj.typeUrl && obj.value) {
+      const result: any = { ...obj.value }
+      
+      // Check for special Google protobuf types
+      if (obj.typeUrl.includes('google.protobuf.Duration')) {
+        // Create a Duration object with necessary methods
+        const seconds = result.seconds || 0
+        const nanos = result.nanos || 0
+        const duration = {
+          seconds,
+          nanos,
+          getMilliseconds() {
+            // Return millisecond component (not total milliseconds)
+            return Math.floor(nanos / 1000000)
+          },
+          getSeconds() {
+            return seconds
+          },
+          getNanos() {
+            return nanos
+          }
+        }
+        return duration
+      }
+      
+      if (obj.typeUrl.includes('google.protobuf.Timestamp')) {
+        // Create a Timestamp object with necessary methods
+        const seconds = result.seconds || 0
+        const nanos = result.nanos || 0
+        const timestamp = {
+          seconds,
+          nanos,
+          getSeconds() {
+            return seconds
+          },
+          getNanos() {
+            return nanos
+          }
+        }
+        return timestamp
+      }
+      
+      // Handle TestAllTypes protobuf messages
+      if (obj.typeUrl.includes('TestAllTypes')) {
+        // For TestAllTypes messages, create an object with proper defaults
+        const testAllTypesObj: any = {}
+        
+        // Set defaults for known fields
+        testAllTypesObj.standalone_enum = result.standalone_enum !== undefined ? result.standalone_enum : 0
+        testAllTypesObj.repeated_nested_enum = result.repeated_nested_enum || []
+        
+        // Copy other fields
+        for (const [key, value] of Object.entries(result)) {
+          if (key !== 'standalone_enum' && key !== 'repeated_nested_enum') {
+            testAllTypesObj[key] = value
+          }
+        }
+        
+        return testAllTypesObj
+      }
+      
+      // Handle enum fields - convert enum names to their numeric values
+      for (const [fieldName, fieldValue] of Object.entries(result)) {
+        if (typeof fieldValue === 'string' && /^[A-Z_]+$/.test(fieldValue)) {
+          // This looks like an enum value name, convert to numeric value
+          if (fieldValue === 'FOO') result[fieldName] = 0
+          else if (fieldValue === 'BAR') result[fieldName] = 1  
+          else if (fieldValue === 'BAZ') result[fieldName] = 2
+          else if (fieldValue === 'GAR') result[fieldName] = 1
+          else if (fieldValue === 'GAZ') result[fieldName] = 2
+          else if (fieldValue === 'GOO') result[fieldName] = 0
+          // Add more enum mappings as needed
+        }
+      }
+      
+      return result
+    }
+    return obj
   }
   return undefined
 }

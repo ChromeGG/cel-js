@@ -228,6 +228,13 @@ export class ConformanceTestRunner {
         if ('standalone_enum' in fields) {
           let enumValue = fields.standalone_enum
           if (typeof enumValue === 'number') {
+            // Validate enum range (int32 range)
+            const MAX_INT32 = 2147483647
+            const MIN_INT32 = -2147483648
+            if (enumValue > MAX_INT32 || enumValue < MIN_INT32) {
+              throw new CelEvaluationError('enum value out of range')
+            }
+            
             if (isStrongMode) {
               result.standalone_enum = new CelEnum(nestedEnumTypeName, enumValue)
             } else {
