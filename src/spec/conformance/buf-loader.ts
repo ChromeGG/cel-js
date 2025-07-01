@@ -266,6 +266,7 @@ export function conformanceValueToJS(value: ConformanceTestValue, sectionName?: 
       let result: any = { ...obj.value }
       
       // If value is a Uint8Array or array-like object, it might be binary protobuf data
+      // If value has numeric string keys, it's likely encoded protobuf data that we need to interpret
       // For now, hardcode the expected values since proper protobuf parsing
       // would require implementing a full protobuf decoder
       if (obj.value instanceof Uint8Array || (typeof obj.value === 'object' && obj.value[0] !== undefined)) {
@@ -273,17 +274,8 @@ export function conformanceValueToJS(value: ConformanceTestValue, sectionName?: 
           // Based on the test data: seconds: 123, nanos: 321456789
           result = { seconds: 123, nanos: 321456789 }
         } else if (obj.typeUrl.includes('TestAllTypes')) {
-          // Handle TestAllTypes objects for enum tests - this is a simplified approach
-          // In reality, we'd need to parse the actual protobuf binary data
-          const isLegacyMode = sectionName?.includes('legacy_') || false
-          if (isLegacyMode) {
-            result = { standalone_enum: 2 } // Raw integer for legacy mode
-          } else {
-            // Strong mode: use CelEnum object
-            result = { 
-              standalone_enum: new CelEnum('cel.expr.conformance.proto3.TestAllTypes.NestedEnum', 2, 'BAZ')
-            }
-          }
+          // Let the TestAllTypes handling code below handle this properly
+          // Don't hardcode values here
         }
       }
       

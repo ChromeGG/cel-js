@@ -895,7 +895,15 @@ export class CelVisitor
           result = (result as any).__constructor(structData)
         } else if (typeof result === 'string') {
           const typeName = result
-          if (typeName.includes('google.protobuf') && typeName.endsWith('Value')) {
+          if (typeName === 'google.protobuf.Any') {
+            // Handle protobuf Any type - store type_url and value for unpacking during comparison
+            result = {
+              __celType: 'google.protobuf.Any',
+              type_url: structData.type_url || '',
+              value: structData.value || new Uint8Array(),
+              ...structData
+            }
+          } else if (typeName.includes('google.protobuf') && typeName.endsWith('Value')) {
             // Handle protobuf wrapper types - return the wrapped value
             if ('value' in structData) {
               result = structData.value
