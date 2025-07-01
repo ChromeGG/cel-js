@@ -44,8 +44,14 @@ enum Mode {
 }
 
 /** Collection macros that operate on lists and maps */
-const COLLECTION_MACROS = ['all', 'exists', 'exists_one', 'filter', 'map'] as const
-type CollectionMacro = typeof COLLECTION_MACROS[number]
+const COLLECTION_MACROS = [
+  'all',
+  'exists',
+  'exists_one',
+  'filter',
+  'map',
+] as const
+type CollectionMacro = (typeof COLLECTION_MACROS)[number]
 
 const parserInstance = new CelParser()
 
@@ -108,25 +114,35 @@ export class CelVisitor
   ): unknown {
     // Validate collection type
     if (!Array.isArray(collection) && !this.isMap(collection)) {
-      throw new CelEvaluationError(`${macroName}() can only be called on lists or maps`)
+      throw new CelEvaluationError(
+        `${macroName}() can only be called on lists or maps`,
+      )
     }
 
     // Extract arguments
-    const expressions = [
-      ...(ctx.arg ? [ctx.arg] : []),
-      ...(ctx.args || []),
-    ]
+    const expressions = [...(ctx.arg ? [ctx.arg] : []), ...(ctx.args || [])]
 
     if (expressions.length < 2) {
-      throw new CelEvaluationError(`${macroName}() requires at least 2 arguments`)
+      throw new CelEvaluationError(
+        `${macroName}() requires at least 2 arguments`,
+      )
     }
 
-    const variableExpr = Array.isArray(expressions[0]) ? expressions[0][0] : expressions[0]
-    const predicateExpr = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
+    const variableExpr = Array.isArray(expressions[0])
+      ? expressions[0][0]
+      : expressions[0]
+    const predicateExpr = Array.isArray(expressions[1])
+      ? expressions[1][0]
+      : expressions[1]
 
     // Extract variable name (should be an identifier)
-    if (variableExpr.name !== 'expr' || !variableExpr.children.conditionalOr[0]) {
-      throw new CelEvaluationError(`${macroName}() first argument must be a variable name`)
+    if (
+      variableExpr.name !== 'expr' ||
+      !variableExpr.children.conditionalOr[0]
+    ) {
+      throw new CelEvaluationError(
+        `${macroName}() first argument must be a variable name`,
+      )
     }
 
     // Navigate to get the identifier - this is a simplified approach
@@ -134,9 +150,9 @@ export class CelVisitor
     const variableName = this.extractVariableName(variableExpr)
 
     const isMap = this.isMap(collection)
-    const iterationItems = isMap 
-      ? Object.keys(collection as Record<string, unknown>)  // iterate over keys
-      : collection as unknown[]                             // iterate over values
+    const iterationItems = isMap
+      ? Object.keys(collection as Record<string, unknown>) // iterate over keys
+      : (collection as unknown[]) // iterate over values
 
     // Handle based on macro type
     switch (macroName) {
@@ -161,15 +177,17 @@ export class CelVisitor
    */
   private extractVariableName(variableExpr: unknown): string {
     const expr = variableExpr as ExprCstNode
-    
+
     // Set extraction mode and use existing visitor traversal
     const originalMode = this.mode
     this.mode = Mode.extract_variable
-    
+
     try {
       const result = this.visit(expr)
       if (typeof result !== 'string') {
-        throw new CelEvaluationError('Variable name must be a simple identifier')
+        throw new CelEvaluationError(
+          'Variable name must be a simple identifier',
+        )
       }
       return result
     } catch (error) {
@@ -188,7 +206,7 @@ export class CelVisitor
   private evaluateWithBinding(
     expression: ExprCstNode,
     variableName: string,
-    variableValue: unknown
+    variableValue: unknown,
   ): unknown {
     // Save original context
     const originalValue = this.context[variableName]
@@ -197,7 +215,7 @@ export class CelVisitor
     try {
       // Bind loop variable
       this.context[variableName] = variableValue
-      
+
       // Evaluate expression with bound variable
       return this.visit(expression)
     } finally {
@@ -216,19 +234,19 @@ export class CelVisitor
   private handleFilter(
     iterationItems: unknown[],
     variable: string,
-    predicate: ExprCstNode
+    predicate: ExprCstNode,
   ): unknown[] {
     const results: unknown[] = []
-    
+
     for (const item of iterationItems) {
       const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
-      
+
       if (shouldInclude) {
         // For both maps and lists, return the iteration item (key for maps, value for lists)
         results.push(item)
       }
     }
-    
+
     return results
   }
 
@@ -238,25 +256,39 @@ export class CelVisitor
   private handleMap(
     iterationItems: unknown[],
     variable: string,
-    expressions: (ExprCstNode | ExprCstNode[])[]
+    expressions: (ExprCstNode | ExprCstNode[])[],
   ): unknown[] {
     if (expressions.length === 2) {
       // Simple transform: map(var, transform)
-      const transform = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
-      return iterationItems.map(item => 
-        this.evaluateWithBinding(transform, variable, item)
+      const transform = Array.isArray(expressions[1])
+        ? expressions[1][0]
+        : expressions[1]
+      return iterationItems.map((item) =>
+        this.evaluateWithBinding(transform, variable, item),
       )
     } else if (expressions.length === 3) {
       // Filter + transform: map(var, predicate, transform)
-      const predicate = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
-      const transform = Array.isArray(expressions[2]) ? expressions[2][0] : expressions[2]
-      
+      const predicate = Array.isArray(expressions[1])
+        ? expressions[1][0]
+        : expressions[1]
+      const transform = Array.isArray(expressions[2])
+        ? expressions[2][0]
+        : expressions[2]
+
       const results: unknown[] = []
       for (const item of iterationItems) {
-        const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
-        
+        const shouldInclude = this.evaluateWithBinding(
+          predicate,
+          variable,
+          item,
+        )
+
         if (shouldInclude) {
-          const transformed = this.evaluateWithBinding(transform, variable, item)
+          const transformed = this.evaluateWithBinding(
+            transform,
+            variable,
+            item,
+          )
           results.push(transformed)
         }
       }
@@ -272,10 +304,10 @@ export class CelVisitor
   private handleAll(
     iterationItems: unknown[],
     variable: string,
-    predicate: ExprCstNode
+    predicate: ExprCstNode,
   ): boolean {
-    return iterationItems.every(item => 
-      this.evaluateWithBinding(predicate, variable, item)
+    return iterationItems.every((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
     )
   }
 
@@ -285,10 +317,10 @@ export class CelVisitor
   private handleExists(
     iterationItems: unknown[],
     variable: string,
-    predicate: ExprCstNode
+    predicate: ExprCstNode,
   ): boolean {
-    return iterationItems.some(item => 
-      this.evaluateWithBinding(predicate, variable, item)
+    return iterationItems.some((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
     )
   }
 
@@ -298,10 +330,10 @@ export class CelVisitor
   private handleExistsOne(
     iterationItems: unknown[],
     variable: string,
-    predicate: ExprCstNode
+    predicate: ExprCstNode,
   ): boolean {
-    const matches = iterationItems.filter(item => 
-      this.evaluateWithBinding(predicate, variable, item)
+    const matches = iterationItems.filter((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
     )
     return matches.length === 1
   }
@@ -719,7 +751,9 @@ export class CelVisitor
     if (this.mode === Mode.extract_variable) {
       // Must be a simple identifier (no dot notation or indexing)
       if (ctx.identifierDotExpression || ctx.identifierIndexExpression) {
-        throw new CelEvaluationError('Variable name must be a simple identifier')
+        throw new CelEvaluationError(
+          'Variable name must be a simple identifier',
+        )
       }
       return ctx.Identifier[0].image
     }
@@ -757,9 +791,13 @@ export class CelVisitor
     // Check if this is a collection macro call (has parentheses and arguments)
     if (ctx.OpenParenthesis) {
       if (this.isCollectionMacro(identifierName)) {
-        return this.handleCollectionMacroCall(identifierName as CollectionMacro, param, ctx)
+        return this.handleCollectionMacroCall(
+          identifierName as CollectionMacro,
+          param,
+          ctx,
+        )
       }
-      
+
       throw new CelEvaluationError(`Unknown method: ${identifierName}`)
     }
 
