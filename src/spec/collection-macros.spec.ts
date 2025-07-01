@@ -185,6 +185,44 @@ describe('collection macros', () => {
       
       expect(() => evaluate('str.map(n, n * 2)', contextWithString)).toThrow(CelEvaluationError)
     })
+
+    describe('variable name validation', () => {
+      it('should reject complex expressions as variable names', () => {
+        expect(() => evaluate('numbers.filter(x + y, true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject ternary expressions as variable names', () => {
+        expect(() => evaluate('numbers.filter(x ? y : z, true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject comparison expressions as variable names', () => {
+        expect(() => evaluate('numbers.filter(x > 5, true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject dot notation as variable names', () => {
+        expect(() => evaluate('numbers.filter(obj.prop, true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject index expressions as variable names', () => {
+        expect(() => evaluate('numbers.filter(arr[0], true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject function calls as variable names', () => {
+        expect(() => evaluate('numbers.filter(func(), true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should reject literals as variable names', () => {
+        expect(() => evaluate('numbers.filter(123, true)', context)).toThrow('Variable name must be a simple identifier')
+        expect(() => evaluate('numbers.filter("string", true)', context)).toThrow('Variable name must be a simple identifier')
+        expect(() => evaluate('numbers.filter(true, true)', context)).toThrow('Variable name must be a simple identifier')
+      })
+
+      it('should accept simple identifiers as variable names', () => {
+        // This should work fine
+        expect(() => evaluate('numbers.filter(item, item > 3)', context)).not.toThrow()
+        expect(() => evaluate('groups.map(group, group.name)', context)).not.toThrow()
+      })
+    })
   })
 
   describe('nested macros', () => {
