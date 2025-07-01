@@ -460,10 +460,8 @@ const multiplicationOperation = (left: unknown, right: unknown) => {
     // Handle floating point operations first to avoid incorrect integer overflow
     if (isFloat(left) || isFloat(right)) {
       const result = Number(left) * Number(right)
-      // Check for floating point overflow - return undefined for CEL conformance
-      if (!isFinite(result)) {
-        return undefined
-      }
+      // Let floating point overflow return Infinity/-Infinity for CEL conformance
+      // Don't check isFinite - allow Infinity values to be returned
       return result
     }
     

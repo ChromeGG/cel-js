@@ -40,12 +40,12 @@ function mapTestCase(test: any): ConformanceTestCase {
 
   // Handle result matcher which contains the expected value or error
   if (test.resultMatcher) {
-    if (test.resultMatcher.value) {
+    if (test.resultMatcher.case === 'value' && test.resultMatcher.value) {
       mapped.value = mapValue(test.resultMatcher.value);
     }
-    if (test.resultMatcher.evalError) {
+    if (test.resultMatcher.case === 'evalError' && test.resultMatcher.value) {
       mapped.eval_error = {
-        errors: test.resultMatcher.evalError.errors?.map((err: any) => ({
+        errors: test.resultMatcher.value.errors?.map((err: any) => ({
           message: err.message || ''
         })) || []
       };
@@ -55,9 +55,18 @@ function mapTestCase(test: any): ConformanceTestCase {
   if (test.bindings) {
     mapped.bindings = {};
     for (const [key, binding] of Object.entries(test.bindings)) {
-      mapped.bindings[key] = {
-        value: mapValue((binding as any).value)
-      };
+      // Bindings have ExprValue structure with nested kind.value
+      const bindingValue = (binding as any);
+      if (bindingValue.kind && bindingValue.kind.case === 'value') {
+        mapped.bindings[key] = {
+          value: mapValue(bindingValue.kind.value)
+        };
+      } else {
+        // Fallback for other structures
+        mapped.bindings[key] = {
+          value: mapValue(bindingValue.value || bindingValue)
+        };
+      }
     }
   }
 
@@ -221,8 +230,16 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
   if (value.double_value !== undefined) return value.double_value
   if (value.string_value !== undefined) return value.string_value
   if (value.bytes_value !== undefined) {
-    // Convert byte string with escape sequences to Uint8Array
-    return processTextprotoByteString(value.bytes_value)
+    // bytes_value is already a Uint8Array from the protobuf parser
+    if (value.bytes_value instanceof Uint8Array) {
+      return value.bytes_value
+    }
+    // Fallback: if it's a string, process escape sequences
+    if (typeof value.bytes_value === 'string') {
+      return processTextprotoByteString(value.bytes_value)
+    }
+    // If it's some other type, convert to Uint8Array
+    return new Uint8Array(0)
   }
   if (value.bool_value !== undefined) return value.bool_value
   if (value.null_value !== undefined) return null

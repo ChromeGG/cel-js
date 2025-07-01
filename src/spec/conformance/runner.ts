@@ -85,6 +85,7 @@ export class ConformanceTestRunner {
           context[key] = conformanceValueToJS(binding.value)
         }
       }
+
       
       // Add enum definitions for conformance tests
       // Check if test expression contains enum references or if this is an enum test file

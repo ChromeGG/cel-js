@@ -61,8 +61,8 @@ describe('CEL Conformance Tests', () => {
       console.log(`Integer math tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
       
       // We expect a minimum pass rate to prevent regressions  
-      // Current: 45/64 = 70.3% (updated with buf loader)
-      expect(passRate).toBeGreaterThanOrEqual(70)
+      // Current: 64/64 = 100% (fixed error handling)
+      expect(passRate).toBeGreaterThanOrEqual(100)
     })
   })
 
