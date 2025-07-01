@@ -18,6 +18,7 @@ import {
   UnaryExpressionCstChildren,
   MapKeyValuesCstChildren,
   MapExpressionCstChildren,
+  ExprCstNode,
 } from './cst-definitions.js'
 
 import {
@@ -38,7 +39,17 @@ enum Mode {
   'normal',
   /** The visitor is executed inside a has macro */
   'has',
+  /** The visitor is executed inside a collection macro */
+  'collection_macro',
 }
+
+/** Collection macros that operate on lists and maps */
+const COLLECTION_MACROS = ['all', 'exists', 'exists_one', 'filter', 'map'] as const
+type CollectionMacro = typeof COLLECTION_MACROS[number]
+
+/** String macros that operate on strings */
+const STRING_MACROS = ['startsWith', 'contains', 'endsWith'] as const
+type StringMacro = typeof STRING_MACROS[number]
 
 const parserInstance = new CelParser()
 
@@ -76,6 +87,245 @@ export class CelVisitor
   private mode: Mode = Mode.normal
 
   private functions: Record<string, CallableFunction>
+
+  /**
+   * Checks if the given identifier is a collection macro.
+   */
+  private isCollectionMacro(identifier: string): boolean {
+    return COLLECTION_MACROS.includes(identifier as CollectionMacro)
+  }
+
+  /**
+   * Checks if the given identifier is a string macro.
+   */
+  private isStringMacro(identifier: string): boolean {
+    return STRING_MACROS.includes(identifier as StringMacro)
+  }
+
+  /**
+   * Checks if the given value is a map (object).
+   */
+  private isMap(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  }
+
+  /**
+   * Handles collection macro calls like collection.filter(item, predicate).
+   */
+  private handleCollectionMacroCall(
+    macroName: CollectionMacro,
+    collection: unknown,
+    ctx: IdentifierDotExpressionCstChildren,
+  ): unknown {
+    // Validate collection type
+    if (!Array.isArray(collection) && !this.isMap(collection)) {
+      throw new CelEvaluationError(`${macroName}() can only be called on lists or maps`)
+    }
+
+    // Extract arguments
+    const expressions = [
+      ...(ctx.arg ? [ctx.arg] : []),
+      ...(ctx.args || []),
+    ]
+
+    if (expressions.length < 2) {
+      throw new CelEvaluationError(`${macroName}() requires at least 2 arguments`)
+    }
+
+    const variableExpr = Array.isArray(expressions[0]) ? expressions[0][0] : expressions[0]
+    const predicateExpr = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
+
+    // Extract variable name (should be an identifier)
+    if (variableExpr.name !== 'expr' || !variableExpr.children.conditionalOr[0]) {
+      throw new CelEvaluationError(`${macroName}() first argument must be a variable name`)
+    }
+
+    // Navigate to get the identifier - this is a simplified approach
+    // In a real implementation, we'd need to ensure this is specifically an identifier
+    const variableName = this.extractVariableName(variableExpr)
+
+    const isMap = this.isMap(collection)
+    const iterationItems = isMap 
+      ? Object.keys(collection as Record<string, unknown>)  // iterate over keys
+      : collection as unknown[]                             // iterate over values
+
+    // Handle based on macro type
+    switch (macroName) {
+      case 'filter':
+        return this.handleFilter(iterationItems, variableName, predicateExpr)
+      case 'map':
+        return this.handleMap(iterationItems, variableName, expressions)
+      case 'all':
+        return this.handleAll(iterationItems, variableName, predicateExpr)
+      case 'exists':
+        return this.handleExists(iterationItems, variableName, predicateExpr)
+      case 'exists_one':
+        return this.handleExistsOne(iterationItems, variableName, predicateExpr)
+      default:
+        throw new CelEvaluationError(`Unknown collection macro: ${macroName}`)
+    }
+  }
+
+  /**
+   * Placeholder for string macro handling (to be implemented later).
+   */
+  private handleStringMacroCall(
+    macroName: StringMacro,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _str: unknown,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _ctx: IdentifierDotExpressionCstChildren,
+  ): never {
+    throw new CelEvaluationError(`String macro ${macroName} not implemented yet`)
+  }
+
+  /**
+   * Extracts the variable name from a variable expression.
+   * This is a simplified implementation that assumes the variable is a simple identifier.
+   */
+  private extractVariableName(variableExpr: unknown): string {
+    // Navigate through the CST to find the identifier
+    // This is a simplified implementation - in practice, we'd need more robust parsing
+    try {
+      const expr = variableExpr as ExprCstNode
+      const conditionalOr = expr.children.conditionalOr[0]
+      const conditionalAnd = conditionalOr.children.lhs[0]
+      const relation = conditionalAnd.children.lhs[0]
+      const addition = relation.children.lhs[0]
+      const multiplication = addition.children.lhs[0]
+      const unaryExpression = multiplication.children.lhs[0]
+      const atomicExpression = unaryExpression.children.atomicExpression[0]
+      const identifierExpression = atomicExpression.children.identifierExpression?.[0]
+      const identifier = identifierExpression?.children.Identifier[0]
+      return identifier?.image || ''
+    } catch {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+  }
+
+  /**
+   * Evaluates an expression with a bound variable in the context.
+   */
+  private evaluateWithBinding(
+    expression: ExprCstNode,
+    variableName: string,
+    variableValue: unknown
+  ): unknown {
+    // Save original context
+    const originalValue = this.context[variableName]
+    const hadOriginalValue = variableName in this.context
+
+    try {
+      // Bind loop variable
+      this.context[variableName] = variableValue
+      
+      // Evaluate expression with bound variable
+      return this.visit(expression)
+    } finally {
+      // Restore original context
+      if (hadOriginalValue) {
+        this.context[variableName] = originalValue
+      } else {
+        delete this.context[variableName]
+      }
+    }
+  }
+
+  /**
+   * Handles the filter collection macro.
+   */
+  private handleFilter(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode
+  ): unknown[] {
+    const results: unknown[] = []
+    
+    for (const item of iterationItems) {
+      const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
+      
+      if (shouldInclude) {
+        // For both maps and lists, return the iteration item (key for maps, value for lists)
+        results.push(item)
+      }
+    }
+    
+    return results
+  }
+
+  /**
+   * Handles the map collection macro (with transform or filter+transform).
+   */
+  private handleMap(
+    iterationItems: unknown[],
+    variable: string,
+    expressions: (ExprCstNode | ExprCstNode[])[]
+  ): unknown[] {
+    if (expressions.length === 2) {
+      // Simple transform: map(var, transform)
+      const transform = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
+      return iterationItems.map(item => 
+        this.evaluateWithBinding(transform, variable, item)
+      )
+    } else if (expressions.length === 3) {
+      // Filter + transform: map(var, predicate, transform)
+      const predicate = Array.isArray(expressions[1]) ? expressions[1][0] : expressions[1]
+      const transform = Array.isArray(expressions[2]) ? expressions[2][0] : expressions[2]
+      
+      const results: unknown[] = []
+      for (const item of iterationItems) {
+        const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
+        
+        if (shouldInclude) {
+          const transformed = this.evaluateWithBinding(transform, variable, item)
+          results.push(transformed)
+        }
+      }
+      return results
+    } else {
+      throw new CelEvaluationError('map() requires 2 or 3 arguments')
+    }
+  }
+
+  /**
+   * Handles the all collection macro.
+   */
+  private handleAll(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode
+  ): boolean {
+    return iterationItems.every(item => 
+      this.evaluateWithBinding(predicate, variable, item)
+    )
+  }
+
+  /**
+   * Handles the exists collection macro.
+   */
+  private handleExists(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode
+  ): boolean {
+    return iterationItems.some(item => 
+      this.evaluateWithBinding(predicate, variable, item)
+    )
+  }
+
+  /**
+   * Handles the exists_one collection macro.
+   */
+  private handleExistsOne(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode
+  ): boolean {
+    const matches = iterationItems.filter(item => 
+      this.evaluateWithBinding(predicate, variable, item)
+    )
+    return matches.length === 1
+  }
 
   /**
    * Evaluates the expression including conditional ternary expressions in the form: condition ? trueExpr : falseExpr
@@ -322,7 +572,8 @@ export class CelVisitor
 
     return expressions.reduce((acc: unknown, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        return this.getIdentifier(acc, expression.children.Identifier[0].image)
+        // Call the visitor method to handle collection macros
+        return this.identifierDotExpression(expression.children, acc)
       }
 
       const index = this.visit(expression.children.expr[0])
@@ -474,6 +725,21 @@ export class CelVisitor
     param: unknown,
   ): unknown {
     const identifierName = ctx.Identifier[0].image
+
+    // Check if this is a collection macro call (has parentheses and arguments)
+    if (ctx.OpenParenthesis) {
+      if (this.isCollectionMacro(identifierName)) {
+        return this.handleCollectionMacroCall(identifierName as CollectionMacro, param, ctx)
+      }
+      
+      if (this.isStringMacro(identifierName)) {
+        return this.handleStringMacroCall(identifierName as StringMacro, param, ctx)
+      }
+      
+      throw new CelEvaluationError(`Unknown method: ${identifierName}`)
+    }
+
+    // Regular property access
     return this.getIdentifier(param, identifierName)
   }
 
