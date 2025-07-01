@@ -41,6 +41,8 @@ enum Mode {
   'has',
   /** The visitor is executed inside a collection macro */
   'collection_macro',
+  /** The visitor is extracting a variable name */
+  'extract_variable',
 }
 
 /** Collection macros that operate on lists and maps */
@@ -156,26 +158,29 @@ export class CelVisitor
   }
 
   /**
-   * Extracts the variable name from a variable expression.
-   * This is a simplified implementation that assumes the variable is a simple identifier.
+   * Extracts the variable name from a variable expression, ensuring it's a simple identifier.
+   * Reuses the existing visitor infrastructure with a special mode.
    */
   private extractVariableName(variableExpr: unknown): string {
-    // Navigate through the CST to find the identifier
-    // This is a simplified implementation - in practice, we'd need more robust parsing
+    const expr = variableExpr as ExprCstNode
+    
+    // Set extraction mode and use existing visitor traversal
+    const originalMode = this.mode
+    this.mode = Mode.extract_variable
+    
     try {
-      const expr = variableExpr as ExprCstNode
-      const conditionalOr = expr.children.conditionalOr[0]
-      const conditionalAnd = conditionalOr.children.lhs[0]
-      const relation = conditionalAnd.children.lhs[0]
-      const addition = relation.children.lhs[0]
-      const multiplication = addition.children.lhs[0]
-      const unaryExpression = multiplication.children.lhs[0]
-      const atomicExpression = unaryExpression.children.atomicExpression[0]
-      const identifierExpression = atomicExpression.children.identifierExpression?.[0]
-      const identifier = identifierExpression?.children.Identifier[0]
-      return identifier?.image || ''
-    } catch {
+      const result = this.visit(expr)
+      if (typeof result !== 'string') {
+        throw new CelEvaluationError('Variable name must be a simple identifier')
+      }
+      return result
+    } catch (error) {
+      if (error instanceof CelEvaluationError) {
+        throw error
+      }
       throw new CelEvaluationError('Variable name must be a simple identifier')
+    } finally {
+      this.mode = originalMode
     }
   }
 
@@ -310,6 +315,11 @@ export class CelVisitor
    * @returns The result of evaluating the expression
    */
   public expr(ctx: ExprCstChildren): unknown {
+    // In variable extraction mode, reject ternary expressions
+    if (this.mode === Mode.extract_variable && ctx.QuestionMark) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     const condition = this.visit(ctx.conditionalOr[0])
 
     // If no ternary operator is present, just return the condition
@@ -370,6 +380,11 @@ export class CelVisitor
   }
 
   conditionalOr(ctx: ConditionalOrCstChildren): boolean {
+    // In variable extraction mode, reject OR operations
+    if (this.mode === Mode.extract_variable && ctx.rhs) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -398,6 +413,11 @@ export class CelVisitor
    * with logical AND operations.
    */
   conditionalAnd(ctx: ConditionalAndCstChildren): boolean {
+    // In variable extraction mode, reject AND operations
+    if (this.mode === Mode.extract_variable && ctx.rhs) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     let left = this.visit(ctx.lhs)
 
     // Short circuit if left is false. Required to quick fail for has() macro.
@@ -418,6 +438,11 @@ export class CelVisitor
   }
 
   relation(ctx: RelationCstChildren): boolean {
+    // In variable extraction mode, reject comparison operations
+    if (this.mode === Mode.extract_variable && ctx.rhs) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     const left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -432,6 +457,11 @@ export class CelVisitor
   }
 
   addition(ctx: AdditionCstChildren): unknown {
+    // In variable extraction mode, reject addition operations
+    if (this.mode === Mode.extract_variable && ctx.rhs) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -447,6 +477,11 @@ export class CelVisitor
   }
 
   multiplication(ctx: MultiplicationCstChildren) {
+    // In variable extraction mode, reject multiplication operations
+    if (this.mode === Mode.extract_variable && ctx.rhs) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -462,6 +497,11 @@ export class CelVisitor
   }
 
   unaryExpression(ctx: UnaryExpressionCstChildren): unknown {
+    // In variable extraction mode, reject unary operations
+    if (this.mode === Mode.extract_variable && ctx.UnaryOperator) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     if (ctx.UnaryOperator) {
       const operator = ctx.UnaryOperator
       const operand = this.visit(ctx.atomicExpression)
@@ -611,6 +651,11 @@ export class CelVisitor
    * - Macro expressions
    */
   atomicExpression(ctx: AtomicExpressionCstChildren) {
+    // In variable extraction mode, only allow identifierExpression
+    if (this.mode === Mode.extract_variable && !ctx.identifierExpression) {
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    }
+
     if (ctx.Null) {
       return null
     }
@@ -672,6 +717,15 @@ export class CelVisitor
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
+    // Handle variable extraction mode
+    if (this.mode === Mode.extract_variable) {
+      // Must be a simple identifier (no dot notation or indexing)
+      if (ctx.identifierDotExpression || ctx.identifierIndexExpression) {
+        throw new CelEvaluationError('Variable name must be a simple identifier')
+      }
+      return ctx.Identifier[0].image
+    }
+
     // Validate that we have a dot expression when in a has() macro
     if (this.mode === Mode.has && !ctx.identifierDotExpression?.length) {
       throw new CelEvaluationError('has() requires a field selection')
