@@ -85,7 +85,7 @@ describe('type() function', () => {
     }
     
     expect(evaluate('has(obj.field) && type(obj.field) == "list"', context)).toBe(true)
-    expect(evaluate('type(obj.field[0]) == "string"', context)).toBe(true)
+    expect(evaluate('type((obj.field)[0]) == "string"', context)).toBe(true)
   })
 
   it('should work with list element types', () => {

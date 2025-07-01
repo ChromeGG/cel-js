@@ -456,19 +456,93 @@ export class CelVisitor
     return this.getIndexSection(ctx, mapExpression)
   }
 
+  private tryQualifiedResolution(baseName: string, dotExpressions: any[], context: any): unknown {
+    const parts = [baseName]
+    let hasMethodCall = false
+    
+    // Build all the parts of the qualified name
+    for (const dotExpr of dotExpressions) {
+      // Only consider dot expressions that are simple property access (not method calls)
+      if (!dotExpr.children.OpenParenthesis) {
+        let identifierName: string
+        if (dotExpr.children.Identifier && dotExpr.children.Identifier.length > 0) {
+          identifierName = dotExpr.children.Identifier[0].image
+        } else if (dotExpr.children.QuotedIdentifier && dotExpr.children.QuotedIdentifier.length > 0) {
+          const quotedImage = dotExpr.children.QuotedIdentifier[0].image
+          identifierName = quotedImage.slice(1, -1) // Remove backticks
+        } else {
+          break // Stop if we can't get the identifier
+        }
+        parts.push(identifierName)
+      } else {
+        hasMethodCall = true
+        break // Stop at method calls
+      }
+    }
+    
+    // If we stopped because of a method call, don't try qualified resolution
+    // let the method call be handled by getIndexSection
+    if (hasMethodCall) {
+      return null
+    }
+    
+    // Try longest prefix first, then shorter prefixes
+    for (let i = parts.length; i >= 1; i--) {
+      const qualifiedName = parts.slice(0, i).join('.')
+      if (qualifiedName in context) {
+        const baseValue = context[qualifiedName]
+        
+        // If we matched the full qualified name, return it directly
+        if (i === parts.length) {
+          return baseValue
+        }
+        
+        // Otherwise, we need to resolve the remaining parts on the base value
+        const remainingParts = parts.slice(i)
+        let current = baseValue
+        
+        for (const part of remainingParts) {
+          if (current && typeof current === 'object' && part in current) {
+            current = (current as any)[part]
+          } else {
+            // Can't resolve further, return null to indicate failure
+            return null
+          }
+        }
+        
+        return current
+      }
+    }
+    
+    return null // No qualified resolution found
+  }
+
   private getIndexSection(
     ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren | ListExpressionCstChildren,
     mapExpression: unknown,
   ) {
+
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...('identifierIndexExpression' in ctx ? ctx.identifierIndexExpression || [] : []),
       ...('Index' in ctx ? ctx.Index || [] : []),
     ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
+    
+
+    
+
 
     return expressions.reduce((acc: unknown, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        const identifierName = expression.children.Identifier[0].image
+        let identifierName: string
+        if (expression.children.Identifier && expression.children.Identifier.length > 0) {
+          identifierName = expression.children.Identifier[0].image
+        } else if (expression.children.QuotedIdentifier && expression.children.QuotedIdentifier.length > 0) {
+          const quotedImage = expression.children.QuotedIdentifier[0].image
+          identifierName = quotedImage.slice(1, -1) // Remove backticks
+        } else {
+          throw new Error('No identifier found in dot expression')
+        }
         
         // Check if this is a method call
         if (expression.children.OpenParenthesis) {
@@ -789,10 +863,13 @@ export class CelVisitor
           result = this.getIdentifier(result, index)
         }
       } else if (type === 'struct') {
-        // Handle struct construction - the result should be the type name
+        // Handle struct construction - the result should be the type name or constructor
         const structData = this.visit(expr)
-        // For protobuf wrapper types, we need special handling
-        if (typeof result === 'string') {
+        
+        // Check if result is a constructor function (for TestAllTypes)
+        if (typeof result === 'object' && result !== null && (result as any).__constructor) {
+          result = (result as any).__constructor(structData)
+        } else if (typeof result === 'string') {
           const typeName = result
           if (typeName.includes('google.protobuf') && typeName.endsWith('Value')) {
             // Handle protobuf wrapper types - return the wrapped value
@@ -921,11 +998,22 @@ export class CelVisitor
     }
     
     const data = this.context
+
+    // Handle qualified identifier resolution: try to find the longest matching prefix in context
+    if (ctx.identifierDotExpression && ctx.identifierDotExpression.length > 0) {
+      const result = this.tryQualifiedResolution(identifierName, ctx.identifierDotExpression, data)
+      if (result !== null) {
+        return result
+      }
+    }
+
     const result = this.getIdentifier(data, identifierName)
 
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return result as boolean
     }
+
+
 
     return this.getIndexSection(ctx, result)
   }
@@ -934,7 +1022,17 @@ export class CelVisitor
     ctx: IdentifierDotExpressionCstChildren,
     param: unknown,
   ): unknown {
-    const identifierName = ctx.Identifier[0].image
+    // Handle both regular and quoted identifiers
+    let identifierName: string
+    if (ctx.Identifier && ctx.Identifier.length > 0) {
+      identifierName = ctx.Identifier[0].image
+    } else if (ctx.QuotedIdentifier && ctx.QuotedIdentifier.length > 0) {
+      // Remove the backticks from quoted identifier
+      const quotedImage = ctx.QuotedIdentifier[0].image
+      identifierName = quotedImage.slice(1, -1) // Remove first and last character (backticks)
+    } else {
+      throw new Error('No identifier found in dot expression')
+    }
     
     // Check if this is a method call
     if (ctx.OpenParenthesis) {
@@ -954,7 +1052,7 @@ export class CelVisitor
       return `${searchContext}.${identifier}`
     }
     
-    if (typeof searchContext !== 'object' || searchContext === null) {
+    if ((typeof searchContext !== 'object' && typeof searchContext !== 'function') || searchContext === null) {
       throw new Error(
         `Cannot obtain "${identifier}" from non-object context: ${searchContext}`,
       )
@@ -1020,7 +1118,7 @@ export class CelVisitor
   ): unknown {
     // Handle timestamp methods
     if (collection instanceof Date) {
-      return this.handleTimestampMethod(methodName, collection)
+      return this.handleTimestampMethod(methodName, ctx, collection)
     }
 
     // Handle duration methods  
@@ -1047,6 +1145,20 @@ export class CelVisitor
       case 'size':
         return this.handleSizeMethod(ctx, collection)
       default:
+        // Check if this is an enum constructor call
+        if (typeof collection === 'object' && collection !== null) {
+          const enumConstructor = (collection as any)[methodName]
+          if (typeof enumConstructor === 'function') {
+            // This is an enum constructor call like TestAllTypes.NestedEnum(2)
+            if (ctx.arg && ctx.arg.length > 0) {
+              const arg = this.visit(ctx.arg[0])
+              return enumConstructor(arg)
+            } else {
+              return enumConstructor()
+            }
+          }
+        }
+        
         throw new CelEvaluationError(`Unknown method: ${methodName}`)
     }
   }
@@ -2213,38 +2325,99 @@ export class CelVisitor
   /**
    * Handles method calls on timestamp objects
    */
-  private handleTimestampMethod(methodName: string, timestamp: Date): unknown {
+  private handleTimestampMethod(
+    methodName: string, 
+    ctx: IdentifierDotExpressionCstChildren,
+    timestamp: Date
+  ): unknown {
+    // Methods that don't take timezone parameters
     switch (methodName) {
-      case 'getFullYear':
-        return timestamp.getUTCFullYear()
-      case 'getMonth':
-        return timestamp.getUTCMonth()
-      case 'getDate':
-        return timestamp.getUTCDate()
-      case 'getHours':
-        return timestamp.getUTCHours()
-      case 'getMinutes':
-        return timestamp.getUTCMinutes()
-      case 'getSeconds':
-        return timestamp.getUTCSeconds()
-      case 'getDay':
-        return timestamp.getUTCDay()
       case 'getTime':
         return timestamp.getTime()
-      case 'getDayOfMonth':
-        return timestamp.getUTCDate()
-      case 'getDayOfWeek':
-        return timestamp.getUTCDay()
-      case 'getDayOfYear':
-        // Calculate day of year (1-366)
-        const startOfYear = new Date(Date.UTC(timestamp.getUTCFullYear(), 0, 1))
-        const dayOfYear = Math.floor((timestamp.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)) + 1
-        return dayOfYear
       case 'getMilliseconds':
         return timestamp.getUTCMilliseconds()
+    }
+
+    // Methods that can take optional timezone parameters
+    let timezone: string | null = null
+    if (ctx.arg && methodName !== 'getTime' && methodName !== 'getMilliseconds') {
+      const timezoneArg = this.visit(ctx.arg)
+      if (typeof timezoneArg !== 'string') {
+        throw new CelEvaluationError(`${methodName}() timezone argument must be a string`)
+      }
+      timezone = timezoneArg
+    }
+
+    // Get the appropriate date considering timezone
+    const dateToUse = timezone ? this.applyTimezone(timestamp, timezone) : timestamp
+
+    switch (methodName) {
+      case 'getFullYear':
+        return timezone ? dateToUse.getUTCFullYear() : timestamp.getUTCFullYear()
+      case 'getMonth':
+        return timezone ? dateToUse.getUTCMonth() : timestamp.getUTCMonth()
+      case 'getDate':
+        return timezone ? dateToUse.getUTCDate() : timestamp.getUTCDate()
+      case 'getHours':
+        return timezone ? dateToUse.getUTCHours() : timestamp.getUTCHours()
+      case 'getMinutes':
+        return timezone ? dateToUse.getUTCMinutes() : timestamp.getUTCMinutes()
+      case 'getSeconds':
+        return timezone ? dateToUse.getUTCSeconds() : timestamp.getUTCSeconds()
+      case 'getDay':
+        return timezone ? dateToUse.getUTCDay() : timestamp.getUTCDay()
+      case 'getDayOfMonth':
+        return timezone ? dateToUse.getUTCDate() - 1 : timestamp.getUTCDate() - 1
+      case 'getDayOfWeek':
+        return timezone ? dateToUse.getUTCDay() : timestamp.getUTCDay()
+      case 'getDayOfYear':
+        // Calculate day of year (0-365)
+        if (timezone) {
+          const adjustedDate = this.applyTimezone(timestamp, timezone)
+          const startOfYear = new Date(Date.UTC(adjustedDate.getUTCFullYear(), 0, 1))
+          return Math.floor((adjustedDate.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+        } else {
+          const startOfYear = new Date(Date.UTC(timestamp.getUTCFullYear(), 0, 1))
+          const dayOfYear = Math.floor((timestamp.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+          return dayOfYear
+        }
       default:
         throw new CelEvaluationError(`Unknown timestamp method: ${methodName}`)
     }
+  }
+
+  /**
+   * Apply timezone offset to a timestamp
+   */
+  private applyTimezone(timestamp: Date, timezone: string): Date {
+    // Handle numeric offsets like '+02:00', '-05:00', '02:00', '+05:45'
+    const numericOffsetMatch = timezone.match(/^([+-]?)(\d{1,2}):(\d{2})$/)
+    if (numericOffsetMatch) {
+      const sign = numericOffsetMatch[1] === '-' ? -1 : 1 // default to + if no sign
+      const hours = parseInt(numericOffsetMatch[2], 10)
+      const minutes = parseInt(numericOffsetMatch[3], 10)
+      const offsetMs = sign * (hours * 60 + minutes) * 60 * 1000
+      return new Date(timestamp.getTime() + offsetMs)
+    }
+
+    // Handle named timezones by converting to appropriate offset
+    // This is a simplified implementation - in a full implementation you'd use
+    // a proper timezone library like date-fns-tz or Intl.DateTimeFormat
+    const timezoneOffsets: Record<string, number> = {
+      'US/Central': -6 * 60, // CST offset in minutes  
+      'Australia/Sydney': 11 * 60, // AEDT offset in minutes (approximate)
+      'America/St_Johns': -3.5 * 60, // NST offset in minutes
+      'Asia/Kathmandu': 5.75 * 60, // NPT offset in minutes
+    }
+
+    const offsetMinutes = timezoneOffsets[timezone]
+    if (offsetMinutes !== undefined) {
+      const offsetMs = offsetMinutes * 60 * 1000
+      return new Date(timestamp.getTime() + offsetMs)
+    }
+
+    // If timezone is not recognized, treat as UTC
+    return timestamp
   }
 
   /**

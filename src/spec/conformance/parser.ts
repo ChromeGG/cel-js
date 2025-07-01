@@ -117,6 +117,8 @@ export class TextprotoParser {
         if (binding.key && binding.value) {
           test.bindings[binding.key] = { value: binding.value }
         }
+      } else if (key === 'container') {
+        test.container = this.parseString()
       } else {
         // Skip unknown fields
         this.skipValue()

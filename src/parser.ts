@@ -8,6 +8,7 @@ import {
   AdditionOperator,
   MultiplicationOperator,
   Identifier,
+  QuotedIdentifier,
   BooleanLiteral,
   Null,
   OpenParenthesis,
@@ -182,7 +183,10 @@ export class CelParser extends CstParser {
 
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
     this.CONSUME(Dot)
-    this.CONSUME(Identifier)
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(QuotedIdentifier) }
+    ])
     this.OPTION(() => {
       this.CONSUME(OpenParenthesis)
       this.OPTION2(() => {

@@ -8,6 +8,10 @@ export interface ConformanceTestValue {
   bool_value?: boolean
   null_value?: null
   type_value?: string
+  enum_value?: {
+    type: string
+    value: number
+  }
   list_value?: {
     values?: ConformanceTestValue[]
   }
@@ -43,6 +47,7 @@ export interface ConformanceTestCase {
   type_env?: ConformanceTypeEnv[]
   bindings?: Record<string, { value: ConformanceTestValue }>
   disable_check?: boolean
+  container?: string
 }
 
 export interface ConformanceTestSection {

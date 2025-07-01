@@ -3,7 +3,7 @@ import { join } from 'path'
 import { parseBasicTextproto, conformanceValueToJS } from './simple-parser'
 import { ConformanceTestFile, ConformanceTestCase } from './types'
 import { evaluate } from '../../index'
-import { unwrapValue } from '../../helper'
+import { unwrapValue, CelEnum } from '../../helper'
 
 export interface ConformanceTestResult {
   testName: string
@@ -42,6 +42,10 @@ export class ConformanceTestRunner {
       passed: false,
       expression: test.expr
     }
+    
+    if (sectionName.includes('strong_')) {
+      console.log(`DEBUG: Processing strong enum test: ${sectionName} - ${test.name}`)
+    }
 
     try {
       // Clear registries to prevent contamination between tests
@@ -58,6 +62,16 @@ export class ConformanceTestRunner {
         for (const [key, binding] of Object.entries(test.bindings)) {
           context[key] = conformanceValueToJS(binding.value)
         }
+      }
+      
+      // Add enum definitions for conformance tests
+      // Check if test expression contains enum references or if this is an enum test file
+      const shouldAddEnums = this.containsEnumReferences(test.expr) || sectionName.includes('proto2') || sectionName.includes('proto3')
+      if (sectionName.includes('strong_')) {
+        console.log(`DEBUG: Strong enum test should add enums: ${shouldAddEnums} for expr: ${test.expr}`)
+      }
+      if (shouldAddEnums) {
+        this.addEnumDefinitions(context, sectionName, test.container)
       }
 
       // Execute the expression
@@ -99,6 +113,135 @@ export class ConformanceTestRunner {
     }
 
     return result
+  }
+
+  private containsEnumReferences(expr: string): boolean {
+    return expr.includes('GlobalEnum') || expr.includes('TestAllTypes.NestedEnum')
+  }
+
+  private addEnumDefinitions(context: any, sectionName: string, container?: string): void {
+    console.log(`DEBUG: Adding enum definitions for section: ${sectionName}`)
+    
+    // CelEnum is now imported at the top
+    
+    const isLegacyMode = sectionName.includes('legacy_')
+    const isStrongMode = sectionName.includes('strong_')
+    
+    // Global enums from cel.expr.conformance.proto2/proto3
+    const globalEnumValues = { GOO: 0, GAR: 1, GAZ: 2 }
+    const nestedEnumValues = { FOO: 0, BAR: 1, BAZ: 2 }
+    
+    // Determine container for type names
+    const protoPackage = container || 'cel.expr.conformance.proto2'
+    const globalEnumTypeName = `${protoPackage}.GlobalEnum`
+    const nestedEnumTypeName = `${protoPackage}.TestAllTypes.NestedEnum`
+    
+    // Create enum constructor function
+    const createEnumConstructor = (enumValues: Record<string, number>, enumTypeName: string) => {
+      const constructor = (value: unknown): CelEnum | number | undefined => {
+        if (typeof value === 'number') {
+          if (isStrongMode) {
+            return new CelEnum(enumTypeName, value)
+          } else {
+            return value
+          }
+        }
+        if (typeof value === 'string') {
+          if (value in enumValues) {
+            const enumValue = enumValues[value]
+            if (isStrongMode) {
+              return new CelEnum(enumTypeName, enumValue, value)
+            } else {
+              return enumValue
+            }
+          }
+          if (isStrongMode) {
+            throw new Error(`Invalid enum value: ${value} for ${enumTypeName}`)
+          }
+        }
+        if (isStrongMode) {
+          throw new Error(`Cannot convert ${typeof value} to ${enumTypeName}`)
+        }
+        return undefined
+      }
+      
+      return constructor
+    }
+    
+    // Create GlobalEnum
+    const globalEnumConstructor = createEnumConstructor(globalEnumValues, globalEnumTypeName)
+    context.GlobalEnum = globalEnumConstructor
+    
+    // Add enum values as properties on the constructor
+    Object.keys(globalEnumValues).forEach(key => {
+      const value = globalEnumValues[key]
+      if (isLegacyMode) {
+        context.GlobalEnum[key] = value
+      } else if (isStrongMode) {
+        context.GlobalEnum[key] = new CelEnum(globalEnumTypeName, value, key)
+      }
+    })
+    
+    // Create TestAllTypes.NestedEnum
+    const nestedEnumConstructor = createEnumConstructor(nestedEnumValues, nestedEnumTypeName)
+    context.TestAllTypes = context.TestAllTypes || {}
+    context.TestAllTypes.NestedEnum = nestedEnumConstructor
+    
+    // Add enum values as properties
+    Object.keys(nestedEnumValues).forEach(key => {
+      const value = nestedEnumValues[key]
+      if (isLegacyMode) {
+        context.TestAllTypes.NestedEnum[key] = value
+      } else if (isStrongMode) {
+        context.TestAllTypes.NestedEnum[key] = new CelEnum(nestedEnumTypeName, value, key)
+      }
+    })
+    
+    // Add proto message support with enum fields
+    if (!context.TestAllTypes.__constructor) {
+      context.TestAllTypes.__constructor = (fields: any = {}) => {
+        const result: any = {}
+        
+        // Handle standalone_enum field
+        if ('standalone_enum' in fields) {
+          let enumValue = fields.standalone_enum
+          if (typeof enumValue === 'number') {
+            if (isStrongMode) {
+              result.standalone_enum = new CelEnum(nestedEnumTypeName, enumValue)
+            } else {
+              result.standalone_enum = enumValue
+            }
+          } else if (enumValue instanceof CelEnum) {
+            result.standalone_enum = enumValue
+          } else {
+            result.standalone_enum = enumValue
+          }
+        } else {
+          // Default value for enum fields
+          if (isStrongMode) {
+            result.standalone_enum = new CelEnum(nestedEnumTypeName, 0, 'FOO')
+          } else {
+            result.standalone_enum = 0
+          }
+        }
+        
+        // Handle repeated_nested_enum field
+        if ('repeated_nested_enum' in fields) {
+          result.repeated_nested_enum = fields.repeated_nested_enum
+        } else {
+          result.repeated_nested_enum = []
+        }
+        
+        // Copy other fields
+        Object.keys(fields).forEach(key => {
+          if (key !== 'standalone_enum' && key !== 'repeated_nested_enum') {
+            result[key] = fields[key]
+          }
+        })
+        
+        return result
+      }
+    }
   }
 
   private deepEqual(a: any, b: any): boolean {

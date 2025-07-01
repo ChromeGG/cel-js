@@ -45,6 +45,37 @@ export enum CelType {
   timestamp = 'timestamp',
   duration = 'duration',
   type = 'type',
+  enum = 'enum',
+}
+
+/**
+ * Represents a CEL enum value
+ */
+export class CelEnum {
+  constructor(
+    public readonly type: string,
+    public readonly value: number,
+    public readonly name?: string
+  ) {}
+
+  toString(): string {
+    return this.name || this.value.toString()
+  }
+
+  valueOf(): number {
+    return this.value
+  }
+
+  // For equality comparisons
+  equals(other: any): boolean {
+    if (other instanceof CelEnum) {
+      return this.type === other.type && this.value === other.value
+    }
+    if (typeof other === 'number') {
+      return this.value === other
+    }
+    return false
+  }
 }
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
@@ -102,6 +133,9 @@ export const unwrapValue = (value: unknown): unknown => {
   if (value instanceof Number) {
     return value.valueOf()
   }
+  if (value instanceof String) {
+    return value.valueOf()
+  }
   return value
 }
 
@@ -119,6 +153,9 @@ export const getCelType = (value: unknown): CelType => {
 
   // Check for wrapped literals (these will be objects that behave like numbers)
   if (typeof value === 'object' && value !== null) {
+    if (value instanceof CelEnum) {
+      return CelType.enum
+    }
     if ((value as any).__isFloatLiteral) {
       return CelType.float
     }
@@ -855,6 +892,11 @@ export const dyn = (value: unknown): unknown => {
 export const type = (value: unknown): string => {
   const celType = getCelType(value)
   
+  // Handle enum types specifically
+  if (celType === CelType.enum && value instanceof CelEnum) {
+    return value.type
+  }
+  
   // Return protobuf-style type names for conformance
   if (celType === CelType.timestamp) {
     return 'google.protobuf.Timestamp'
@@ -1212,6 +1254,20 @@ function celEquals(left: unknown, right: unknown): boolean {
     return false
   }
   
+  // Handle enum equality
+  if (left instanceof CelEnum || right instanceof CelEnum) {
+    if (left instanceof CelEnum && right instanceof CelEnum) {
+      return left.equals(right)
+    }
+    if (left instanceof CelEnum && typeof right === 'number') {
+      return left.value === right
+    }
+    if (right instanceof CelEnum && typeof left === 'number') {
+      return right.value === left
+    }
+    return false
+  }
+  
   // Handle cross-type numeric equality first (1.0 == 1, 1u == 1, etc.)
   if (isCalculable(left) && isCalculable(right)) {
     // Handle BigInt-backed unsigned integers specially
@@ -1275,6 +1331,11 @@ function celEquals(left: unknown, right: unknown): boolean {
  * CEL int() function that converts values to integers.
  */
 export const int = (value: unknown): number => {
+  // Handle enum to int conversion
+  if (value instanceof CelEnum) {
+    return value.value
+  }
+  
   if (isNumeric(value)) {
     const numValue = Number(unwrapValue(value))
     

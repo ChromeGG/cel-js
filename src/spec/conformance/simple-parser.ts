@@ -1,4 +1,5 @@
 import { ConformanceTestFile, ConformanceTestValue } from './types'
+import { CelEnum } from '../../helper'
 
 function extractBalancedBraces(text: string, startIndex: number): string | null {
   let braceCount = 0
@@ -444,6 +445,21 @@ function parseValue(content: string): any {
     return match ? { type_value: match[1] } : {}
   }
   
+  if (trimmed.includes('enum_value')) {
+    // Parse enum_value with type and value fields
+    const typeMatch = trimmed.match(/type:\s*"([^"]*)"/)
+    const valueMatch = trimmed.match(/value:\s*(\d+)/)
+    if (typeMatch && valueMatch) {
+      return {
+        enum_value: {
+          type: typeMatch[1],
+          value: parseInt(valueMatch[1])
+        }
+      }
+    }
+    return {}
+  }
+  
   if (trimmed.includes('null_value:')) {
     return { null_value: null }
   }
@@ -688,6 +704,9 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
   if (value.bool_value !== undefined) return value.bool_value
   if (value.null_value !== undefined) return null
   if (value.type_value !== undefined) return value.type_value
+  if (value.enum_value !== undefined) {
+    return new CelEnum(value.enum_value.type, value.enum_value.value)
+  }
   if (value.list_value) {
     return (value.list_value.values || []).map(conformanceValueToJS)
   }

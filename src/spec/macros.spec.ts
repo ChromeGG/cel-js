@@ -40,14 +40,15 @@ describe('lists expressions', () => {
 
     it('should throw when argument is not an object', () => {
       const context = { object: { property: true } }
-      const errorMessages = 'has() requires a field selection'
+      const atomicErrorMessage = 'has() does not support atomic expressions'
+      const fieldSelectionErrorMessage = 'has() requires a field selection'
 
-      expect(() => evaluate('has(object)', context)).toThrow(errorMessages)
+      expect(() => evaluate('has(object)', context)).toThrow(atomicErrorMessage)
 
-      expect(() => evaluate('has(object[0])', context)).toThrow(errorMessages)
+      expect(() => evaluate('has(object[0])', context)).toThrow(fieldSelectionErrorMessage)
 
       expect(() => evaluate('has(object[property])', context)).toThrow(
-        errorMessages,
+        fieldSelectionErrorMessage,
       )
     })
 

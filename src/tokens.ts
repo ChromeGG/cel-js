@@ -86,7 +86,7 @@ export const False = createToken({
   categories: BooleanLiteral,
 })
 
-export const Null = createToken({ name: 'Null', pattern: /null/ })
+export const Null = createToken({ name: 'Null', pattern: /null(?!_)/ })
 
 export const ByteStringLiteral = createToken({
   name: 'ByteStringLiteral',
@@ -246,6 +246,11 @@ export const Identifier = createToken({
   pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
 })
 
+export const QuotedIdentifier = createToken({
+  name: 'QuotedIdentifier',
+  pattern: /`[^`]+`/,
+})
+
 // The order of tokens is important
 export const allTokens = [
   Comment,
@@ -300,6 +305,7 @@ export const allTokens = [
   Plus,
   Minus,
 
+  QuotedIdentifier,
   Identifier,
 ]
 
