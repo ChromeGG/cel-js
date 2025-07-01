@@ -1,9 +1,7 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
-import { parseBasicTextproto, conformanceValueToJS } from './simple-parser'
+import { loadAll, loadByName, mapSimpleFile, conformanceValueToJS } from './buf-loader'
 import { ConformanceTestFile, ConformanceTestCase } from './types'
 import { evaluate } from '../../index'
-import { unwrapValue, CelEnum } from '../../helper'
+import { unwrapValue, CelEnum, CelEvaluationError } from '../../helper'
 
 export interface ConformanceTestResult {
   testName: string
@@ -16,19 +14,43 @@ export interface ConformanceTestResult {
 }
 
 export class ConformanceTestRunner {
-  loadTestFile(filePath: string): ConformanceTestFile {
-    const content = readFileSync(filePath, 'utf-8')
-    return parseBasicTextproto(content)
+  loadTestFile(fileName: string): ConformanceTestFile {
+    const bufFile = loadByName(fileName)
+    if (!bufFile) {
+      throw new Error(`Test file not found: ${fileName}`)
+    }
+    return mapSimpleFile(bufFile)
   }
 
-  runTestFile(filePath: string): ConformanceTestResult[] {
-    const testFile = this.loadTestFile(filePath)
+  loadAllTestFiles(): ConformanceTestFile[] {
+    const bufFiles = loadAll()
+    return bufFiles.map(mapSimpleFile)
+  }
+
+  runTestFile(fileName: string): ConformanceTestResult[] {
+    const testFile = this.loadTestFile(fileName)
     const results: ConformanceTestResult[] = []
 
     for (const section of testFile.section) {
       for (const test of section.test) {
         const result = this.runSingleTest(test, section.name)
         results.push(result)
+      }
+    }
+
+    return results
+  }
+
+  runAllTests(): ConformanceTestResult[] {
+    const testFiles = this.loadAllTestFiles()
+    const results: ConformanceTestResult[] = []
+
+    for (const testFile of testFiles) {
+      for (const section of testFile.section) {
+        for (const test of section.test) {
+          const result = this.runSingleTest(test, section.name)
+          results.push(result)
+        }
       }
     }
 
