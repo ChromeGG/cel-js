@@ -82,17 +82,16 @@ export class ConformanceTestRunner {
       const context: any = {}
       if (test.bindings) {
         for (const [key, binding] of Object.entries(test.bindings)) {
-          context[key] = conformanceValueToJS(binding.value)
+          context[key] = conformanceValueToJS(binding.value, sectionName)
         }
       }
+
 
       
       // Add enum definitions for conformance tests
       // Check if test expression contains enum references or if this is an enum test file
       const shouldAddEnums = this.containsEnumReferences(test.expr) || sectionName.includes('proto2') || sectionName.includes('proto3')
-      if (sectionName.includes('strong_')) {
-        console.log(`DEBUG: Strong enum test should add enums: ${shouldAddEnums} for expr: ${test.expr}`)
-      }
+      // Strong enum tests need enum support
       if (shouldAddEnums) {
         this.addEnumDefinitions(context, sectionName, test.container)
       }
@@ -115,7 +114,7 @@ export class ConformanceTestRunner {
         result.actual = actualResult
       } else if (test.value) {
         // Test expects a specific value
-        const expectedResult = conformanceValueToJS(test.value)
+        const expectedResult = conformanceValueToJS(test.value, sectionName)
         result.expected = expectedResult
         result.actual = actualResult
 
@@ -151,7 +150,7 @@ export class ConformanceTestRunner {
   }
 
   private addEnumDefinitions(context: any, sectionName: string, container?: string): void {
-    console.log(`DEBUG: Adding enum definitions for section: ${sectionName}`)
+    // Add enum definitions for section
     
     // CelEnum is now imported at the top
     

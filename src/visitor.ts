@@ -2229,27 +2229,15 @@ export class CelVisitor
               i += 2
               continue
             case '"':
-              if (quoteType === '"') {
-                // In double-quoted strings, \" is ignored (escape for the parser)
-                i += 2
-                continue
-              } else {
-                // In single-quoted strings, \" produces a literal double quote
-                result += '"'
-                i += 2
-                continue
-              }
+              // \" always produces a literal double quote
+              result += '"'
+              i += 2
+              continue
             case "'":
-              if (quoteType === "'") {
-                // In single-quoted strings, \' produces a literal single quote
-                result += "'"
-                i += 2
-                continue
-              } else {
-                // In double-quoted strings, \' is ignored (not needed to escape)
-                i += 2
-                continue
-              }
+              // \' always produces a literal single quote
+              result += "'"
+              i += 2
+              continue
             default:
               // Unknown escape, treat as literal
               result += content[i]
