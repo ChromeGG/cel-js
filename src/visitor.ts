@@ -39,8 +39,6 @@ enum Mode {
   'normal',
   /** The visitor is executed inside a has macro */
   'has',
-  /** The visitor is executed inside a collection macro */
-  'collection_macro',
   /** The visitor is extracting a variable name */
   'extract_variable',
 }
