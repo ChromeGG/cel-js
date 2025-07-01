@@ -74,8 +74,16 @@ export class ConformanceTestRunner {
         this.addEnumDefinitions(context, sectionName, test.container)
       }
 
-      // Execute the expression
-      const actualResult = evaluate(test.expr, context)
+      // Execute the expression - also pass enum constructors as functions for macro calls
+      const functions: Record<string, CallableFunction> = {}
+      if (context.GlobalEnum && typeof context.GlobalEnum === 'function') {
+        functions.GlobalEnum = context.GlobalEnum
+      }
+      if (context.TestAllTypes?.NestedEnum && typeof context.TestAllTypes.NestedEnum === 'function') {
+        functions['TestAllTypes.NestedEnum'] = context.TestAllTypes.NestedEnum
+      }
+      
+      const actualResult = evaluate(test.expr, context, functions)
 
       if (test.eval_error) {
         // Test expects an error, but we got a result
@@ -131,8 +139,15 @@ export class ConformanceTestRunner {
     const globalEnumValues = { GOO: 0, GAR: 1, GAZ: 2 }
     const nestedEnumValues = { FOO: 0, BAR: 1, BAZ: 2 }
     
-    // Determine container for type names
-    const protoPackage = container || 'cel.expr.conformance.proto2'
+    // Determine container for type names based on section name if container not provided
+    let protoPackage = container
+    if (!protoPackage) {
+      if (sectionName.includes('proto3')) {
+        protoPackage = 'cel.expr.conformance.proto3'
+      } else {
+        protoPackage = 'cel.expr.conformance.proto2'  
+      }
+    }
     const globalEnumTypeName = `${protoPackage}.GlobalEnum`
     const nestedEnumTypeName = `${protoPackage}.TestAllTypes.NestedEnum`
     
@@ -140,6 +155,13 @@ export class ConformanceTestRunner {
     const createEnumConstructor = (enumValues: Record<string, number>, enumTypeName: string) => {
       const constructor = (value: unknown): CelEnum | number | undefined => {
         if (typeof value === 'number') {
+          // Validate enum range (int32 range)
+          const MAX_INT32 = 2147483647
+          const MIN_INT32 = -2147483648
+          if (value > MAX_INT32 || value < MIN_INT32) {
+            throw new CelEvaluationError('enum value out of range')
+          }
+          
           if (isStrongMode) {
             return new CelEnum(enumTypeName, value)
           } else {

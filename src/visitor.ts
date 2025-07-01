@@ -441,11 +441,30 @@ export class CelVisitor
       }
       return this.getIndexSection(ctx, {})
     }
+    
+    const usedKeys = new Set<string>()
+    
     for (const keyValuePair of ctx.keyValues) {
       const [key, value] = this.visit(keyValuePair)
-      // CEL maps can have keys of any comparable type, but JavaScript objects need string keys
+      
+      // Validate key type - CEL maps don't support float or null keys
+      const keyType = getCelType(key)
+      if (keyType === CelType.float) {
+        throw new CelEvaluationError('unsupported key type')
+      }
+      if (key === null || key === undefined) {
+        throw new CelEvaluationError('unsupported key type')
+      }
+      
       // Convert non-string keys to strings for JavaScript compatibility
       const stringKey = String(key)
+      
+      // Check for duplicate keys
+      if (usedKeys.has(stringKey)) {
+        throw new CelEvaluationError('Failed with repeated key')
+      }
+      usedKeys.add(stringKey)
+      
       mapExpression[stringKey] = value
     }
 
@@ -570,6 +589,11 @@ export class CelVisitor
         }
 
         return acc[indexValue]
+      }
+      
+      // Handle map indexing - validate key type
+      if (index === null || index === undefined) {
+        throw new CelEvaluationError('unsupported key type')
       }
       
       return this.getIdentifier(acc, String(unwrapValue(index)))

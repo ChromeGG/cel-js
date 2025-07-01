@@ -76,6 +76,14 @@ export class CelEnum {
     }
     return false
   }
+
+  // Custom JSON serialization - only include type and value for conformance
+  toJSON(): any {
+    return {
+      type: this.type,
+      value: this.value
+    }
+  }
 }
 
 const calculableTypes = [CelType.int, CelType.uint, CelType.float]
@@ -135,6 +143,9 @@ export const unwrapValue = (value: unknown): unknown => {
   }
   if (value instanceof String) {
     return value.valueOf()
+  }
+  if (value instanceof CelEnum) {
+    return value.toJSON()
   }
   return value
 }
@@ -311,15 +322,32 @@ const additionOperation = (left: unknown, right: unknown) => {
   if (isTimestamp(left) && isDuration(right)) {
     const timestamp = new Date(left.getTime())
     timestamp.setTime(timestamp.getTime() + right.seconds * 1000 + right.nanoseconds / 1000000)
+    validateTimestampRange(timestamp)
+    return timestamp
+  }
+
+  // Duration + Timestamp = Timestamp (commutative)
+  if (isDuration(left) && isTimestamp(right)) {
+    const timestamp = new Date(right.getTime())
+    timestamp.setTime(timestamp.getTime() + left.seconds * 1000 + left.nanoseconds / 1000000)
+    validateTimestampRange(timestamp)
     return timestamp
   }
 
   // Duration + Duration = Duration
   if (isDuration(left) && isDuration(right)) {
-    return {
+    const result = {
       seconds: left.seconds + right.seconds,
       nanoseconds: left.nanoseconds + right.nanoseconds
     }
+    
+    // Validate duration range
+    const MAX_DURATION_SECONDS = 315576000000
+    if (Math.abs(result.seconds) > MAX_DURATION_SECONDS) {
+      throw new CelEvaluationError('duration out of range')
+    }
+    
+    return result
   }
 
   throw new CelTypeError(Operations.addition, left, right)
@@ -367,6 +395,7 @@ const subtractionOperation = (left: unknown, right: unknown) => {
   if (isTimestamp(left) && isDuration(right)) {
     const timestamp = new Date(left.getTime())
     timestamp.setTime(timestamp.getTime() - right.seconds * 1000 - right.nanoseconds / 1000000)
+    validateTimestampRange(timestamp)
     return timestamp
   }
 
@@ -380,10 +409,18 @@ const subtractionOperation = (left: unknown, right: unknown) => {
 
   // Duration - Duration = Duration
   if (isDuration(left) && isDuration(right)) {
-    return {
+    const result = {
       seconds: left.seconds - right.seconds,
       nanoseconds: left.nanoseconds - right.nanoseconds
     }
+    
+    // Validate duration range
+    const MAX_DURATION_SECONDS = 315576000000
+    if (Math.abs(result.seconds) > MAX_DURATION_SECONDS) {
+      throw new CelEvaluationError('duration out of range')
+    }
+    
+    return result
   }
 
   throw new CelTypeError(Operations.subtraction, left, right)
@@ -951,6 +988,16 @@ export const bytes = (input: unknown): Uint8Array => {
 /**
  * Parse a timestamp from an RFC3339 string
  */
+// CEL timestamp range: year 1 to year 9999
+const MIN_TIMESTAMP = new Date('0001-01-01T00:00:00.000Z')
+const MAX_TIMESTAMP = new Date('9999-12-31T23:59:59.999Z')
+
+const validateTimestampRange = (date: Date): void => {
+  if (date.getTime() < MIN_TIMESTAMP.getTime() || date.getTime() > MAX_TIMESTAMP.getTime()) {
+    throw new CelEvaluationError('timestamp out of range')
+  }
+}
+
 export const timestamp = (input: unknown): Date => {
   // If input is already a timestamp (Date), return it as-is
   if (input instanceof Date) {
@@ -969,6 +1016,14 @@ export const timestamp = (input: unknown): Date => {
       throw new CelEvaluationError(`Invalid timestamp format: ${input}`)
     }
 
+    // Validate timestamp range
+    validateTimestampRange(date)
+
+    // Store original string for high-precision string conversion if it has nanoseconds
+    if (input.match(/\.\d{4,9}Z?$/)) {
+      (date as any).__originalTimestampString = input
+    }
+
     return date
   } else if (typeof input === 'number') {
     // Handle timestamp from seconds since epoch
@@ -976,6 +1031,10 @@ export const timestamp = (input: unknown): Date => {
     if (isNaN(date.getTime())) {
       throw new CelEvaluationError(`Invalid timestamp value: ${input}`)
     }
+    
+    // Validate timestamp range
+    validateTimestampRange(date)
+    
     return date
   } else {
     throw new CelEvaluationError('timestamp function requires a string or number argument')
@@ -1052,6 +1111,12 @@ export const duration = (input: unknown): Duration => {
     }
   }
 
+  // Validate duration range (approximately ±10,000 years in seconds)
+  const MAX_DURATION_SECONDS = 315576000000 // About 10,000 years
+  if (Math.abs(totalSeconds) > MAX_DURATION_SECONDS) {
+    throw new CelEvaluationError('duration out of range')
+  }
+
   return { seconds: totalSeconds, nanoseconds: totalNanoseconds }
 }
 
@@ -1072,6 +1137,12 @@ export function string(value: unknown): string {
     return 'null'
   }
   if (value instanceof Date) {
+    // Use original high-precision string if available
+    const originalString = (value as any).__originalTimestampString
+    if (originalString) {
+      return originalString
+    }
+    
     // Preserve original timestamp format when possible
     // If milliseconds are 0, don't include them to match CEL expectations
     const isoString = value.toISOString()

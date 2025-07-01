@@ -448,7 +448,7 @@ function parseValue(content: string): any {
   if (trimmed.includes('enum_value')) {
     // Parse enum_value with type and value fields
     const typeMatch = trimmed.match(/type:\s*"([^"]*)"/)
-    const valueMatch = trimmed.match(/value:\s*(\d+)/)
+    const valueMatch = trimmed.match(/value:\s*(-?\d+)/)
     if (typeMatch && valueMatch) {
       return {
         enum_value: {
