@@ -14,7 +14,12 @@ describe('collection macros', () => {
       { name: "Bob", age: 30 },
       { name: "Charlie", age: 35 }
     ],
-    scores: { alice: 85, bob: 92, charlie: 78 }
+    scores: { alice: 85, bob: 92, charlie: 78 },
+    nested: {
+      nested: {
+        numbers: [1, 2, 3, 4, 5]
+      }
+    }
   }
 
   describe('filter', () => {
@@ -245,6 +250,13 @@ describe('collection macros', () => {
       const result = evaluate(expr, deepContext)
 
       expect(result).toStrictEqual([ [ 50 ], [ 40, 60 ] ])
+    })
+
+    it('should handle nested objects', () => {
+      const expr = "nested.nested.numbers.map(n, n * 2)"
+      const result = evaluate(expr, context)
+
+      expect(result).toStrictEqual([2, 4, 6, 8, 10])
     })
     
   })
