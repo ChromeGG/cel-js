@@ -320,16 +320,38 @@ const additionOperation = (left: unknown, right: unknown) => {
 
   // Timestamp + Duration = Timestamp
   if (isTimestamp(left) && isDuration(right)) {
-    const timestamp = new Date(left.getTime())
-    timestamp.setTime(timestamp.getTime() + right.seconds * 1000 + right.nanoseconds / 1000000)
+    // Check for nanosecond-level overflow before doing the arithmetic
+    const timestampMillis = left.getTime()
+    const durationMillis = right.seconds * 1000 + right.nanoseconds / 1000000
+    
+    // Handle special cases for nanosecond precision at boundaries
+    if (timestampMillis >= MAX_TIMESTAMP.getTime() && right.nanoseconds > 0) {
+      throw new CelEvaluationError('timestamp out of range')
+    }
+    if (timestampMillis <= MIN_TIMESTAMP.getTime() && right.nanoseconds < 0) {
+      throw new CelEvaluationError('timestamp out of range')
+    }
+    
+    const timestamp = new Date(timestampMillis + durationMillis)
     validateTimestampRange(timestamp)
     return timestamp
   }
 
   // Duration + Timestamp = Timestamp (commutative)
   if (isDuration(left) && isTimestamp(right)) {
-    const timestamp = new Date(right.getTime())
-    timestamp.setTime(timestamp.getTime() + left.seconds * 1000 + left.nanoseconds / 1000000)
+    // Check for nanosecond-level overflow before doing the arithmetic
+    const timestampMillis = right.getTime()
+    const durationMillis = left.seconds * 1000 + left.nanoseconds / 1000000
+    
+    // Handle special cases for nanosecond precision at boundaries
+    if (timestampMillis >= MAX_TIMESTAMP.getTime() && left.nanoseconds > 0) {
+      throw new CelEvaluationError('timestamp out of range')
+    }
+    if (timestampMillis <= MIN_TIMESTAMP.getTime() && left.nanoseconds < 0) {
+      throw new CelEvaluationError('timestamp out of range')
+    }
+    
+    const timestamp = new Date(timestampMillis + durationMillis)
     validateTimestampRange(timestamp)
     return timestamp
   }

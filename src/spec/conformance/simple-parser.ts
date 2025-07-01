@@ -852,8 +852,32 @@ export function conformanceValueToJS(value: ConformanceTestValue): any {
         // For TestAllTypes messages, create an object with proper defaults
         const testAllTypesObj: any = {}
         
+        // Determine if this is strong enum mode based on type URL
+        const isStrongMode = obj.typeUrl.includes('proto3') || obj.typeUrl.includes('strong')
+        
         // Set defaults for known fields
-        testAllTypesObj.standalone_enum = result.standalone_enum !== undefined ? result.standalone_enum : 0
+        if (result.standalone_enum !== undefined) {
+          if (isStrongMode) {
+            // In strong mode, enum fields should be CelEnum objects
+            const enumType = obj.typeUrl.includes('proto3') 
+              ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
+              : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum'
+            testAllTypesObj.standalone_enum = new CelEnum(enumType, result.standalone_enum)
+          } else {
+            testAllTypesObj.standalone_enum = result.standalone_enum
+          }
+        } else {
+          testAllTypesObj.standalone_enum = isStrongMode 
+            ? new CelEnum(
+                obj.typeUrl.includes('proto3') 
+                  ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
+                  : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum', 
+                0, 
+                'FOO'
+              )
+            : 0
+        }
+        
         testAllTypesObj.repeated_nested_enum = result.repeated_nested_enum || []
         
         // Copy other fields
