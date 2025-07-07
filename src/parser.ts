@@ -171,18 +171,6 @@ export class CelParser extends CstParser {
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
     this.CONSUME(Dot)
     this.CONSUME(Identifier)
-    // Optional method call with arguments (for collection macros)
-    this.OPTION(() => {
-      this.CONSUME(OpenParenthesis)
-      this.OPTION2(() => {
-        this.SUBRULE(this.expr, { LABEL: 'arg' })
-        this.MANY(() => {
-          this.CONSUME(Comma)
-          this.SUBRULE2(this.expr, { LABEL: 'args' })
-        })
-      })
-      this.CONSUME(CloseParenthesis)
-    })
   })
 
   private indexExpression = this.RULE('indexExpression', () => {

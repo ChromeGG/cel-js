@@ -43,32 +43,12 @@ import { evaluate, parse } from 'cel-js'
 
   // Macro expressions
   // size()
-  const sizeMacroExpr = 'size([1, 2])'
-  console.log(`${sizeMacroExpr} => ${evaluate(sizeMacroExpr)}`) // => 2
+  const macroExpr = 'size([1, 2])'
+  console.log(`${macroExpr} => ${evaluate(macroExpr)}`) // => 2
 
   // has()
-  const hasMacroExpr = 'has(user.role)'
-  console.log(`${hasMacroExpr} => ${evaluate(hasMacroExpr, context)}`) // => true
-
-  // filter()
-  const filterMacroExpr = 'filter([1, 2, 3, 4, 5], n, n > 3)'
-  console.log(`${filterMacroExpr} => ${evaluate(filterMacroExpr)}`) // => [4, 5]
-
-  // map()
-  const mapMacroExpr = 'map([1, 2, 3, 4, 5], n, n * 2)'
-  console.log(`${mapMacroExpr} => ${evaluate(mapMacroExpr)}`) // => [2, 4, 6, 8, 10]
-
-  // all()
-  const allMacroExpr = 'all([1, 2, 3, 4, 5], n, n > 0)'
-  console.log(`${allMacroExpr} => ${evaluate(allMacroExpr)}`) // => true
-
-  // exists()
-  const existsMacroExpr = 'exists([1, 2, 3, 4, 5], n, n > 5)'
-  console.log(`${existsMacroExpr} => ${evaluate(existsMacroExpr)}`) // => false
-
-  // exists_one()
-  const existsOneMacroExpr = 'exists_one([1, 2, 3, 4, 5], n, n > 3)'
-  console.log(`${existsOneMacroExpr} => ${evaluate(existsOneMacroExpr)}`) // => true
+  const hasExpr = 'has(user.role)'
+  console.log(`${hasExpr} => ${evaluate(hasExpr, context)}`) // => true
 
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'

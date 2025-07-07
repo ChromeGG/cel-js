@@ -18,7 +18,6 @@ import {
   UnaryExpressionCstChildren,
   MapKeyValuesCstChildren,
   MapExpressionCstChildren,
-  ExprCstNode,
 } from './cst-definitions.js'
 
 import {
@@ -39,19 +38,7 @@ enum Mode {
   'normal',
   /** The visitor is executed inside a has macro */
   'has',
-  /** The visitor is extracting a variable name */
-  'extract_variable',
 }
-
-/** Collection macros that operate on lists and maps */
-const COLLECTION_MACROS = [
-  'all',
-  'exists',
-  'exists_one',
-  'filter',
-  'map',
-] as const
-type CollectionMacro = (typeof COLLECTION_MACROS)[number]
 
 const parserInstance = new CelParser()
 
@@ -91,265 +78,12 @@ export class CelVisitor
   private functions: Record<string, CallableFunction>
 
   /**
-   * Checks if the given identifier is a collection macro.
-   */
-  private isCollectionMacro(identifier: string): boolean {
-    return COLLECTION_MACROS.includes(identifier as CollectionMacro)
-  }
-
-  /**
-   * Checks if the given value is a map (object).
-   */
-  private isMap(value: unknown): boolean {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-  }
-
-  /**
-   * Handles collection macro calls like collection.filter(item, predicate).
-   */
-  private handleCollectionMacroCall(
-    macroName: CollectionMacro,
-    collection: unknown,
-    ctx: IdentifierDotExpressionCstChildren,
-  ): unknown {
-    // Validate collection type
-    if (!Array.isArray(collection) && !this.isMap(collection)) {
-      throw new CelEvaluationError(
-        `${macroName}() can only be called on lists or maps`,
-      )
-    }
-
-    // Extract arguments
-    const expressions = [...(ctx.arg ? [ctx.arg] : []), ...(ctx.args || [])]
-
-    if (expressions.length < 2) {
-      throw new CelEvaluationError(
-        `${macroName}() requires at least 2 arguments`,
-      )
-    }
-
-    const variableExpr = Array.isArray(expressions[0])
-      ? expressions[0][0]
-      : expressions[0]
-    const predicateExpr = Array.isArray(expressions[1])
-      ? expressions[1][0]
-      : expressions[1]
-
-    // Extract variable name (should be an identifier)
-    if (
-      variableExpr.name !== 'expr' ||
-      !variableExpr.children.conditionalOr[0]
-    ) {
-      throw new CelEvaluationError(
-        `${macroName}() first argument must be a variable name`,
-      )
-    }
-
-    // Navigate to get the identifier - this is a simplified approach
-    // In a real implementation, we'd need to ensure this is specifically an identifier
-    const variableName = this.extractVariableName(variableExpr)
-
-    const isMap = this.isMap(collection)
-    const iterationItems = isMap
-      ? Object.keys(collection as Record<string, unknown>) // iterate over keys
-      : (collection as unknown[]) // iterate over values
-
-    // Handle based on macro type
-    switch (macroName) {
-      case 'filter':
-        return this.handleFilter(iterationItems, variableName, predicateExpr)
-      case 'map':
-        return this.handleMap(iterationItems, variableName, expressions)
-      case 'all':
-        return this.handleAll(iterationItems, variableName, predicateExpr)
-      case 'exists':
-        return this.handleExists(iterationItems, variableName, predicateExpr)
-      case 'exists_one':
-        return this.handleExistsOne(iterationItems, variableName, predicateExpr)
-      default:
-        throw new CelEvaluationError(`Unknown collection macro: ${macroName}`)
-    }
-  }
-
-  /**
-   * Extracts the variable name from a variable expression, ensuring it's a simple identifier.
-   * Reuses the existing visitor infrastructure with a special mode.
-   */
-  private extractVariableName(variableExpr: unknown): string {
-    const expr = variableExpr as ExprCstNode
-
-    // Set extraction mode and use existing visitor traversal
-    const originalMode = this.mode
-    this.mode = Mode.extract_variable
-
-    try {
-      const result = this.visit(expr)
-      if (typeof result !== 'string') {
-        throw new CelEvaluationError(
-          'Variable name must be a simple identifier',
-        )
-      }
-      return result
-    } catch (error) {
-      if (error instanceof CelEvaluationError) {
-        throw error
-      }
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    } finally {
-      this.mode = originalMode
-    }
-  }
-
-  /**
-   * Evaluates an expression with a bound variable in the context.
-   */
-  private evaluateWithBinding(
-    expression: ExprCstNode,
-    variableName: string,
-    variableValue: unknown,
-  ): unknown {
-    // Save original context
-    const originalValue = this.context[variableName]
-    const hadOriginalValue = variableName in this.context
-
-    try {
-      // Bind loop variable
-      this.context[variableName] = variableValue
-
-      // Evaluate expression with bound variable
-      return this.visit(expression)
-    } finally {
-      // Restore original context
-      if (hadOriginalValue) {
-        this.context[variableName] = originalValue
-      } else {
-        delete this.context[variableName]
-      }
-    }
-  }
-
-  /**
-   * Handles the filter collection macro.
-   */
-  private handleFilter(
-    iterationItems: unknown[],
-    variable: string,
-    predicate: ExprCstNode,
-  ): unknown[] {
-    const results: unknown[] = []
-
-    for (const item of iterationItems) {
-      const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
-
-      if (shouldInclude) {
-        // For both maps and lists, return the iteration item (key for maps, value for lists)
-        results.push(item)
-      }
-    }
-
-    return results
-  }
-
-  /**
-   * Handles the map collection macro (with transform or filter+transform).
-   */
-  private handleMap(
-    iterationItems: unknown[],
-    variable: string,
-    expressions: (ExprCstNode | ExprCstNode[])[],
-  ): unknown[] {
-    if (expressions.length === 2) {
-      // Simple transform: map(var, transform)
-      const transform = Array.isArray(expressions[1])
-        ? expressions[1][0]
-        : expressions[1]
-      return iterationItems.map((item) =>
-        this.evaluateWithBinding(transform, variable, item),
-      )
-    } else if (expressions.length === 3) {
-      // Filter + transform: map(var, predicate, transform)
-      const predicate = Array.isArray(expressions[1])
-        ? expressions[1][0]
-        : expressions[1]
-      const transform = Array.isArray(expressions[2])
-        ? expressions[2][0]
-        : expressions[2]
-
-      const results: unknown[] = []
-      for (const item of iterationItems) {
-        const shouldInclude = this.evaluateWithBinding(
-          predicate,
-          variable,
-          item,
-        )
-
-        if (shouldInclude) {
-          const transformed = this.evaluateWithBinding(
-            transform,
-            variable,
-            item,
-          )
-          results.push(transformed)
-        }
-      }
-      return results
-    } else {
-      throw new CelEvaluationError('map() requires 2 or 3 arguments')
-    }
-  }
-
-  /**
-   * Handles the all collection macro.
-   */
-  private handleAll(
-    iterationItems: unknown[],
-    variable: string,
-    predicate: ExprCstNode,
-  ): boolean {
-    return iterationItems.every((item) =>
-      this.evaluateWithBinding(predicate, variable, item),
-    )
-  }
-
-  /**
-   * Handles the exists collection macro.
-   */
-  private handleExists(
-    iterationItems: unknown[],
-    variable: string,
-    predicate: ExprCstNode,
-  ): boolean {
-    return iterationItems.some((item) =>
-      this.evaluateWithBinding(predicate, variable, item),
-    )
-  }
-
-  /**
-   * Handles the exists_one collection macro.
-   */
-  private handleExistsOne(
-    iterationItems: unknown[],
-    variable: string,
-    predicate: ExprCstNode,
-  ): boolean {
-    const matches = iterationItems.filter((item) =>
-      this.evaluateWithBinding(predicate, variable, item),
-    )
-    return matches.length === 1
-  }
-
-  /**
    * Evaluates the expression including conditional ternary expressions in the form: condition ? trueExpr : falseExpr
    *
    * @param ctx - The expression context containing the condition and optional ternary branches
    * @returns The result of evaluating the expression
    */
   public expr(ctx: ExprCstChildren): unknown {
-    // In variable extraction mode, reject ternary expressions
-    if (this.mode === Mode.extract_variable && ctx.QuestionMark) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     const condition = this.visit(ctx.conditionalOr[0])
 
     // If no ternary operator is present, just return the condition
@@ -410,11 +144,6 @@ export class CelVisitor
   }
 
   conditionalOr(ctx: ConditionalOrCstChildren): boolean {
-    // In variable extraction mode, reject OR operations
-    if (this.mode === Mode.extract_variable && ctx.rhs) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -443,11 +172,6 @@ export class CelVisitor
    * with logical AND operations.
    */
   conditionalAnd(ctx: ConditionalAndCstChildren): boolean {
-    // In variable extraction mode, reject AND operations
-    if (this.mode === Mode.extract_variable && ctx.rhs) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     let left = this.visit(ctx.lhs)
 
     // Short circuit if left is false. Required to quick fail for has() macro.
@@ -468,11 +192,6 @@ export class CelVisitor
   }
 
   relation(ctx: RelationCstChildren): boolean {
-    // In variable extraction mode, reject comparison operations
-    if (this.mode === Mode.extract_variable && ctx.rhs) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     const left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -487,11 +206,6 @@ export class CelVisitor
   }
 
   addition(ctx: AdditionCstChildren): unknown {
-    // In variable extraction mode, reject addition operations
-    if (this.mode === Mode.extract_variable && ctx.rhs) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -507,11 +221,6 @@ export class CelVisitor
   }
 
   multiplication(ctx: MultiplicationCstChildren) {
-    // In variable extraction mode, reject multiplication operations
-    if (this.mode === Mode.extract_variable && ctx.rhs) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     let left = this.visit(ctx.lhs)
 
     if (ctx.rhs) {
@@ -527,11 +236,6 @@ export class CelVisitor
   }
 
   unaryExpression(ctx: UnaryExpressionCstChildren): unknown {
-    // In variable extraction mode, reject unary operations
-    if (this.mode === Mode.extract_variable && ctx.UnaryOperator) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     if (ctx.UnaryOperator) {
       const operator = ctx.UnaryOperator
       const operand = this.visit(ctx.atomicExpression)
@@ -618,8 +322,7 @@ export class CelVisitor
 
     return expressions.reduce((acc: unknown, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        // Call the visitor method to handle collection macros
-        return this.identifierDotExpression(expression.children, acc)
+        return this.getIdentifier(acc, expression.children.Identifier[0].image)
       }
 
       const index = this.visit(expression.children.expr[0])
@@ -681,11 +384,6 @@ export class CelVisitor
    * - Macro expressions
    */
   atomicExpression(ctx: AtomicExpressionCstChildren) {
-    // In variable extraction mode, only allow identifierExpression
-    if (this.mode === Mode.extract_variable && !ctx.identifierExpression) {
-      throw new CelEvaluationError('Variable name must be a simple identifier')
-    }
-
     if (ctx.Null) {
       return null
     }
@@ -747,17 +445,6 @@ export class CelVisitor
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
-    // Handle variable extraction mode
-    if (this.mode === Mode.extract_variable) {
-      // Must be a simple identifier (no dot notation or indexing)
-      if (ctx.identifierDotExpression || ctx.identifierIndexExpression) {
-        throw new CelEvaluationError(
-          'Variable name must be a simple identifier',
-        )
-      }
-      return ctx.Identifier[0].image
-    }
-
     // Validate that we have a dot expression when in a has() macro
     if (this.mode === Mode.has && !ctx.identifierDotExpression?.length) {
       throw new CelEvaluationError('has() requires a field selection')
@@ -787,21 +474,6 @@ export class CelVisitor
     param: unknown,
   ): unknown {
     const identifierName = ctx.Identifier[0].image
-
-    // Check if this is a collection macro call (has parentheses and arguments)
-    if (ctx.OpenParenthesis) {
-      if (this.isCollectionMacro(identifierName)) {
-        return this.handleCollectionMacroCall(
-          identifierName as CollectionMacro,
-          param,
-          ctx,
-        )
-      }
-
-      throw new CelEvaluationError(`Unknown method: ${identifierName}`)
-    }
-
-    // Regular property access
     return this.getIdentifier(param, identifierName)
   }
 

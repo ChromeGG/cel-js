@@ -161,11 +161,6 @@ export interface IdentifierDotExpressionCstNode extends CstNode {
 export type IdentifierDotExpressionCstChildren = {
   Dot: IToken[]
   Identifier: IToken[]
-  OpenParenthesis?: IToken[]
-  arg?: ExprCstNode[]
-  Comma?: IToken[]
-  args?: ExprCstNode[]
-  CloseParenthesis?: IToken[]
 }
 
 export interface IndexExpressionCstNode extends CstNode {
