@@ -43,12 +43,55 @@ import { evaluate, parse } from 'cel-js'
 
   // Macro expressions
   // size()
-  const macroExpr = 'size([1, 2])'
-  console.log(`${macroExpr} => ${evaluate(macroExpr)}`) // => 2
+  const sizeMacroExpr = 'size([1, 2])'
+  console.log(`${sizeMacroExpr} => ${evaluate(sizeMacroExpr)}`) // => 2
 
   // has()
-  const hasExpr = 'has(user.role)'
-  console.log(`${hasExpr} => ${evaluate(hasExpr, context)}`) // => true
+  const hasMacroExpr = 'has(user.role)'
+  console.log(`${hasMacroExpr} => ${evaluate(hasMacroExpr, context)}`) // => true
+
+  // Collection macro context
+  const collectionContext = {
+    numbers: [1, 2, 3, 4, 5],
+    scores: { alice: 85, bob: 92, charlie: 78 },
+    people: [
+      { name: 'Alice', age: 25 },
+      { name: 'Bob', age: 30 },
+      { name: 'Charlie', age: 35 },
+    ],
+  }
+
+  // Collection macros - filter()
+  const filterMacroExpr = 'numbers.filter(n, n > 3)'
+  console.log(`${filterMacroExpr} => ${evaluate(filterMacroExpr, collectionContext)}`) // => [4, 5]
+
+  // Collection macros - map()
+  const mapMacroExpr = 'numbers.map(n, n * 2)'
+  console.log(`${mapMacroExpr} => ${evaluate(mapMacroExpr, collectionContext)}`) // => [2, 4, 6, 8, 10]
+
+  // Collection macros - all()
+  const allMacroExpr = 'numbers.all(n, n > 0)'
+  console.log(`${allMacroExpr} => ${evaluate(allMacroExpr, collectionContext)}`) // => true
+
+  // Collection macros - exists()
+  const existsMacroExpr = 'numbers.exists(n, n > 5)'
+  console.log(`${existsMacroExpr} => ${evaluate(existsMacroExpr, collectionContext)}`) // => false
+
+  // Collection macros - exists_one()
+  const existsOneMacroExpr = 'numbers.exists_one(n, n == 5)'
+  console.log(`${existsOneMacroExpr} => ${evaluate(existsOneMacroExpr, collectionContext)}`) // => true
+
+  // Collection macros on maps
+  const mapFilterExpr = 'scores.filter(name, scores[name] > 80)'
+  console.log(`${mapFilterExpr} => ${evaluate(mapFilterExpr, collectionContext)}`) // => ['alice', 'bob']
+
+  // Collection macros - map with predicate (3 arguments)
+  const mapWithPredicateExpr = 'numbers.map(n, n > 3, n * 10)'
+  console.log(`${mapWithPredicateExpr} => ${evaluate(mapWithPredicateExpr, collectionContext)}`) // => [40, 50]
+
+  // Collection macros - extract properties
+  const extractPropsExpr = 'people.map(person, person.name)'
+  console.log(`${extractPropsExpr} => ${evaluate(extractPropsExpr, collectionContext)}`) // => ['Alice', 'Bob', 'Charlie']
 
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'
