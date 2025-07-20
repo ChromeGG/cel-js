@@ -215,7 +215,10 @@ export class CelParser extends CstParser {
   })
 
   private structKeyValues = this.RULE('structKeyValues', () => {
-    this.CONSUME(Identifier, { LABEL: 'key' })
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier, { LABEL: 'key' }) },
+      { ALT: () => this.CONSUME(QuotedIdentifier, { LABEL: 'key' }) }
+    ])
     this.CONSUME(Colon)
     this.SUBRULE(this.expr, { LABEL: 'value' })
     this.OPTION(() => {

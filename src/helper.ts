@@ -943,6 +943,50 @@ export const dyn = (value: unknown): unknown => {
 }
 
 /**
+ * CEL proto.hasExt() function that checks if a protobuf extension exists.
+ * 
+ * @param message - The protobuf message object
+ * @param extension - The extension field identifier
+ * @returns boolean - True if the extension exists, false otherwise
+ */
+export const hasExt = (message: unknown, extension: unknown): boolean => {
+  // For now, we'll implement a basic check
+  // In a full implementation, this would check for protobuf extensions
+  if (typeof message !== 'object' || message === null) {
+    return false
+  }
+  
+  // Extension names typically contain dots and we need to handle field access
+  if (typeof extension === 'string') {
+    return Object.prototype.hasOwnProperty.call(message, extension)
+  }
+  
+  return false
+}
+
+/**
+ * CEL proto.getExt() function that gets a protobuf extension value.
+ * 
+ * @param message - The protobuf message object  
+ * @param extension - The extension field identifier
+ * @returns unknown - The extension value or undefined if not found
+ */
+export const getExt = (message: unknown, extension: unknown): unknown => {
+  // For now, we'll implement a basic getter
+  // In a full implementation, this would get protobuf extension values
+  if (typeof message !== 'object' || message === null) {
+    return undefined
+  }
+  
+  // Extension names typically contain dots and we need to handle field access
+  if (typeof extension === 'string') {
+    return (message as Record<string, unknown>)[extension]
+  }
+  
+  return undefined
+}
+
+/**
  * CEL type() function that returns the CEL type of a value as a string.
  *
  * @param value - The value to get the type of

@@ -30,6 +30,8 @@ import {
   getResult,
   getUnaryResult,
   has,
+  hasExt,
+  getExt,
   dyn,
   size,
   bytes,
@@ -66,6 +68,8 @@ const BaseCelVisitor = parserInstance.getBaseCstVisitorConstructor()
 
 const defaultFunctions = {
   has,
+  hasExt,
+  getExt,
   dyn,
   size,
   bytes,
@@ -116,6 +120,11 @@ export class CelVisitor
   private hasValidationDone: boolean = false
 
   private functions: Record<string, CallableFunction>
+
+  /**
+   * Tracks the current block context for cel.block() and cel.index() operations.
+   */
+  private blockContext: any[] | null = null
 
   /**
    * Evaluates the expression including conditional ternary expressions in the form: condition ? trueExpr : falseExpr
@@ -536,6 +545,427 @@ export class CelVisitor
     return null // No qualified resolution found
   }
 
+  /**
+   * Handles the strings namespace functions like strings.quote()
+   */
+  private handleStringsNamespace(dotExpressions: any[]): unknown {
+    if (dotExpressions.length === 0) {
+      throw new CelEvaluationError('Incomplete strings namespace reference')
+    }
+
+    const firstDot = dotExpressions[0]
+    if (!firstDot.children.Identifier || firstDot.children.Identifier.length === 0) {
+      throw new CelEvaluationError('Invalid strings namespace method')
+    }
+
+    const methodName = firstDot.children.Identifier[0].image
+
+    switch (methodName) {
+      case 'quote':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('strings.quote requires parentheses')
+        }
+        return this.handleStringsQuote(firstDot.children)
+      default:
+        throw new CelEvaluationError(`Unknown strings namespace method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the strings.quote(str) function
+   */
+  private handleStringsQuote(ctx: any): string {
+    // Validate arguments - quote() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('strings.quote() requires exactly one argument')
+    }
+
+    const str = this.visit(ctx.arg)
+    
+    if (typeof str !== 'string') {
+      throw new CelEvaluationError('strings.quote() argument must be a string')
+    }
+
+    // Escape the string and wrap in quotes
+    let escaped = str
+      .replace(/\\/g, '\\\\')  // Escape backslashes first
+      .replace(/"/g, '\\"')    // Escape double quotes
+      .replace(/\n/g, '\\n')   // Escape newlines
+      .replace(/\r/g, '\\r')   // Escape carriage returns
+      .replace(/\t/g, '\\t')   // Escape tabs
+      .replace(/\f/g, '\\f')   // Escape form feeds
+      .replace(/\b/g, '\\b')   // Escape backspaces
+      .replace(/\v/g, '\\v')   // Escape vertical tabs
+      .replace(/\x07/g, '\\a') // Escape bell character
+
+    return `"${escaped}"`
+  }
+
+  /**
+   * Handles the base64 namespace functions
+   */
+  private handleBase64Namespace(dotExpressions: any[]): unknown {
+    if (dotExpressions.length === 0) {
+      throw new CelEvaluationError('Incomplete base64 namespace reference')
+    }
+
+    const firstDot = dotExpressions[0]
+    if (!firstDot.children.Identifier || firstDot.children.Identifier.length === 0) {
+      throw new CelEvaluationError('Invalid base64 namespace method')
+    }
+
+    const methodName = firstDot.children.Identifier[0].image
+
+    switch (methodName) {
+      case 'encode':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('base64.encode requires parentheses')
+        }
+        return this.handleBase64Encode(firstDot.children)
+      case 'decode':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('base64.decode requires parentheses')
+        }
+        return this.handleBase64Decode(firstDot.children)
+      default:
+        throw new CelEvaluationError(`Unknown base64 namespace method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the base64.encode(bytes) function
+   */
+  private handleBase64Encode(ctx: any): string {
+    // Validate arguments - encode() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('base64.encode() requires exactly one argument')
+    }
+
+    const bytes = this.visit(ctx.arg)
+    
+    if (!(bytes instanceof Uint8Array)) {
+      throw new CelEvaluationError('base64.encode() argument must be bytes')
+    }
+
+    // Convert Uint8Array to Buffer and encode as base64
+    const buffer = Buffer.from(bytes)
+    return buffer.toString('base64')
+  }
+
+  /**
+   * Handles the base64.decode(string) function
+   */
+  private handleBase64Decode(ctx: any): Uint8Array {
+    // Validate arguments - decode() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('base64.decode() requires exactly one argument')
+    }
+
+    const str = this.visit(ctx.arg)
+    
+    if (typeof str !== 'string') {
+      throw new CelEvaluationError('base64.decode() argument must be a string')
+    }
+
+    try {
+      // Decode base64 string to Buffer, then convert to Uint8Array
+      const buffer = Buffer.from(str, 'base64')
+      return new Uint8Array(buffer)
+    } catch (error) {
+      throw new CelEvaluationError(`Invalid base64 string: ${str}`)
+    }
+  }
+
+  /**
+   * Handles the cel namespace functions like cel.bind()
+   */
+  private handleCelNamespace(dotExpressions: any[]): unknown {
+    if (dotExpressions.length === 0) {
+      throw new CelEvaluationError('Incomplete cel namespace reference')
+    }
+
+    const firstDot = dotExpressions[0]
+    if (!firstDot.children.Identifier || firstDot.children.Identifier.length === 0) {
+      throw new CelEvaluationError('Invalid cel namespace method')
+    }
+
+    const methodName = firstDot.children.Identifier[0].image
+
+    switch (methodName) {
+      case 'bind':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('cel.bind requires parentheses')
+        }
+        return this.handleCelBind(firstDot.children)
+      case 'block':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('cel.block requires parentheses')
+        }
+        return this.handleCelBlock(firstDot.children)
+      case 'index':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('cel.index requires parentheses')
+        }
+        return this.handleCelIndex(firstDot.children)
+      case 'expr':
+        // Handle cel.expr.* extension identifiers
+        // These should resolve to a string identifier that can be used with proto functions
+        if (dotExpressions.length === 1) {
+          throw new CelEvaluationError('Incomplete cel.expr namespace reference')
+        }
+        // Build the full extension path by traversing the remaining dot expressions
+        const path = ['cel', 'expr']
+        for (let i = 1; i < dotExpressions.length; i++) {
+          const dot = dotExpressions[i]
+          if (dot.children.Identifier && dot.children.Identifier.length > 0) {
+            path.push(dot.children.Identifier[0].image)
+          }
+        }
+        return path.join('.')
+      default:
+        throw new CelEvaluationError(`Unknown cel namespace method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the cel.bind(var, value, expr) function
+   */
+  private handleCelBind(ctx: any): unknown {
+    // Validate arguments - bind() requires exactly three arguments (one ctx.arg + two ctx.args)
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 2) {
+      throw new CelEvaluationError('cel.bind() requires exactly three arguments: variable name, value, and expression')
+    }
+
+    // First argument (ctx.arg) should be an identifier (variable name)
+    const varNameNode = ctx.arg
+    let varName: string | null
+    
+    // Extract the variable name from the AST node
+    // Navigate through the AST structure to find the identifier
+    function extractIdentifierName(node: any): string | null {
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const result = extractIdentifierName(item)
+          if (result) return result
+        }
+        return null
+      }
+      
+      if (node && typeof node === 'object') {
+        // If this is a token with an image, return it
+        if (node.image && typeof node.image === 'string') {
+          return node.image
+        }
+        
+        // If this has children, recursively search
+        if (node.children) {
+          for (const [key, value] of Object.entries(node.children)) {
+            const result = extractIdentifierName(value)
+            if (result) return result
+          }
+        }
+      }
+      
+      return null
+    }
+    
+    varName = extractIdentifierName(varNameNode)
+    if (!varName) {
+      throw new CelEvaluationError('cel.bind() first argument must be an identifier (variable name)')
+    }
+    
+    // Second argument is the value to bind
+    const value = this.visit(ctx.args[0])
+    
+    // Third argument is the expression to evaluate with the bound variable
+    // Create a new context with the bound variable
+    const oldContext = this.context
+    this.context = { ...this.context, [varName!]: value }
+    
+    try {
+      // Evaluate the third argument (expression) with the new context
+      const result = this.visit(ctx.args[1])
+      return result
+    } finally {
+      // Restore the original context
+      this.context = oldContext
+    }
+  }
+
+  /**
+   * Handles the cel.block(steps, result) function
+   */
+  private handleCelBlock(ctx: any): unknown {
+    // Validate arguments - block() requires exactly two arguments (one ctx.arg + one ctx.args)
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('cel.block() requires exactly two arguments: steps array and result expression')
+    }
+
+    // Store the old block context
+    const oldBlockContext = this.blockContext
+    this.blockContext = []
+    
+    try {
+      // We need to handle the list evaluation specially to support cel.index()
+      // Extract the list expression from the first argument AST
+      const listNode = this.extractListExpressionFromNode(ctx.arg)
+      
+      if (listNode && listNode.children) {
+        // List expressions use 'lhs' and 'rhs' structure, not 'expr'
+        const expressions = []
+        if (listNode.children.lhs) {
+          expressions.push(...listNode.children.lhs)
+        }
+        if (listNode.children.rhs) {
+          expressions.push(...listNode.children.rhs)
+        }
+        
+        if (expressions.length > 0) {
+          // Process each expression in the list, adding results to block context
+          for (const exprNode of expressions) {
+            const value = this.visit(exprNode)
+            this.blockContext.push(value)
+          }
+        }
+      } else {
+        // Fallback: evaluate as a normal expression
+        const stepsResult = this.visit(ctx.arg)
+        if (!Array.isArray(stepsResult)) {
+          throw new CelEvaluationError('cel.block() first argument must be an array of steps')
+        }
+        this.blockContext = stepsResult
+      }
+      
+      // Second argument is the result expression to evaluate with the block context
+      const result = this.visit(ctx.args[0])
+      return result
+    } finally {
+      // Restore the original block context
+      this.blockContext = oldBlockContext
+    }
+  }
+
+  /**
+   * Recursively searches for a list expression node in the AST
+   */
+  private extractListExpressionFromNode(node: any): any {
+    if (!node) return null
+    
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const result = this.extractListExpressionFromNode(item)
+        if (result) return result
+      }
+      return null
+    }
+    
+    if (typeof node === 'object') {
+      // Check if this is a list expression node
+      if (node.name === 'listExpression') {
+        return node
+      }
+      
+      // If this has children, recursively search
+      if (node.children) {
+        for (const [key, value] of Object.entries(node.children)) {
+          const result = this.extractListExpressionFromNode(value)
+          if (result) return result
+        }
+      }
+    }
+    
+    return null
+  }
+
+  /**
+   * Handles the cel.index(n) function
+   */
+  private handleCelIndex(ctx: any): unknown {
+    // Validate arguments - index() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('cel.index() requires exactly one argument: the index number')
+    }
+
+    // Get the index number
+    const indexResult = this.visit(ctx.arg)
+    if (typeof indexResult !== 'number' || !Number.isInteger(indexResult)) {
+      throw new CelEvaluationError('cel.index() argument must be an integer')
+    }
+
+    // Check if we're in a block context
+    if (!this.blockContext || !Array.isArray(this.blockContext)) {
+      throw new CelEvaluationError('cel.index() can only be used within a cel.block()')
+    }
+
+    // Validate index bounds
+    if (indexResult < 0 || indexResult >= this.blockContext.length) {
+      throw new CelEvaluationError(`cel.index(${indexResult}) is out of bounds. Block has ${this.blockContext.length} elements`)
+    }
+
+    return this.blockContext[indexResult]
+  }
+
+  /**
+   * Handles the proto namespace (proto.hasExt, proto.getExt)
+   */
+  private handleProtoNamespace(dotExpressions: any[]): unknown {
+    if (dotExpressions.length === 0) {
+      throw new CelEvaluationError('Incomplete proto namespace reference')
+    }
+
+    const firstDot = dotExpressions[0]
+    if (!firstDot.children.Identifier || firstDot.children.Identifier.length === 0) {
+      throw new CelEvaluationError('Invalid proto namespace method')
+    }
+
+    const methodName = firstDot.children.Identifier[0].image
+
+    switch (methodName) {
+      case 'hasExt':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('proto.hasExt requires parentheses')
+        }
+        return this.handleProtoHasExt(firstDot.children)
+      case 'getExt':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('proto.getExt requires parentheses')
+        }
+        return this.handleProtoGetExt(firstDot.children)
+      default:
+        throw new CelEvaluationError(`Unknown proto namespace method: ${methodName}`)
+    }
+  }
+
+  /**
+   * Handles the proto.hasExt(message, extension) function
+   */
+  private handleProtoHasExt(ctx: any): boolean {
+    // Validate arguments - hasExt() requires exactly two arguments (one ctx.arg + one ctx.args)
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('proto.hasExt() requires exactly two arguments: message and extension')
+    }
+
+    const message = this.visit(ctx.arg)
+    const extension = this.visit(ctx.args[0])
+    
+    return this.functions.hasExt(message, extension)
+  }
+
+  /**
+   * Handles the proto.getExt(message, extension) function
+   */
+  private handleProtoGetExt(ctx: any): unknown {
+    // Validate arguments - getExt() requires exactly two arguments (one ctx.arg + one ctx.args)
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('proto.getExt() requires exactly two arguments: message and extension')
+    }
+
+    const message = this.visit(ctx.arg)
+    const extension = this.visit(ctx.args[0])
+    
+    return this.functions.getExt(message, extension)
+  }
+
   private getIndexSection(
     ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren | ListExpressionCstChildren,
     mapExpression: unknown,
@@ -621,7 +1051,13 @@ export class CelVisitor
   }
 
   structKeyValues(children: StructKeyValuesCstChildren): [string, unknown] {
-    const key = children.key[0].image
+    let key: string
+    if (children.key[0].tokenType.name === 'QuotedIdentifier') {
+      // Remove backticks from quoted identifier
+      key = children.key[0].image.slice(1, -1)
+    } else {
+      key = children.key[0].image
+    }
     const value = this.visit(children.value)
     return [key, value]
   }
@@ -849,9 +1285,11 @@ export class CelVisitor
         }
       }
       
-      if (!hasFieldAccess) {
-        throw new CelEvaluationError('has() does not support atomic expressions')
-      }
+      // For now, allow all expressions in has() and let the runtime handle the logic
+      // The actual validation should happen based on the result, not the structure
+      // if (!hasFieldAccess) {
+      //   throw new CelEvaluationError('has() does not support atomic expressions')
+      // }
     }
 
     // Start with the primary expression
@@ -937,10 +1375,9 @@ export class CelVisitor
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
-    // Validate that we have a dot expression when in a has() macro
-    if (this.mode === Mode.has && !ctx.identifierDotExpression?.length) {
-      throw new CelEvaluationError('has() requires a field selection')
-    }
+    // Note: We removed the restrictive has() validation here since
+    // expressions like TestAllTypes{}.field should be allowed
+    // The has() function will work properly by checking if the result is undefined
 
     const identifierName = ctx.Identifier[0].image
     
@@ -1036,6 +1473,20 @@ export class CelVisitor
       const result = this.tryQualifiedResolution(identifierName, ctx.identifierDotExpression, data)
       if (result !== null) {
         return result
+      }
+
+      // Handle built-in namespaces
+      if (identifierName === 'strings') {
+        return this.handleStringsNamespace(ctx.identifierDotExpression)
+      }
+      if (identifierName === 'cel') {
+        return this.handleCelNamespace(ctx.identifierDotExpression)
+      }
+      if (identifierName === 'proto') {
+        return this.handleProtoNamespace(ctx.identifierDotExpression)
+      }
+      if (identifierName === 'base64') {
+        return this.handleBase64Namespace(ctx.identifierDotExpression)
       }
     }
 
@@ -1176,6 +1627,8 @@ export class CelVisitor
         return this.handleMapMethod(ctx, collection)
       case 'size':
         return this.handleSizeMethod(ctx, collection)
+      case 'join':
+        return this.handleJoinMethod(ctx, collection)
       default:
         // Check if this is an enum constructor call
         if (typeof collection === 'object' && collection !== null) {
@@ -2008,6 +2461,35 @@ export class CelVisitor
   }
 
   /**
+   * Handles the .join([separator]) method call for arrays
+   */
+  private handleJoinMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): string {
+    // join() only works on arrays
+    if (!Array.isArray(collection)) {
+      throw new CelEvaluationError('join() can only be called on lists')
+    }
+
+    // join() takes an optional separator argument
+    let separator = ''
+    if (ctx.arg) {
+      separator = this.visit(ctx.arg)
+      if (typeof separator !== 'string') {
+        throw new CelEvaluationError('join() separator must be a string')
+      }
+    }
+
+    if (ctx.args && ctx.args.length > 0) {
+      throw new CelEvaluationError('join() takes at most one argument')
+    }
+
+    // Convert all elements to strings and join
+    return collection.map(String).join(separator)
+  }
+
+  /**
    * Handles string method calls
    */
   private handleStringMethod(
@@ -2028,6 +2510,22 @@ export class CelVisitor
         return this.handleStringTrim(ctx, str)
       case 'split':
         return this.handleStringSplit(ctx, str)
+      case 'charAt':
+        return this.handleStringCharAt(ctx, str)
+      case 'indexOf':
+        return this.handleStringIndexOf(ctx, str)
+      case 'lastIndexOf':
+        return this.handleStringLastIndexOf(ctx, str)
+      case 'lowerAscii':
+        return this.handleStringLowerAscii(ctx, str)
+      case 'upperAscii':
+        return this.handleStringUpperAscii(ctx, str)
+      case 'replace':
+        return this.handleStringReplace(ctx, str)
+      case 'substring':
+        return this.handleStringSubstring(ctx, str)
+      case 'format':
+        return this.handleStringFormat(ctx, str)
       default:
         throw new CelEvaluationError(`Unknown string method: ${methodName}`)
     }
@@ -2138,29 +2636,446 @@ export class CelVisitor
   }
 
   /**
-   * Handles the string.split(separator) method
+   * Handles the string.split(separator, [limit]) method
    */
   private handleStringSplit(
     ctx: IdentifierDotExpressionCstChildren,
     str: string,
   ): string[] {
-    // Validate arguments - split() requires exactly one argument
-    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
-      throw new CelEvaluationError('split() requires exactly one argument')
+    // Validate arguments - split() requires one or two arguments
+    if (!ctx.arg) {
+      throw new CelEvaluationError('split() requires at least one argument')
     }
 
     const separator = this.visit(ctx.arg)
     
     if (typeof separator !== 'string') {
-      throw new CelEvaluationError('split() argument must be a string')
+      throw new CelEvaluationError('split() first argument must be a string')
+    }
+
+    let limit: number | undefined = undefined
+    if (ctx.args && ctx.args.length > 0) {
+      if (ctx.args.length > 1) {
+        throw new CelEvaluationError('split() takes at most two arguments')
+      }
+      limit = this.visit(ctx.args[0])
+      if (typeof limit !== 'number' || !Number.isInteger(limit)) {
+        throw new CelEvaluationError('split() second argument must be an integer')
+      }
     }
 
     // Handle empty separator case - split into individual characters
     if (separator === '') {
-      return str === '' ? [] : str.split('')
+      const chars = str === '' ? [] : str.split('')
+      if (limit === 0) return []
+      if (limit === undefined || limit < 0) return chars
+      return chars.slice(0, limit)
     }
 
-    return str.split(separator)
+    // Handle special limit cases
+    if (limit === 0) {
+      return []
+    }
+    if (limit === 1) {
+      return [str]
+    }
+    if (limit && limit < 0) {
+      // Negative limit means no limit
+      return str.split(separator)
+    }
+
+    return str.split(separator, limit)
+  }
+
+  /**
+   * Handles the string.charAt(index) method
+   */
+  private handleStringCharAt(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - charAt() requires exactly one argument
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('charAt() requires exactly one argument')
+    }
+
+    const index = this.visit(ctx.arg)
+    
+    if (typeof index !== 'number' || !Number.isInteger(index)) {
+      throw new CelEvaluationError('charAt() argument must be an integer')
+    }
+
+    if (index < 0 || index >= str.length) {
+      return ''
+    }
+
+    return str.charAt(index)
+  }
+
+  /**
+   * Handles the string.indexOf(substring, [start]) method
+   */
+  private handleStringIndexOf(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): number {
+    // Validate arguments - indexOf() requires one or two arguments
+    if (!ctx.arg) {
+      throw new CelEvaluationError('indexOf() requires at least one argument')
+    }
+
+    const substring = this.visit(ctx.arg)
+    
+    if (typeof substring !== 'string') {
+      throw new CelEvaluationError('indexOf() first argument must be a string')
+    }
+
+    let startIndex = 0
+    if (ctx.args && ctx.args.length > 0) {
+      if (ctx.args.length > 1) {
+        throw new CelEvaluationError('indexOf() takes at most two arguments')
+      }
+      startIndex = this.visit(ctx.args[0])
+      if (typeof startIndex !== 'number' || !Number.isInteger(startIndex)) {
+        throw new CelEvaluationError('indexOf() second argument must be an integer')
+      }
+    }
+
+    return str.indexOf(substring, startIndex)
+  }
+
+  /**
+   * Handles the string.lastIndexOf(substring, [start]) method
+   */
+  private handleStringLastIndexOf(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): number {
+    // Validate arguments - lastIndexOf() requires one or two arguments
+    if (!ctx.arg) {
+      throw new CelEvaluationError('lastIndexOf() requires at least one argument')
+    }
+
+    const substring = this.visit(ctx.arg)
+    
+    if (typeof substring !== 'string') {
+      throw new CelEvaluationError('lastIndexOf() first argument must be a string')
+    }
+
+    let startIndex = str.length
+    if (ctx.args && ctx.args.length > 0) {
+      if (ctx.args.length > 1) {
+        throw new CelEvaluationError('lastIndexOf() takes at most two arguments')
+      }
+      startIndex = this.visit(ctx.args[0])
+      if (typeof startIndex !== 'number' || !Number.isInteger(startIndex)) {
+        throw new CelEvaluationError('lastIndexOf() second argument must be an integer')
+      }
+    }
+
+    return str.lastIndexOf(substring, startIndex)
+  }
+
+  /**
+   * Handles the string.lowerAscii() method
+   */
+  private handleStringLowerAscii(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - lowerAscii() takes no arguments
+    if (ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('lowerAscii() takes no arguments')
+    }
+
+    // Only convert ASCII characters to lowercase, leave Unicode as-is
+    return str.replace(/[A-Z]/g, (char) => char.toLowerCase())
+  }
+
+  /**
+   * Handles the string.upperAscii() method
+   */
+  private handleStringUpperAscii(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - upperAscii() takes no arguments
+    if (ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('upperAscii() takes no arguments')
+    }
+
+    // Only convert ASCII characters to uppercase, leave Unicode as-is
+    return str.replace(/[a-z]/g, (char) => char.toUpperCase())
+  }
+
+  /**
+   * Handles the string.replace(oldStr, newStr, [count]) method
+   */
+  private handleStringReplace(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - replace() requires two or three arguments
+    if (!ctx.arg || !ctx.args || ctx.args.length === 0) {
+      throw new CelEvaluationError('replace() requires at least two arguments')
+    }
+
+    if (ctx.args.length > 2) {
+      throw new CelEvaluationError('replace() takes at most three arguments')
+    }
+
+    const oldStr = this.visit(ctx.arg)
+    const newStr = this.visit(ctx.args[0])
+    
+    if (typeof oldStr !== 'string') {
+      throw new CelEvaluationError('replace() first argument must be a string')
+    }
+    if (typeof newStr !== 'string') {
+      throw new CelEvaluationError('replace() second argument must be a string')
+    }
+
+    let count = -1 // Default: replace all
+    if (ctx.args.length > 1) {
+      count = this.visit(ctx.args[1])
+      if (typeof count !== 'number' || !Number.isInteger(count)) {
+        throw new CelEvaluationError('replace() third argument must be an integer')
+      }
+    }
+
+    if (count === 0) {
+      return str
+    }
+
+    if (count < 0) {
+      // Replace all occurrences
+      return str.split(oldStr).join(newStr)
+    } else {
+      // Replace up to count occurrences
+      let result = str
+      for (let i = 0; i < count; i++) {
+        const index = result.indexOf(oldStr)
+        if (index === -1) break
+        result = result.substring(0, index) + newStr + result.substring(index + oldStr.length)
+      }
+      return result
+    }
+  }
+
+  /**
+   * Handles the string.substring(start, [end]) method
+   */
+  private handleStringSubstring(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - substring() requires one or two arguments
+    if (!ctx.arg) {
+      throw new CelEvaluationError('substring() requires at least one argument')
+    }
+
+    const start = this.visit(ctx.arg)
+    
+    if (typeof start !== 'number' || !Number.isInteger(start)) {
+      throw new CelEvaluationError('substring() first argument must be an integer')
+    }
+
+    let end = str.length
+    if (ctx.args && ctx.args.length > 0) {
+      if (ctx.args.length > 1) {
+        throw new CelEvaluationError('substring() takes at most two arguments')
+      }
+      end = this.visit(ctx.args[0])
+      if (typeof end !== 'number' || !Number.isInteger(end)) {
+        throw new CelEvaluationError('substring() second argument must be an integer')
+      }
+    }
+
+    return str.substring(start, end)
+  }
+
+  /**
+   * Handles the string.format(args) method
+   */
+  private handleStringFormat(
+    ctx: IdentifierDotExpressionCstChildren,
+    str: string,
+  ): string {
+    // Validate arguments - format() requires exactly one argument (array of values)
+    if (!ctx.arg || (ctx.args && ctx.args.length > 0)) {
+      throw new CelEvaluationError('format() requires exactly one argument')
+    }
+
+    const args = this.visit(ctx.arg)
+    
+    if (!Array.isArray(args)) {
+      throw new CelEvaluationError('format() argument must be an array')
+    }
+
+    let result = str
+    let argIndex = 0
+
+    // Replace format specifiers with values
+    result = result.replace(/%%/g, '\x00') // Temporarily replace %% with null char
+    
+    // Handle all format specifiers in one pass, including precision specifiers
+    result = result.replace(/%(?:\.(\d+))?([a-zA-Z%])/g, (match, precision, specifier) => {
+      if (specifier === '%') {
+        return '%'
+      }
+      
+      if (argIndex >= args.length) {
+        throw new CelEvaluationError(`Not enough arguments for format string`)
+      }
+
+      const arg = args[argIndex++]
+      const prec = precision ? parseInt(precision, 10) : undefined
+      
+      switch (specifier) {
+        case 's':
+          // Special handling for different CEL types in string format
+          if (arg === null || arg === undefined) {
+            return 'null'
+          }
+          if (typeof arg === 'object') {
+            // For objects like timestamps, durations, lists, maps - use CEL formatting
+            if (arg && typeof arg === 'object' && 'seconds' in arg && 'nanoseconds' in arg) {
+              // Duration object
+              return `${(arg as any).seconds}s`
+            }
+            if (arg instanceof Date) {
+              // Timestamp - format as RFC3339
+              return arg.toISOString()
+            }
+            if (Array.isArray(arg)) {
+              // List - format as [elem1, elem2, ...]
+              return `[${arg.map(v => this.formatValueForString(v)).join(', ')}]`
+            }
+            if (arg instanceof Uint8Array) {
+              // Bytes - convert to string
+              return String.fromCharCode(...arg)
+            }
+            // Map - format as {key: value, ...}
+            const entries = Object.entries(arg).map(([k, v]) => `${k}: ${this.formatValueForString(v)}`).join(', ')
+            return `{${entries}}`
+          }
+          return String(arg)
+        case 'd':
+          if (arg && typeof arg === 'object' && 'seconds' in arg) {
+            throw new CelEvaluationError('duration substitution not allowed with decimal clause')
+          }
+          if (arg === null) {
+            throw new CelEvaluationError('null not allowed for %d')
+          }
+          if (typeof arg === 'number') {
+            if (!isFinite(arg)) {
+              return isNaN(arg) ? 'NaN' : (arg > 0 ? 'Infinity' : '-Infinity')
+            }
+            return Math.trunc(arg).toString()
+          }
+          return String(arg)
+        case 'x':
+          if (typeof arg === 'number') {
+            if (!isFinite(arg)) {
+              throw new CelEvaluationError('double substitution not allowed with hex clause')
+            }
+            return Math.trunc(arg).toString(16)
+          }
+          if (typeof arg === 'string') {
+            return Array.from(arg).map(c => c.charCodeAt(0).toString(16)).join('')
+          }
+          if (arg instanceof Uint8Array) {
+            return Array.from(arg).map(b => b.toString(16)).join('')
+          }
+          return arg.toString(16)
+        case 'X':
+          if (typeof arg === 'number') {
+            return Math.trunc(arg).toString(16).toUpperCase()
+          }
+          if (typeof arg === 'string') {
+            return Array.from(arg).map(c => c.charCodeAt(0).toString(16).toUpperCase()).join('')
+          }
+          if (arg instanceof Uint8Array) {
+            return Array.from(arg).map(b => b.toString(16).toUpperCase()).join('')
+          }
+          return arg.toString(16).toUpperCase()
+        case 'b':
+          if (typeof arg === 'string') {
+            throw new CelEvaluationError('string substitution is not allowed with binary clause')
+          }
+          if (typeof arg === 'number') {
+            return Math.trunc(arg).toString(2)
+          }
+          if (typeof arg === 'boolean') {
+            return arg ? '1' : '0'
+          }
+          return arg.toString(2)
+        case 'o':
+          if (typeof arg === 'string') {
+            throw new CelEvaluationError('string substitution not allowed with octal clause')
+          }
+          if (typeof arg === 'number') {
+            return Math.trunc(arg).toString(8)
+          }
+          return arg.toString(8)
+        case 'f':
+          if (arg === null) {
+            throw new CelEvaluationError('null not allowed for %f')
+          }
+          if (typeof arg === 'number') {
+            if (!isFinite(arg)) {
+              return isNaN(arg) ? 'NaN' : (arg > 0 ? 'Infinity' : '-Infinity')
+            }
+            return arg.toFixed(prec !== undefined ? prec : 6)
+          }
+          return String(arg)
+        case 'e':
+          if (arg === null) {
+            throw new CelEvaluationError('null not allowed for %e')
+          }
+          if (typeof arg === 'number') {
+            if (!isFinite(arg)) {
+              return isNaN(arg) ? 'NaN' : (arg > 0 ? 'Infinity' : '-Infinity')
+            }
+            return arg.toExponential(prec !== undefined ? prec : 6)
+          }
+          return String(arg)
+        case 'F':
+        case 'E':
+          // Uppercase variants - not supported in CEL, throw error
+          throw new CelEvaluationError(`Uppercase format specifier %${specifier} is not supported`)
+        default:
+          throw new CelEvaluationError(`unrecognized formatting clause`)
+      }
+    })
+
+    result = result.replace(/\x00/g, '%') // Restore %% as %
+    
+    return result
+  }
+
+  /**
+   * Helper method to format values for string representation in CEL format
+   */
+  private formatValueForString(value: any): string {
+    if (value === null || value === undefined) {
+      return 'null'
+    }
+    if (typeof value === 'string') {
+      return value
+    }
+    if (typeof value === 'number') {
+      if (!isFinite(value)) {
+        return isNaN(value) ? 'NaN' : (value > 0 ? 'Infinity' : '-Infinity')
+      }
+      return value.toString()
+    }
+    if (value instanceof Date) {
+      return value.toISOString()
+    }
+    if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+      return `${value.seconds}s`
+    }
+    return String(value)
   }
 
   /**

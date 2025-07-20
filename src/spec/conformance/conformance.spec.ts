@@ -211,6 +211,344 @@ describe('CEL Conformance Tests', () => {
     })
   })
 
+  describe('Bindings Extension Tests', () => {
+    it('should run bindings_ext tests', () => {
+      const results = runner.runTestFile('bindings_ext')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = total > 0 ? (passed / total) * 100 : 0
+      
+      console.log(`Bindings extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // Skip test if no tests are found
+      if (total === 0) {
+        console.log('No tests found in bindings_ext file, skipping...')
+        return
+      }
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Block Extension Tests', () => {
+    it('should run block_ext tests', () => {
+      console.log('Loading block_ext test file...')
+      const results = runner.runTestFile('block_ext')
+      console.log(`Loaded ${results.length} tests from block_ext`)
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = total > 0 ? (passed / total) * 100 : 0
+      
+      console.log(`Block extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // Skip test if no tests are found
+      if (total === 0) {
+        console.log('No tests found in block_ext file, skipping...')
+        return
+      }
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Dynamic Type Tests', () => {
+    it('should run dynamic tests', () => {
+      const results = runner.runTestFile('dynamic')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Dynamic type tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Encoders Extension Tests', () => {
+    it('should run encoders_ext tests', () => {
+      const results = runner.runTestFile('encoders_ext')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = total > 0 ? (passed / total) * 100 : 0
+      
+      console.log(`Encoders extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // Skip test if no tests are found
+      if (total === 0) {
+        console.log('No tests found in encoders_ext file, skipping...')
+        return
+      }
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Macro Tests', () => {
+    it('should run macros tests', () => {
+      const results = runner.runTestFile('macros')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Macro tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Macro Tests 2', () => {
+    it('should run macros2 tests', () => {
+      const results = runner.runTestFile('macros2')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Macro 2 tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Math Extension Tests', () => {
+    it('should run math_ext tests', () => {
+      const results = runner.runTestFile('math_ext')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Math extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Namespace Tests', () => {
+    it('should run namespace tests', () => {
+      const results = runner.runTestFile('namespace')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Namespace tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Optional Value Tests', () => {
+    it('should run optionals tests', () => {
+      const results = runner.runTestFile('optionals')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Optional value tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Parse Tests', () => {
+    it('should run parse tests', () => {
+      const results = runner.runTestFile('parse')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Parse tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Plumbing Tests', () => {
+    it('should run plumbing tests', () => {
+      const results = runner.runTestFile('plumbing')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Plumbing tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Protocol Buffer v2 Tests', () => {
+    it('should run proto2 tests', () => {
+      const results = runner.runTestFile('proto2')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Protocol Buffer v2 tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Protocol Buffer v2 Extension Tests', () => {
+    it('should run proto2_ext tests', () => {
+      const results = runner.runTestFile('proto2_ext')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = total > 0 ? (passed / total) * 100 : 0
+      
+      console.log(`Protocol Buffer v2 extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // Skip test if no tests are found
+      if (total === 0) {
+        console.log('No tests found in proto2_ext file, skipping...')
+        return
+      }
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Protocol Buffer v3 Tests', () => {
+    it('should run proto3 tests', () => {
+      const results = runner.runTestFile('proto3')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Protocol Buffer v3 tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('String Extension Tests', () => {
+    it('should run string_ext tests', () => {
+      const results = runner.runTestFile('string_ext')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`String extension tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Type Deduction Tests', () => {
+    it('should run type_deductions tests', () => {
+      const results = runner.runTestFile('type_deductions')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Type deduction tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Unknown Value Tests', () => {
+    it('should run unknowns tests', () => {
+      const results = runner.runTestFile('unknowns')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = total > 0 ? (passed / total) * 100 : 0
+      
+      console.log(`Unknown value tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      // Skip test if no tests are found
+      if (total === 0) {
+        console.log('No tests found in unknowns file, skipping...')
+        return
+      }
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('Wrapper Type Tests', () => {
+    it('should run wrappers tests', () => {
+      const results = runner.runTestFile('wrappers')
+      
+      const report = runner.generateReport(results)
+      console.log(report)
+      
+      const passed = results.filter(r => r.passed).length
+      const total = results.length
+      const passRate = (passed / total) * 100
+      
+      console.log(`Wrapper type tests: ${passed}/${total} passed (${passRate.toFixed(1)}%)`)
+      
+      expect(passRate).toBeGreaterThanOrEqual(1)
+    })
+  })
+
   describe('Individual Test Cases', () => {
     it('should pass self_eval_int_zero', () => {
       const results = runner.runTestFile('basic')

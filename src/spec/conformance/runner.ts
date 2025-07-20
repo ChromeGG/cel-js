@@ -31,6 +31,14 @@ export class ConformanceTestRunner {
     const testFile = this.loadTestFile(fileName)
     const results: ConformanceTestResult[] = []
 
+    // Debug problematic files
+    if (['bindings_ext', 'block_ext', 'encoders_ext', 'proto2_ext'].includes(fileName)) {
+      console.log(`DEBUG: ${fileName} has ${testFile.section.length} sections:`)
+      testFile.section.forEach(section => {
+        console.log(`  Section: "${section.name}" with ${section.test.length} tests`)
+      })
+    }
+
     for (const section of testFile.section) {
       for (const test of section.test) {
         const result = this.runSingleTest(test, section.name)
@@ -63,6 +71,14 @@ export class ConformanceTestRunner {
       sectionName,
       passed: false,
       expression: test.expr
+    }
+    
+    // Debug problematic test files
+    if (['bind', 'basic', 'encode', 'decode', 'round_trip', 'has_ext', 'get_ext'].includes(sectionName)) {
+      console.log(`DEBUG: Running ${sectionName} test: ${test.name} - ${test.expr}`)
+      if (test.bindings) {
+        console.log(`  Bindings:`, Object.keys(test.bindings))
+      }
     }
     
     if (sectionName.includes('strong_')) {
@@ -104,6 +120,8 @@ export class ConformanceTestRunner {
       if (context.TestAllTypes?.NestedEnum && typeof context.TestAllTypes.NestedEnum === 'function') {
         functions['TestAllTypes.NestedEnum'] = context.TestAllTypes.NestedEnum
       }
+      
+
       
       const actualResult = evaluate(test.expr, context, functions)
 
@@ -287,6 +305,45 @@ export class ConformanceTestRunner {
         Object.keys(fields).forEach(key => {
           if (key !== 'standalone_enum' && key !== 'repeated_nested_enum') {
             result[key] = fields[key]
+          }
+        })
+        
+        // Add all protobuf fields with default values if not already set
+        const protoFields = [
+          'single_int32', 'single_int64', 'single_uint32', 'single_uint64',
+          'single_sint32', 'single_sint64', 'single_fixed32', 'single_fixed64',
+          'single_sfixed32', 'single_sfixed64', 'single_float', 'single_double',
+          'single_bool', 'single_string', 'single_bytes',
+          'repeated_int32', 'repeated_int64', 'repeated_uint32', 'repeated_uint64',
+          'repeated_sint32', 'repeated_sint64', 'repeated_fixed32', 'repeated_fixed64',
+          'repeated_sfixed32', 'repeated_sfixed64', 'repeated_float', 'repeated_double',
+          'repeated_bool', 'repeated_string', 'repeated_bytes',
+          'single_nested_message', 'repeated_nested_message',
+          'single_nested_enum', 'map_string_string', 'map_int32_enum',
+          'map_bool_int64', 'single_any', 'single_duration', 'single_timestamp',
+          'single_struct', 'single_value', 'list_value',
+          'single_int32_wrapper', 'single_int64_wrapper', 'single_uint32_wrapper',
+          'single_uint64_wrapper', 'single_float_wrapper', 'single_double_wrapper',
+          'single_bool_wrapper', 'single_string_wrapper', 'single_bytes_wrapper'
+        ]
+        
+        protoFields.forEach(field => {
+          if (!(field in result)) {
+            if (field.startsWith('repeated_') || field.startsWith('map_')) {
+              result[field] = field.startsWith('map_') ? {} : []
+            } else if (field.includes('_enum')) {
+              result[field] = isStrongMode ? new CelEnum(nestedEnumTypeName, 0, 'FOO') : 0
+            } else if (field.includes('_bool')) {
+              result[field] = false
+            } else if (field.includes('_string')) {
+              result[field] = ''
+            } else if (field.includes('_bytes')) {
+              result[field] = new Uint8Array()
+            } else if (field.includes('_int') || field.includes('_uint') || field.includes('_float') || field.includes('_double')) {
+              result[field] = 0
+            } else {
+              result[field] = null
+            }
           }
         })
         
