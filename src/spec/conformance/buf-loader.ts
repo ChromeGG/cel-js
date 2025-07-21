@@ -232,56 +232,134 @@ function decodeTestAllTypesFromRaw(rawData: any, typeUrl: string, sectionName?: 
   const isLegacyMode = sectionName?.includes('legacy_') || false
   const isStrongMode = sectionName?.includes('strong_') || false
   
-
+  console.log(`DEBUG decodeTestAllTypesFromRaw: Section "${sectionName}" processing raw data:`, JSON.stringify(rawData))
   
-  // Based on debug output patterns, it appears:
-  // - Simple enum assignments have pattern {"0": 192, "1": 1, "2": enumValue}
-  // - More complex cases might have additional fields
+  // Parse protobuf wire format data
+  // The data represents protobuf wire format where:
+  // - "0": tag (field_number << 3 | wire_type)  
+  // - "1": value
+  // - "2": next tag, "3": next value, etc.
   
-  const result: any = {
-    repeated_nested_enum: []
-  }
+  const result: any = {}
   
-  // Try to extract enum value from position "2" (this seems to be the pattern)
-  if (rawData["2"] !== undefined) {
-    let enumValue = rawData["2"]
+  // Parse the wire format data in pairs
+  const keys = Object.keys(rawData).map(Number).sort((a, b) => a - b)
+  for (let i = 0; i < keys.length; i += 2) {
+    const tagKey = keys[i]
+    const valueKey = keys[i + 1]
     
-    // Handle negative values: they appear to be encoded as unsigned integers
-    // Special cases for known problematic values
-    if (enumValue === 165 && rawData["3"] === 248) {
-      // This specific pattern corresponds to -987 in the test data
-      enumValue = -987
-    } else if (enumValue > 127) {
-      // Single byte negative: 255 = -1, 254 = -2, 253 = -3, etc.
-      enumValue = enumValue - 256
-    }
+    if (valueKey === undefined) continue
     
-    if (isStrongMode) {
-      const enumType = typeUrl.includes('proto3') 
-        ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
-        : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum'
-      result.standalone_enum = new CelEnum(enumType, enumValue)
-    } else {
-      result.standalone_enum = enumValue
-    }
-  } else {
-    // Default value
-    if (isStrongMode) {
-      const enumType = typeUrl.includes('proto3') 
-        ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
-        : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum'
-      result.standalone_enum = new CelEnum(enumType, 0, 'FOO')
-    } else {
-      result.standalone_enum = 0
+    const tag = rawData[tagKey]
+    const value = rawData[valueKey]
+    
+    // Extract field number from tag
+    const fieldNumber = tag >> 3
+    const wireType = tag & 0x07
+    
+    // Map field numbers to field names based on TestAllTypes protobuf schema
+    switch (fieldNumber) {
+      case 1: result.single_int32 = value; break
+      case 2: result.single_int64 = value; break  
+      case 3: result.single_uint32 = value; break
+      case 4: result.single_uint64 = value; break
+      case 5: result.single_sint32 = value; break
+      case 6: result.single_sint64 = value; break
+      case 7: result.single_fixed32 = value; break
+      case 8: result.single_fixed64 = value; break
+      case 9: result.single_sfixed32 = value; break
+      case 10: result.single_sfixed64 = value; break
+      case 11: result.single_float = value; break
+      case 12: result.single_double = value; break
+      case 13: result.single_bool = value; break
+      case 14: result.single_string = value; break
+      case 15: result.single_bytes = value; break
+      case 16: result.optional_bool = value; break
+      case 17: result.optional_string = value; break
+      case 18: result.in = value; break
+      case 21: result.single_nested_message = value; break
+      case 22: result.single_nested_enum = value; break
+      case 23: result.standalone_message = value; break
+      case 24: 
+        // Handle standalone_enum with proper enum value handling
+        let enumValue = value
+        if (enumValue > 127) {
+          enumValue = enumValue - 256  // Handle negative values
+        }
+        if (isStrongMode) {
+          const enumType = typeUrl.includes('proto3') 
+            ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
+            : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum'
+          result.standalone_enum = new CelEnum(enumType, enumValue)
+        } else {
+          result.standalone_enum = enumValue
+        }
+        break
+      case 31: result.repeated_int32 = value; break
+      case 32: result.repeated_int64 = value; break
+      case 33: result.repeated_uint32 = value; break
+      case 34: result.repeated_uint64 = value; break
+      case 35: result.repeated_sint32 = value; break
+      case 36: result.repeated_sint64 = value; break
+      case 37: result.repeated_fixed32 = value; break
+      case 38: result.repeated_fixed64 = value; break
+      case 39: result.repeated_sfixed32 = value; break
+      case 40: result.repeated_sfixed64 = value; break
+      case 41: result.repeated_float = value; break
+      case 42: result.repeated_double = value; break
+      case 43: result.repeated_bool = value; break
+      case 44: result.repeated_string = value; break
+      case 45: result.repeated_bytes = value; break
+      case 51: result.repeated_nested_message = value; break
+      case 52: result.repeated_nested_enum = value; break
+      case 53: result.repeated_string_piece = value; break
+      case 54: result.repeated_cord = value; break
+      case 55: result.repeated_lazy_message = value; break
+      case 62: result.map_int64_nested_type = value; break
+      case 100: result.single_any = value; break
+      case 101: result.single_duration = value; break
+      case 102: result.single_timestamp = value; break
+      case 103: result.single_struct = value; break
+      case 104: result.single_value = value; break
+      case 105: result.single_int64_wrapper = value; break
+      case 106: result.single_int32_wrapper = value; break
+      case 107: result.single_double_wrapper = value; break
+      case 108: result.single_float_wrapper = value; break
+      case 109: result.single_uint64_wrapper = value; break
+      case 110: result.single_uint32_wrapper = value; break
+      case 111: result.single_string_wrapper = value; break
+      case 112: result.single_bool_wrapper = value; break
+      case 113: result.single_bytes_wrapper = value; break
+      case 114: result.list_value = value; break
+      case 115: result.null_value = value; break
+      case 116: result.optional_null_value = value; break
+      case 117: result.field_mask = value; break
+      case 118: result.empty = value; break
+      case 222: result.map_string_uint32 = value; break
+      
+      // Extension fields from test_all_types_extensions.proto
+      case 1000: result['cel.expr.conformance.proto2.int32_ext'] = value; break
+      case 1001: result['cel.expr.conformance.proto2.nested_ext'] = value; break
+      case 1002: result['cel.expr.conformance.proto2.test_all_types_ext'] = value; break
+      case 1003: result['cel.expr.conformance.proto2.nested_enum_ext'] = value; break
+      case 1004: result['cel.expr.conformance.proto2.repeated_test_all_types'] = value; break
+      case 1005: result['cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.int64_ext'] = value; break
+      case 1006: result['cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.message_scoped_nested_ext'] = value; break
+      case 1007: result['cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.nested_enum_ext'] = value; break
+      case 1008: result['cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.message_scoped_repeated_test_all_types'] = value; break
+      
+      default:
+        // Unknown field, ignore silently
+        break
     }
   }
   
   // Handle repeated enum case (pattern has more keys)
-  const keys = Object.keys(rawData)
-  if (keys.length > 3) {
+  const allKeys = Object.keys(rawData)
+  if (allKeys.length > 3) {
     // This might be a repeated enum case, try to extract values
     const enumValues = []
-    for (let i = 2; i < keys.length; i += 3) {
+    for (let i = 2; i < allKeys.length; i += 3) {
       if (rawData[i.toString()] !== undefined) {
         enumValues.push(rawData[i.toString()])
       }
@@ -314,7 +392,9 @@ function decodeTestAllTypesFromRaw(rawData: any, typeUrl: string, sectionName?: 
         }
         
         // Always clear repeated_nested_enum for single enum cases (both bindings and expected values)
-        result.repeated_nested_enum = []
+        if ('repeated_nested_enum' in result) {
+          delete result.repeated_nested_enum
+        }
       } else {
         // This is an actual repeated enum, preserve the values
         result.repeated_nested_enum = enumValues
@@ -428,13 +508,14 @@ export function conformanceValueToJS(value: ConformanceTestValue, sectionName?: 
         
         if (hasStructuredFields) {
           // We have structured fields, process them normally
+
           const testAllTypesObj: any = {}
           
           // Determine mode based on section name, not type URL
           const isLegacyMode = sectionName?.includes('legacy_') || false
           const isStrongMode = sectionName?.includes('strong_') || false
           
-          // Set defaults for known fields
+          // Only set fields that are actually present in the result
           if (result.standalone_enum !== undefined) {
             if (isStrongMode) {
               // In strong mode, enum fields should be CelEnum objects
@@ -445,31 +526,34 @@ export function conformanceValueToJS(value: ConformanceTestValue, sectionName?: 
             } else {
               testAllTypesObj.standalone_enum = result.standalone_enum
             }
-          } else {
-            testAllTypesObj.standalone_enum = isStrongMode 
-              ? new CelEnum(
-                  obj.typeUrl.includes('proto3') 
-                    ? 'cel.expr.conformance.proto3.TestAllTypes.NestedEnum'
-                    : 'cel.expr.conformance.proto2.TestAllTypes.NestedEnum', 
-                  0, 
-                  'FOO'
-                )
-              : 0
           }
           
-          testAllTypesObj.repeated_nested_enum = result.repeated_nested_enum || []
+          if (result.repeated_nested_enum !== undefined) {
+            testAllTypesObj.repeated_nested_enum = result.repeated_nested_enum
+          }
           
           // Copy other structured fields only (ignore numeric keys)
           for (const [key, value] of Object.entries(result)) {
             if (key !== 'standalone_enum' && key !== 'repeated_nested_enum' && isNaN(Number(key))) {
-              testAllTypesObj[key] = value
+              // Handle extension fields that are wrapped in brackets like [cel.expr.conformance.proto2.int32_ext]
+              if (key.startsWith('[') && key.endsWith(']')) {
+                // Extract the extension name from the brackets
+                const extensionName = key.slice(1, -1)
+
+                testAllTypesObj[extensionName] = value
+              } else {
+                testAllTypesObj[key] = value
+              }
             }
           }
           
           return testAllTypesObj
         } else {
           // Only numeric keys, this is raw protobuf data that needs to be decoded
-          return decodeTestAllTypesFromRaw(result, obj.typeUrl, sectionName)
+
+          const decodedObj = decodeTestAllTypesFromRaw(result, obj.typeUrl, sectionName)
+          console.log(`DEBUG: Decoded raw TestAllTypes object keys: ${Object.keys(decodedObj).join(', ')}`)
+          return decodedObj
         }
       }
       

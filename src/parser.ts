@@ -181,6 +181,22 @@ export class CelParser extends CstParser {
     })
   })
 
+  private absoluteIdentifierExpression = this.RULE('absoluteIdentifierExpression', () => {
+    this.CONSUME(Dot)
+    this.CONSUME(Identifier)
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'absoluteIndexExpression',
+            }),
+        },
+      ])
+    })
+  })
+
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
     this.CONSUME(Dot)
     this.OR([
@@ -244,6 +260,7 @@ export class CelParser extends CstParser {
       { ALT: () => this.SUBRULE(this.listExpression) },
       { ALT: () => this.SUBRULE(this.mapExpression) },
       { ALT: () => this.SUBRULE(this.macrosExpression) },
+      { ALT: () => this.SUBRULE(this.absoluteIdentifierExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
   })

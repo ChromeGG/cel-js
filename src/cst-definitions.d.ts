@@ -154,6 +154,18 @@ export type IdentifierExpressionCstChildren = {
   identifierIndexExpression?: IndexExpressionCstNode[];
 };
 
+export interface AbsoluteIdentifierExpressionCstNode extends CstNode {
+  name: "absoluteIdentifierExpression";
+  children: AbsoluteIdentifierExpressionCstChildren;
+}
+
+export type AbsoluteIdentifierExpressionCstChildren = {
+  Dot: IToken[];
+  Identifier: IToken[];
+  identifierDotExpression?: IdentifierDotExpressionCstNode[];
+  absoluteIndexExpression?: IndexExpressionCstNode[];
+};
+
 export interface IdentifierDotExpressionCstNode extends CstNode {
   name: "identifierDotExpression";
   children: IdentifierDotExpressionCstChildren;
@@ -203,6 +215,7 @@ export type PrimaryExpressionCstChildren = {
   listExpression?: ListExpressionCstNode[];
   mapExpression?: MapExpressionCstNode[];
   macrosExpression?: MacrosExpressionCstNode[];
+  absoluteIdentifierExpression?: AbsoluteIdentifierExpressionCstNode[];
   identifierExpression?: IdentifierExpressionCstNode[];
 };
 
@@ -255,6 +268,7 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   mapKeyValues(children: MapKeyValuesCstChildren, param?: IN): OUT;
   macrosExpression(children: MacrosExpressionCstChildren, param?: IN): OUT;
   identifierExpression(children: IdentifierExpressionCstChildren, param?: IN): OUT;
+  absoluteIdentifierExpression(children: AbsoluteIdentifierExpressionCstChildren, param?: IN): OUT;
   identifierDotExpression(children: IdentifierDotExpressionCstChildren, param?: IN): OUT;
   indexExpression(children: IndexExpressionCstChildren, param?: IN): OUT;
   structExpression(children: StructExpressionCstChildren, param?: IN): OUT;

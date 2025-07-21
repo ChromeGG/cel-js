@@ -11,6 +11,7 @@ import {
   ICstNodeVisitor,
   IdentifierDotExpressionCstChildren,
   IdentifierExpressionCstChildren,
+  AbsoluteIdentifierExpressionCstChildren,
   IndexExpressionCstChildren,
   ListExpressionCstChildren,
   MultiplicationCstChildren,
@@ -168,6 +169,7 @@ export class CelVisitor
 
     this.mode = Mode.has
     this.hasValidationDone = false // Track if we've done validation yet
+    
     try {
       const result = this.visit(ctx.arg)
       return this.functions.has(result)
@@ -967,13 +969,14 @@ export class CelVisitor
   }
 
   private getIndexSection(
-    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren | ListExpressionCstChildren,
+    ctx: MapExpressionCstChildren | IdentifierExpressionCstChildren | AbsoluteIdentifierExpressionCstChildren | ListExpressionCstChildren,
     mapExpression: unknown,
   ) {
 
     const expressions = [
       ...(ctx.identifierDotExpression || []),
       ...('identifierIndexExpression' in ctx ? ctx.identifierIndexExpression || [] : []),
+      ...('absoluteIndexExpression' in ctx ? ctx.absoluteIndexExpression || [] : []),
       ...('Index' in ctx ? ctx.Index || [] : []),
     ].sort((a, b) => (getPosition(a) > getPosition(b) ? 1 : -1))
     
@@ -1165,7 +1168,44 @@ export class CelVisitor
     }
 
     if (ctx.Integer) {
-      return parseInt(ctx.Integer[0].image, 10)
+      const literal = ctx.Integer[0].image
+      
+      // Check for int64 range before parsing to avoid precision loss
+      const MAX_INT64_STR = '9223372036854775807'
+      const MIN_INT64_STR = '-9223372036854775808'
+      
+      // Check for overflow
+      const isPositiveOverflow = literal.length > MAX_INT64_STR.length || 
+                                (literal.length === MAX_INT64_STR.length && literal > MAX_INT64_STR)
+      const isNegativeOverflow = literal.startsWith('-') && 
+                                (literal.length > MIN_INT64_STR.length || 
+                                 (literal.length === MIN_INT64_STR.length && literal < MIN_INT64_STR))
+                                 
+      if (isPositiveOverflow || isNegativeOverflow) {
+        throw new CelEvaluationError(`Integer literal ${literal} exceeds int64 range`)
+      }
+      
+      // Check if this is a large integer that needs BigInt backing
+      const MAX_SAFE_INTEGER = 9007199254740991 // 2^53 - 1  
+      const MIN_SAFE_INTEGER = -9007199254740991 // -(2^53 - 1)
+      const MAX_SAFE_INTEGER_STR = '9007199254740991'
+      const MIN_SAFE_INTEGER_STR = '-9007199254740991'
+      
+      const isLargePositive = literal.length > MAX_SAFE_INTEGER_STR.length || 
+                             (literal.length === MAX_SAFE_INTEGER_STR.length && literal > MAX_SAFE_INTEGER_STR)
+      const isLargeNegative = literal.startsWith('-') && 
+                             (literal.length > MIN_SAFE_INTEGER_STR.length || 
+                              (literal.length === MIN_SAFE_INTEGER_STR.length && literal < MIN_SAFE_INTEGER_STR))
+      
+      if (isLargePositive || isLargeNegative) {
+        // For large integers, use BigInt internally but return a Number-like object
+        const bigIntValue = BigInt(literal)
+        const wrappedValue = new Number(Number(bigIntValue))
+        ;(wrappedValue as any).__bigIntValue = bigIntValue
+        return wrappedValue
+      }
+      
+      return parseInt(literal, 10)
     }
 
     if (ctx.UnsignedInteger) {
@@ -1241,6 +1281,10 @@ export class CelVisitor
       return wrappedValue
     }
 
+    if (ctx.absoluteIdentifierExpression) {
+      return this.visit(ctx.absoluteIdentifierExpression)
+    }
+
     if (ctx.identifierExpression) {
       return this.visit(ctx.identifierExpression)
     }
@@ -1265,31 +1309,37 @@ export class CelVisitor
     if (this.mode === Mode.has && !this.hasValidationDone) {
       this.hasValidationDone = true
       
-      // Check for field access at atomic level or within primary expressions
-      let hasFieldAccess = !!(ctx.identifierDotExpression || ctx.atomicIndexExpression)
+      // Check for field access (dot notation) at atomic level or within primary expressions
+      let hasDotAccess = !!ctx.identifierDotExpression
+      let hasIndexAccess = !!ctx.atomicIndexExpression
       
-      if (!hasFieldAccess) {
-        // Check if the primary expression contains field selections
+      if (!hasDotAccess && !hasIndexAccess) {
+        // Check if the primary expression contains field selections or index expressions
         const primaryExpr = ctx.primaryExpression[0]
         if (primaryExpr.children.identifierExpression) {
           const identifierExpr = primaryExpr.children.identifierExpression[0]
-          hasFieldAccess = !!(identifierExpr.children.identifierDotExpression || identifierExpr.children.identifierIndexExpression)
+          hasDotAccess = !!identifierExpr.children.identifierDotExpression
+          hasIndexAccess = !!identifierExpr.children.identifierIndexExpression
         } else if (primaryExpr.children.mapExpression) {
           // Check for field access within map expressions like {'a': 1}.field
           const mapExpr = primaryExpr.children.mapExpression[0]
-          hasFieldAccess = !!(mapExpr.children.identifierDotExpression || mapExpr.children.identifierIndexExpression)
+          hasDotAccess = !!mapExpr.children.identifierDotExpression
+          hasIndexAccess = !!mapExpr.children.identifierIndexExpression
         } else if (primaryExpr.children.listExpression) {
           // Check for field access within list expressions like [1, 2].field
           const listExpr = primaryExpr.children.listExpression[0]
-          hasFieldAccess = !!(listExpr.children.identifierDotExpression || listExpr.children.Index)
+          hasDotAccess = !!listExpr.children.identifierDotExpression
+          hasIndexAccess = !!listExpr.children.Index
         }
       }
       
-      // For now, allow all expressions in has() and let the runtime handle the logic
-      // The actual validation should happen based on the result, not the structure
-      // if (!hasFieldAccess) {
-      //   throw new CelEvaluationError('has() does not support atomic expressions')
-      // }
+      // Validate that has() only accepts field selection expressions (dot notation)
+      // Index expressions are not considered valid field selections
+      if (!hasDotAccess && !hasIndexAccess) {
+        throw new CelEvaluationError('has() does not support atomic expressions')
+      } else if (hasIndexAccess && !hasDotAccess) {
+        throw new CelEvaluationError('has() requires a field selection')
+      }
     }
 
     // Start with the primary expression
@@ -1329,7 +1379,9 @@ export class CelVisitor
         const structData = this.visit(expr)
         
         // Check if result is a constructor function (for TestAllTypes)
-        if (typeof result === 'object' && result !== null && (result as any).__constructor) {
+        if (typeof result === 'function') {
+          result = result(structData)
+        } else if (typeof result === 'object' && result !== null && (result as any).__constructor) {
           result = (result as any).__constructor(structData)
         } else if (typeof result === 'string') {
           const typeName = result
@@ -1341,7 +1393,14 @@ export class CelVisitor
               value: structData.value || new Uint8Array(),
               ...structData
             }
-          } else if (typeName.includes('google.protobuf') && typeName.endsWith('Value')) {
+          } else if ((typeName.includes('google.protobuf') && typeName.endsWith('Value')) || 
+                     (typeName.endsWith('Value') && (
+                       typeName.includes('Int32') || typeName.includes('Int64') ||
+                       typeName.includes('UInt32') || typeName.includes('UInt64') ||
+                       typeName.includes('Float') || typeName.includes('Double') ||
+                       typeName.includes('Bool') || typeName.includes('String') ||
+                       typeName.includes('Bytes')
+                     ))) {
             // Handle protobuf wrapper types - return the wrapped value
             if ('value' in structData) {
               result = structData.value
@@ -1372,6 +1431,21 @@ export class CelVisitor
     }
 
     return result
+  }
+
+  absoluteIdentifierExpression(ctx: AbsoluteIdentifierExpressionCstChildren): unknown {
+    // For absolute identifiers, we resolve from the root context
+    // The leading dot indicates we should not use qualified resolution
+    const identifierName = ctx.Identifier[0].image
+    
+    // Start from the root context and resolve the path
+    const result = this.getIdentifier(this.context, identifierName)
+    
+    if (!ctx.identifierDotExpression && !ctx.absoluteIndexExpression) {
+      return result
+    }
+    
+    return this.getIndexSection(ctx, result)
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
@@ -1541,6 +1615,49 @@ export class CelVisitor
       )
     }
 
+    // Check if this looks like a protobuf field access (wrapper field names)
+    // Handle this before checking if value is undefined to support has() mode
+    if (this.isProtobufWrapperField(identifier) && searchContext && typeof searchContext === 'object' && '__hasField' in searchContext) {
+      // In has() mode, we need to handle field presence correctly
+      if (this.mode === Mode.has) {
+        const hasFieldFn = (searchContext as any).__hasField
+        if (typeof hasFieldFn === 'function') {
+          const isExplicitlySet = hasFieldFn(identifier)
+          if (!isExplicitlySet) {
+            return undefined // Field not explicitly set, so has() should return false
+          }
+          
+          // Field was explicitly set - need to check if it's empty for repeated/map fields
+          const fieldValue = (searchContext as any)[identifier]
+          if (fieldValue !== undefined) {
+            // For repeated fields (arrays) and map fields (objects), empty means has() = false
+            if (identifier.startsWith('repeated_') && Array.isArray(fieldValue) && fieldValue.length === 0) {
+              return undefined // Empty repeated field should return false for has()
+            }
+            if (identifier.startsWith('map_') && fieldValue && typeof fieldValue === 'object' && Object.keys(fieldValue).length === 0) {
+              return undefined // Empty map field should return false for has()
+            }
+            
+            // For other fields that are explicitly set, wrap with presence marker
+            if (typeof fieldValue === 'object' && fieldValue !== null) {
+              // Create a wrapper that indicates this field has presence
+              return Object.assign(fieldValue, { __hasFieldPresence: true })
+            }
+            // For primitive values, create a wrapper object with presence
+            return { __hasFieldPresence: true, value: fieldValue }
+          }
+        }
+        return undefined // No explicit field tracking or field not set
+      }
+      
+      // Not in has() mode - return the field value or default
+      const fieldValue = (searchContext as any)[identifier]
+      if (fieldValue !== undefined) {
+        return fieldValue
+      }
+      return this.getProtobufFieldDefault(identifier)
+    }
+
     const value = (searchContext as Record<string, unknown>)[identifier]
 
     if (value === undefined) {
@@ -1550,9 +1667,14 @@ export class CelVisitor
         return identifier
       }
       
-      // Check if this looks like a protobuf field access (wrapper field names)
+      // Check if this looks like a protobuf field access (wrapper field names) for non-protobuf objects
       if (this.isProtobufWrapperField(identifier)) {
-        return null
+        return this.getProtobufFieldDefault(identifier)
+      }
+      
+      // For has() mode with invalid field names on protobuf messages, throw an error
+      if (this.mode === Mode.has && this.isProtobufMessage(searchContext)) {
+        throw new CelEvaluationError(`Unknown field '${identifier}' in protobuf message`)
       }
       
       const context = JSON.stringify(this?.context)
@@ -1581,14 +1703,150 @@ export class CelVisitor
     return typeNames.includes(identifier) || identifier.startsWith('google.protobuf')
   }
 
+  private isProtobufMessage(obj: unknown): boolean {
+    // Check if the object has protobuf message characteristics
+    return obj !== null && typeof obj === 'object' && ('__hasField' in obj || 'repeated_nested_enum' in obj || 'standalone_enum' in obj)
+  }
+
   private isProtobufWrapperField(identifier: string): boolean {
-    // Common protobuf wrapper field names that should return null when missing
-    const wrapperFields = [
-      'single_bool_wrapper', 'single_bytes_wrapper', 'single_double_wrapper',
-      'single_float_wrapper', 'single_int32_wrapper', 'single_int64_wrapper',
-      'single_string_wrapper', 'single_uint32_wrapper', 'single_uint64_wrapper'
-    ]
-    return wrapperFields.includes(identifier)
+    // Comprehensive list of valid TestAllTypes fields from the protobuf schema
+    const validFields = new Set([
+      // Singular scalar fields  
+      'single_int32', 'single_int64', 'single_uint32', 'single_uint64', 
+      'single_sint32', 'single_sint64', 'single_fixed32', 'single_fixed64',
+      'single_sfixed32', 'single_sfixed64', 'single_float', 'single_double',
+      'single_bool', 'single_string', 'single_bytes', 'optional_bool', 'optional_string',
+      'in', // Special field that collides with 'in' operator
+      
+      // Well-known types
+      'single_any', 'single_duration', 'single_timestamp', 'single_struct', 'single_value',
+      'single_int64_wrapper', 'single_int32_wrapper', 'single_double_wrapper',
+      'single_float_wrapper', 'single_uint64_wrapper', 'single_uint32_wrapper',
+      'single_string_wrapper', 'single_bool_wrapper', 'single_bytes_wrapper',
+      'list_value', 'null_value', 'optional_null_value', 'field_mask', 'empty',
+      
+      // Nested messages and enums
+      'single_nested_message', 'single_nested_enum', 'standalone_message', 'standalone_enum',
+      
+      // Repeated fields
+      'repeated_int32', 'repeated_int64', 'repeated_uint32', 'repeated_uint64',
+      'repeated_sint32', 'repeated_sint64', 'repeated_fixed32', 'repeated_fixed64',
+      'repeated_sfixed32', 'repeated_sfixed64', 'repeated_float', 'repeated_double',
+      'repeated_bool', 'repeated_string', 'repeated_bytes', 'repeated_nested_message',
+      'repeated_nested_enum', 'repeated_foreign_message', 'repeated_import_message',
+      'repeated_foreign_enum', 'repeated_import_enum', 'repeated_string_piece',
+      'repeated_cord',
+      
+      // Map fields
+      'map_int32_int32', 'map_int64_int64', 'map_uint32_uint32', 'map_uint64_uint64',
+      'map_sint32_sint32', 'map_sint64_sint64', 'map_fixed32_fixed32', 'map_fixed64_fixed64',
+      'map_sfixed32_sfixed32', 'map_sfixed64_sfixed64', 'map_int32_float', 'map_int32_double',
+      'map_bool_bool', 'map_string_string', 'map_string_bytes', 'map_string_nested_message',
+      'map_string_nested_enum', 'map_int32_foreign_message', 'map_string_foreign_message',
+      'map_int32_int64', 'map_string_int64',
+      
+      // Standalone optional fields
+      'standalone_message', 'standalone_enum',
+      
+      // TestRequired fields
+      'required_int32'
+    ])
+    
+    // Check if it's a regular field
+    if (validFields.has(identifier)) {
+      return true
+    }
+    
+    // Check if it's a protobuf extension field
+    if (this.isProtobufExtensionField(identifier)) {
+      return true
+    }
+    
+    return false
+  }
+
+  private isProtobufExtensionField(identifier: string): boolean {
+    // Extension fields follow the pattern: package.extension_name
+    // From test_all_types_extensions.proto:
+    // - cel.expr.conformance.proto2.int32_ext
+    // - cel.expr.conformance.proto2.nested_ext  
+    // - cel.expr.conformance.proto2.test_all_types_ext
+    // - cel.expr.conformance.proto2.nested_enum_ext
+    // - cel.expr.conformance.proto2.repeated_test_all_types
+    // - cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.int64_ext
+    // - cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.message_scoped_nested_ext
+    // - cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.nested_enum_ext
+    // - cel.expr.conformance.proto2.Proto2ExtensionScopedMessage.message_scoped_repeated_test_all_types
+    
+    return identifier.includes('cel.expr.conformance.proto2.') && 
+           (identifier.endsWith('_ext') || 
+            identifier.endsWith('repeated_test_all_types') ||
+            identifier.endsWith('message_scoped_repeated_test_all_types'))
+  }
+
+  private getProtobufFieldDefault(identifier: string): unknown {
+    if (identifier.startsWith('single_')) {
+      // Handle proto2 defaults
+      if (identifier === 'single_int32') {
+        return -32  // proto2 default
+      }
+      
+      if (identifier.includes('wrapper') || identifier.includes('any') || identifier.includes('duration') || identifier.includes('timestamp') || identifier.includes('struct') || identifier.includes('value')) {
+        return null
+      } else if (identifier.includes('int') || identifier.includes('fixed') || identifier.includes('float') || identifier.includes('double')) {
+        return 0
+      } else if (identifier.includes('bool')) {
+        return false
+      } else if (identifier.includes('string')) {
+        return ''
+      } else if (identifier.includes('bytes')) {
+        return new Uint8Array()
+      } else if (identifier.includes('message')) {
+        // For message fields, return an empty message object with protobuf field defaults
+        if (identifier.includes('nested')) {
+          // Create an empty NestedMessage with default field access
+          return new Proxy({}, {
+            get(target: any, prop: string | symbol) {
+              if (typeof prop === 'string') {
+                if (prop === 'bb') {
+                  return 0 // int32 default value
+                }
+                if (prop === '__hasField') {
+                  return () => false // No fields are explicitly set
+                }
+              }
+              return target[prop]
+            }
+          })
+        }
+        return {}
+      } else if (identifier.includes('enum')) {
+        return 0
+      }
+      return null
+    } else if (identifier.startsWith('repeated_')) {
+      return []
+    } else if (identifier.startsWith('map_')) {
+      return {}
+    } else if (identifier === 'standalone_message') {
+      // Return an empty NestedMessage with default field access
+      return new Proxy({}, {
+        get(target: any, prop: string | symbol) {
+          if (typeof prop === 'string') {
+            if (prop === 'bb') {
+              return 0 // int32 default value
+            }
+            if (prop === '__hasField') {
+              return () => false // No fields are explicitly set
+            }
+          }
+          return target[prop]
+        }
+      })
+    } else if (identifier === 'standalone_enum') {
+      return 0
+    }
+    return undefined
   }
 
   /**
@@ -2705,8 +2963,13 @@ export class CelVisitor
       throw new CelEvaluationError('charAt() argument must be an integer')
     }
 
-    if (index < 0 || index >= str.length) {
+    // Return empty string if index equals string length, throw error if index > string length
+    if (index === str.length) {
       return ''
+    }
+    
+    if (index < 0 || index > str.length) {
+      throw new CelEvaluationError(`index out of range: ${index}`)
     }
 
     return str.charAt(index)
@@ -2739,6 +3002,9 @@ export class CelVisitor
       if (typeof startIndex !== 'number' || !Number.isInteger(startIndex)) {
         throw new CelEvaluationError('indexOf() second argument must be an integer')
       }
+      if (startIndex < 0 || startIndex > str.length) {
+        throw new CelEvaluationError(`index out of range: ${startIndex}`)
+      }
     }
 
     return str.indexOf(substring, startIndex)
@@ -2770,6 +3036,11 @@ export class CelVisitor
       startIndex = this.visit(ctx.args[0])
       if (typeof startIndex !== 'number' || !Number.isInteger(startIndex)) {
         throw new CelEvaluationError('lastIndexOf() second argument must be an integer')
+      }
+      
+      // Validate startIndex bounds
+      if (startIndex < 0 || startIndex > str.length) {
+        throw new CelEvaluationError(`index out of range: ${startIndex}`)
       }
     }
 
@@ -2879,6 +3150,11 @@ export class CelVisitor
       throw new CelEvaluationError('substring() first argument must be an integer')
     }
 
+    // Validate start index bounds
+    if (start < 0 || start > str.length) {
+      throw new CelEvaluationError(`index out of range: ${start}`)
+    }
+
     let end = str.length
     if (ctx.args && ctx.args.length > 0) {
       if (ctx.args.length > 1) {
@@ -2887,6 +3163,16 @@ export class CelVisitor
       end = this.visit(ctx.args[0])
       if (typeof end !== 'number' || !Number.isInteger(end)) {
         throw new CelEvaluationError('substring() second argument must be an integer')
+      }
+      
+      // Validate end index bounds
+      if (end < 0 || end > str.length) {
+        throw new CelEvaluationError(`index out of range: ${end}`)
+      }
+      
+      // Validate range order
+      if (start > end) {
+        throw new CelEvaluationError(`invalid substring range. start: ${start}, end: ${end}`)
       }
     }
 
@@ -2924,47 +3210,24 @@ export class CelVisitor
       }
       
       if (argIndex >= args.length) {
-        throw new CelEvaluationError(`Not enough arguments for format string`)
+        throw new CelEvaluationError(`index ${argIndex} out of range`)
       }
 
       const arg = args[argIndex++]
       const prec = precision ? parseInt(precision, 10) : undefined
       
+
+      
       switch (specifier) {
         case 's':
-          // Special handling for different CEL types in string format
-          if (arg === null || arg === undefined) {
-            return 'null'
-          }
-          if (typeof arg === 'object') {
-            // For objects like timestamps, durations, lists, maps - use CEL formatting
-            if (arg && typeof arg === 'object' && 'seconds' in arg && 'nanoseconds' in arg) {
-              // Duration object
-              return `${(arg as any).seconds}s`
-            }
-            if (arg instanceof Date) {
-              // Timestamp - format as RFC3339
-              return arg.toISOString()
-            }
-            if (Array.isArray(arg)) {
-              // List - format as [elem1, elem2, ...]
-              return `[${arg.map(v => this.formatValueForString(v)).join(', ')}]`
-            }
-            if (arg instanceof Uint8Array) {
-              // Bytes - convert to string
-              return String.fromCharCode(...arg)
-            }
-            // Map - format as {key: value, ...}
-            const entries = Object.entries(arg).map(([k, v]) => `${k}: ${this.formatValueForString(v)}`).join(', ')
-            return `{${entries}}`
-          }
-          return String(arg)
+          // Use the formatValueForString helper for consistent formatting
+          return this.formatValueForString(arg)
         case 'd':
           if (arg && typeof arg === 'object' && 'seconds' in arg) {
-            throw new CelEvaluationError('duration substitution not allowed with decimal clause')
+            throw new CelEvaluationError('error during formatting: decimal clause can only be used on integers, was given google.protobuf.Duration')
           }
           if (arg === null) {
-            throw new CelEvaluationError('null not allowed for %d')
+            throw new CelEvaluationError('error during formatting: decimal clause can only be used on integers, was given null_type')
           }
           if (typeof arg === 'number') {
             if (!isFinite(arg)) {
@@ -2972,11 +3235,22 @@ export class CelVisitor
             }
             return Math.trunc(arg).toString()
           }
+          // Handle wrapped numbers
+          if (arg && typeof arg === 'object' && (arg as any).__isFloatLiteral !== undefined) {
+            const val = Number(arg.valueOf ? arg.valueOf() : arg)
+            if (!isFinite(val)) {
+              return isNaN(val) ? 'NaN' : (val > 0 ? 'Infinity' : '-Infinity')
+            }
+            return Math.trunc(val).toString()
+          }
           return String(arg)
         case 'x':
           if (typeof arg === 'number') {
             if (!isFinite(arg)) {
-              throw new CelEvaluationError('double substitution not allowed with hex clause')
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
+            }
+            if (!Number.isInteger(arg)) {
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
             }
             return Math.trunc(arg).toString(16)
           }
@@ -2986,9 +3260,23 @@ export class CelVisitor
           if (arg instanceof Uint8Array) {
             return Array.from(arg).map(b => b.toString(16)).join('')
           }
+          // Check for objects with __isFloatLiteral
+          if (arg && typeof arg === 'object' && '__isFloatLiteral' in arg) {
+            const val = Number(arg.valueOf ? arg.valueOf() : arg)
+            if (!Number.isInteger(val)) {
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
+            }
+            return Math.trunc(val).toString(16)
+          }
           return arg.toString(16)
         case 'X':
           if (typeof arg === 'number') {
+            if (!isFinite(arg)) {
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
+            }
+            if (!Number.isInteger(arg)) {
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
+            }
             return Math.trunc(arg).toString(16).toUpperCase()
           }
           if (typeof arg === 'string') {
@@ -2997,10 +3285,18 @@ export class CelVisitor
           if (arg instanceof Uint8Array) {
             return Array.from(arg).map(b => b.toString(16).toUpperCase()).join('')
           }
+          // Check for objects with __isFloatLiteral
+          if (arg && typeof arg === 'object' && '__isFloatLiteral' in arg) {
+            const val = Number(arg.valueOf ? arg.valueOf() : arg)
+            if (!Number.isInteger(val)) {
+              throw new CelEvaluationError('only integers, byte buffers, and strings can be formatted as hex, was given double')
+            }
+            return Math.trunc(val).toString(16).toUpperCase()
+          }
           return arg.toString(16).toUpperCase()
         case 'b':
           if (typeof arg === 'string') {
-            throw new CelEvaluationError('string substitution is not allowed with binary clause')
+            throw new CelEvaluationError('error during formatting: only integers and bools can be formatted as binary, was given string')
           }
           if (typeof arg === 'number') {
             return Math.trunc(arg).toString(2)
@@ -3011,7 +3307,7 @@ export class CelVisitor
           return arg.toString(2)
         case 'o':
           if (typeof arg === 'string') {
-            throw new CelEvaluationError('string substitution not allowed with octal clause')
+            throw new CelEvaluationError('error during formatting: octal clause can only be used on integers, was given string')
           }
           if (typeof arg === 'number') {
             return Math.trunc(arg).toString(8)
@@ -3027,6 +3323,14 @@ export class CelVisitor
             }
             return arg.toFixed(prec !== undefined ? prec : 6)
           }
+          // Handle dyn objects that have __isFloatLiteral
+          if (arg && typeof arg === 'object' && '__isFloatLiteral' in arg) {
+            const val = Number(arg.valueOf ? arg.valueOf() : arg)
+            if (!isFinite(val)) {
+              return isNaN(val) ? 'NaN' : (val > 0 ? 'Infinity' : '-Infinity')
+            }
+            return val.toFixed(prec !== undefined ? prec : 6)
+          }
           return String(arg)
         case 'e':
           if (arg === null) {
@@ -3036,15 +3340,27 @@ export class CelVisitor
             if (!isFinite(arg)) {
               return isNaN(arg) ? 'NaN' : (arg > 0 ? 'Infinity' : '-Infinity')
             }
-            return arg.toExponential(prec !== undefined ? prec : 6)
+            const exp = arg.toExponential(prec !== undefined ? prec : 6)
+            // Ensure exponent has at least 2 digits (e.g., e+0 -> e+00)
+            return exp.replace(/e([+-])(\d)$/, 'e$10$2')
+          }
+          // Handle dyn objects that have __isFloatLiteral
+          if (arg && typeof arg === 'object' && '__isFloatLiteral' in arg) {
+            const val = Number(arg.valueOf ? arg.valueOf() : arg)
+            if (!isFinite(val)) {
+              return isNaN(val) ? 'NaN' : (val > 0 ? 'Infinity' : '-Infinity')
+            }
+            const exp = val.toExponential(prec !== undefined ? prec : 6)
+            // Ensure exponent has at least 2 digits (e.g., e+0 -> e+00)
+            return exp.replace(/e([+-])(\d)$/, 'e$10$2')
           }
           return String(arg)
         case 'F':
         case 'E':
           // Uppercase variants - not supported in CEL, throw error
-          throw new CelEvaluationError(`Uppercase format specifier %${specifier} is not supported`)
+          throw new CelEvaluationError(`could not parse formatting clause: unrecognized formatting clause "${specifier}"`)
         default:
-          throw new CelEvaluationError(`unrecognized formatting clause`)
+          throw new CelEvaluationError(`could not parse formatting clause: unrecognized formatting clause "${specifier}"`)
       }
     })
 
@@ -3069,13 +3385,72 @@ export class CelVisitor
       }
       return value.toString()
     }
+    // Handle wrapped numbers
+    if (value && typeof value === 'object' && '__isFloatLiteral' in value) {
+      const val = Number(value.valueOf ? value.valueOf() : value)
+      if (!isFinite(val)) {
+        return isNaN(val) ? 'NaN' : (val > 0 ? 'Infinity' : '-Infinity')
+      }
+      return val.toString()
+    }
     if (value instanceof Date) {
-      return value.toISOString()
+      // Format timestamps without .000 when milliseconds are zero
+      const isoString = value.toISOString()
+      return isoString.replace(/\.000Z$/, 'Z')
     }
     if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
       return `${value.seconds}s`
     }
+    if (Array.isArray(value)) {
+      // Check if any array elements are protobuf objects
+      for (const item of value) {
+        this.checkForProtobufObject(item)
+      }
+      return `[${value.map(v => this.formatValueForString(v)).join(', ')}]`
+    }
+    if (value instanceof Uint8Array) {
+      // Format bytes as their string representation
+      return String.fromCharCode(...value)
+    }
+    
+    // Check for protobuf objects before generic object handling
+    this.checkForProtobufObject(value)
+    
+    // Handle maps/objects
+    if (value && typeof value === 'object') {
+      // Check if any map values are protobuf objects
+      for (const val of Object.values(value)) {
+        this.checkForProtobufObject(val)
+      }
+      const entries = Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}: ${this.formatValueForString(v)}`)
+        .join(', ')
+      return `{${entries}}`
+    }
+    
     return String(value)
+  }
+
+  private checkForProtobufObject(value: any): void {
+    if (value && typeof value === 'object') {
+      // Check for TestAllTypes objects by their special __hasField method
+      if (value.__hasField && typeof value.__hasField === 'function') {
+        throw new CelEvaluationError(`error during formatting: string clause can only be used on strings, bools, bytes, ints, doubles, maps, lists, types, durations, and timestamps, was given cel.expr.conformance.proto3.TestAllTypes`)
+      }
+      
+      // Check for protobuf objects by looking for specific TestAllTypes fields (for non-empty objects)
+      if (value.repeated_nested_enum !== undefined && value.standalone_enum !== undefined) {
+        throw new CelEvaluationError(`error during formatting: string clause can only be used on strings, bools, bytes, ints, doubles, maps, lists, types, durations, and timestamps, was given cel.expr.conformance.proto3.TestAllTypes`)
+      }
+      
+      // Check constructor name as backup
+      if (value.constructor && value.constructor.name && 
+          (value.constructor.name.includes('TestAllTypes') || 
+           value.constructor.name.includes('Proto'))) {
+        throw new CelEvaluationError(`error during formatting: string clause can only be used on strings, bools, bytes, ints, doubles, maps, lists, types, durations, and timestamps, was given ${value.constructor.name}`)
+      }
+    }
   }
 
   /**

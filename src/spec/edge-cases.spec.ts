@@ -21,7 +21,12 @@ describe('CEL Edge Cases & Missing Features', () => {
     it('should handle large integers', () => {
       const expr = '9223372036854775807' // Max int64
       const result = evaluate(expr)
-      expect(result).toBe(9223372036854775807)
+      // Large integers are wrapped in a Number object with __bigIntValue
+      if (result instanceof Number && (result as any).__bigIntValue) {
+        expect((result as any).__bigIntValue).toBe(9223372036854775807n)
+      } else {
+        expect(result).toBe(9223372036854775807)
+      }
     })
 
     it('should handle very small numbers', () => {

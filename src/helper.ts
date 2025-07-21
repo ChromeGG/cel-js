@@ -162,6 +162,10 @@ export const getCelType = (value: unknown): CelType => {
     return CelType.null
   }
 
+  if (value === undefined) {
+    return CelType.null  // Treat undefined as null for CEL purposes
+  }
+
   // Check for wrapped literals (these will be objects that behave like numbers)
   if (typeof value === 'object' && value !== null) {
     if (value instanceof CelEnum) {
@@ -175,6 +179,10 @@ export const getCelType = (value: unknown): CelType => {
     }
     if ((value as any).__isTypeIdentifier) {
       return CelType.type
+    }
+    // Handle Number objects with BigInt values
+    if (value instanceof Number && (value as any).__bigIntValue) {
+      return (value as any).__isUnsignedLiteral ? CelType.uint : CelType.int
     }
   }
 
@@ -924,7 +932,16 @@ export const size = (arr: unknown) => {
  * has(obj.field) // returns true if field exists on obj
  */
 export const has = (path: unknown): boolean => {
-  // If the path itself is undefined, it means the field/index doesn't exist
+  // The path parameter is the result of evaluating the field access expression.
+  // If the field access threw an error (e.g., accessing non-existent field),
+  // that error should propagate. If the field access succeeded but returned
+  // undefined (e.g., unset protobuf field), then has() should return false.
+  
+  // Special handling for protobuf fields - check if this value has explicit presence information
+  if (path && typeof path === 'object' && '__hasFieldPresence' in path) {
+    return !!(path as any).__hasFieldPresence
+  }
+  
   return path !== undefined
 }
 
@@ -950,13 +967,12 @@ export const dyn = (value: unknown): unknown => {
  * @returns boolean - True if the extension exists, false otherwise
  */
 export const hasExt = (message: unknown, extension: unknown): boolean => {
-  // For now, we'll implement a basic check
-  // In a full implementation, this would check for protobuf extensions
+
   if (typeof message !== 'object' || message === null) {
     return false
   }
   
-  // Extension names typically contain dots and we need to handle field access
+  // Extension names are typically qualified field names
   if (typeof extension === 'string') {
     return Object.prototype.hasOwnProperty.call(message, extension)
   }
@@ -972,13 +988,11 @@ export const hasExt = (message: unknown, extension: unknown): boolean => {
  * @returns unknown - The extension value or undefined if not found
  */
 export const getExt = (message: unknown, extension: unknown): unknown => {
-  // For now, we'll implement a basic getter
-  // In a full implementation, this would get protobuf extension values
   if (typeof message !== 'object' || message === null) {
     return undefined
   }
   
-  // Extension names typically contain dots and we need to handle field access
+  // Extension names are typically qualified field names
   if (typeof extension === 'string') {
     return (message as Record<string, unknown>)[extension]
   }
