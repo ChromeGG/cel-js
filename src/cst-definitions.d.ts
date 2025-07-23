@@ -96,9 +96,9 @@ export interface ListExpressionCstNode extends CstNode {
 
 export type ListExpressionCstChildren = {
   OpenBracket: IToken[];
-  lhs?: ExprCstNode[];
+  lhs?: ListElementCstNode[];
   Comma?: IToken[];
-  rhs?: ExprCstNode[];
+  rhs?: ListElementCstNode[];
   CloseBracket: IToken[];
   identifierDotExpression?: IdentifierDotExpressionCstNode[];
   Index?: IndexExpressionCstNode[];
@@ -123,6 +123,7 @@ export interface MapKeyValuesCstNode extends CstNode {
 }
 
 export type MapKeyValuesCstChildren = {
+  optional?: IToken[];
   key: ExprCstNode[];
   Colon: IToken[];
   value: ExprCstNode[];
@@ -173,6 +174,7 @@ export interface IdentifierDotExpressionCstNode extends CstNode {
 
 export type IdentifierDotExpressionCstChildren = {
   Dot: IToken[];
+  optional?: IToken[];
   Identifier?: IToken[];
   QuotedIdentifier?: IToken[];
   OpenParenthesis?: IToken[];
@@ -189,6 +191,7 @@ export interface IndexExpressionCstNode extends CstNode {
 
 export type IndexExpressionCstChildren = {
   OpenBracket: IToken[];
+  optional?: IToken[];
   expr: ExprCstNode[];
   CloseBracket: IToken[];
 };
@@ -248,11 +251,26 @@ export interface StructKeyValuesCstNode extends CstNode {
 }
 
 export type StructKeyValuesCstChildren = {
+  optional?: IToken[];
   key: IToken[];
   Colon: IToken[];
   value: ExprCstNode[];
   Comma?: IToken[];
 };
+
+export interface ListElementCstNode extends CstNode {
+  name: "listElement";
+  children: ListElementCstChildren;
+}
+
+export type ListElementCstChildren = {
+  optional?: IToken[];
+  expr: ExprCstNode[];
+};
+
+
+
+
 
 export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   expr(children: ExprCstChildren, param?: IN): OUT;
@@ -275,4 +293,5 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   structKeyValues(children: StructKeyValuesCstChildren, param?: IN): OUT;
   primaryExpression(children: PrimaryExpressionCstChildren, param?: IN): OUT;
   atomicExpression(children: AtomicExpressionCstChildren, param?: IN): OUT;
+  listElement(children: ListElementCstChildren, param?: IN): OUT;
 }

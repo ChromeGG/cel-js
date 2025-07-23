@@ -47,6 +47,8 @@ export const Colon = createToken({ name: 'Colon', pattern: /:/ })
 
 export const QuestionMark = createToken({ name: 'QuestionMark', pattern: /\?/ })
 
+
+
 export const Float = createToken({
   name: 'Float',
   pattern: /-?(?:\d+\.\d*(?:[eE][+-]?\d+)?|\d*\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)/,
@@ -262,6 +264,7 @@ export const allTokens = [
   CloseBracket,
   OpenCurlyBracket,
   CloseCurlyBracket,
+
 
   Float,
   Dot,

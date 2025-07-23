@@ -191,6 +191,10 @@ export const getCelType = (value: unknown): CelType => {
       return CelType.float
     }
 
+    if (!Number.isFinite(value)) {
+      return CelType.float // Infinity and -Infinity are floats
+    }
+
     // Check if this is a float literal wrapper (legacy)
     if ((value as any)?.__isFloat) {
       return CelType.float
@@ -231,6 +235,20 @@ export const getCelType = (value: unknown): CelType => {
 
   if (typeof value === 'object' && value !== null && 'seconds' in value && 'nanoseconds' in value) {
     return CelType.duration
+  }
+
+  // Handle dynamic values - return the type of the underlying value
+  if (typeof value === 'object' && value !== null && (value as any).__isDynamic) {
+    // For dynamic values, get the type of the underlying value
+    const underlyingValue = value.valueOf()
+    // Avoid infinite recursion by temporarily removing the dynamic marker
+    if (typeof underlyingValue === 'object' && underlyingValue !== null) {
+      const temp = { ...underlyingValue }
+      delete (temp as any).__isDynamic
+      return getCelType(temp)
+    } else {
+      return getCelType(underlyingValue)
+    }
   }
 
   if (typeof value === 'object') {
@@ -907,6 +925,8 @@ export const getPosition = (
     return ctx.children.OpenCurlyBracket[0].startOffset
   }
 
+
+
   return ctx.children.OpenBracket[0].startOffset
 }
 
@@ -920,6 +940,325 @@ export const size = (arr: unknown) => {
   }
 
   throw new CelEvaluationError(`invalid_argument: ${arr}`)
+}
+
+// CEL Optional type implementation
+export interface CelOptional {
+  hasValue(): boolean
+  value(): unknown
+  or(alternative: CelOptional): CelOptional
+  orValue(value: unknown): unknown
+  optMap(mapFn: unknown, ...args: unknown[]): CelOptional
+  optFlatMap(mapFn: unknown, ...args: unknown[]): CelOptional
+}
+
+class CelOptionalValue implements CelOptional {
+  constructor(private val: unknown) {}
+
+  hasValue(): boolean {
+    return true
+  }
+
+  value(): unknown {
+    return this.val
+  }
+
+  or(alternative: CelOptional): CelOptional {
+    return this
+  }
+
+  orValue(value: unknown): unknown {
+    return this.val
+  }
+
+  optMap(mapFn: unknown, ...args: unknown[]): CelOptional {
+    if (typeof mapFn === 'function') {
+      try {
+        const result = mapFn(this.val, ...args)
+        return new CelOptionalValue(result)
+      } catch (e) {
+        return OPTIONAL_NONE
+      }
+    }
+    throw new CelEvaluationError('optMap requires a function argument')
+  }
+
+  optFlatMap(mapFn: unknown, ...args: unknown[]): CelOptional {
+    if (typeof mapFn === 'function') {
+      try {
+        const result = mapFn(this.val, ...args)
+        if (result instanceof CelOptionalValue || result instanceof CelOptionalNone) {
+          return result
+        }
+        return new CelOptionalValue(result)
+      } catch (e) {
+        return OPTIONAL_NONE
+      }
+    }
+    throw new CelEvaluationError('optFlatMap requires a function argument')
+  }
+}
+
+class CelOptionalNone implements CelOptional {
+  hasValue(): boolean {
+    return false
+  }
+
+  value(): unknown {
+    throw new CelEvaluationError('optional.none() value requested')
+  }
+
+  or(alternative: CelOptional): CelOptional {
+    return alternative
+  }
+
+  orValue(value: unknown): unknown {
+    return value
+  }
+
+  optMap(mapFn: unknown, ...args: unknown[]): CelOptional {
+    return this
+  }
+
+  optFlatMap(mapFn: unknown, ...args: unknown[]): CelOptional {
+    return this
+  }
+}
+
+const OPTIONAL_NONE = new CelOptionalNone()
+
+// Math extension functions
+export const math = {
+  greatest: (...args: unknown[]): unknown => {
+    if (args.length === 0) {
+      throw new CelEvaluationError('math.greatest() requires at least one argument')
+    }
+    
+    // Handle single array argument
+    if (args.length === 1 && Array.isArray(args[0])) {
+      args = args[0]
+    }
+    
+    if (args.length === 0) {
+      throw new CelEvaluationError('math.greatest() requires at least one argument')
+    }
+    
+    let result = args[0]
+    for (let i = 1; i < args.length; i++) {
+      if (isCalculable(result) && isCalculable(args[i])) {
+        if (Number(args[i]) > Number(result)) {
+          result = args[i]
+        }
+      } else {
+        throw new CelEvaluationError('math.greatest() requires numeric arguments')
+      }
+    }
+    return result
+  },
+
+  least: (...args: unknown[]): unknown => {
+    if (args.length === 0) {
+      throw new CelEvaluationError('math.least() requires at least one argument')
+    }
+    
+    // Handle single array argument
+    if (args.length === 1 && Array.isArray(args[0])) {
+      args = args[0]
+    }
+    
+    if (args.length === 0) {
+      throw new CelEvaluationError('math.least() requires at least one argument')
+    }
+    
+    let result = args[0]
+    for (let i = 1; i < args.length; i++) {
+      if (isCalculable(result) && isCalculable(args[i])) {
+        if (Number(args[i]) < Number(result)) {
+          result = args[i]
+        }
+      } else {
+        throw new CelEvaluationError('math.least() requires numeric arguments')
+      }
+    }
+    return result
+  },
+
+  isNaN: (value: unknown): boolean => {
+    if (isFloat(value)) {
+      return Number.isNaN(value)
+    }
+    throw new CelEvaluationError('math.isNaN() requires a double argument')
+  },
+
+  isInf: (value: unknown): boolean => {
+    if (isFloat(value)) {
+      return !Number.isFinite(value) && !Number.isNaN(value)
+    }
+    throw new CelEvaluationError('math.isInf() requires a double argument')
+  },
+
+  isFinite: (value: unknown): boolean => {
+    if (isFloat(value)) {
+      return Number.isFinite(value)
+    }
+    throw new CelEvaluationError('math.isFinite() requires a double argument')
+  },
+
+  bitAnd: (left: unknown, right: unknown): unknown => {
+    if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+      return Number(left) & Number(right)
+    }
+    throw new CelEvaluationError('math.bitAnd() requires integer arguments')
+  },
+
+  bitOr: (left: unknown, right: unknown): unknown => {
+    if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+      return Number(left) | Number(right)
+    }
+    throw new CelEvaluationError('math.bitOr() requires integer arguments')
+  },
+
+  bitXor: (left: unknown, right: unknown): unknown => {
+    if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+      return Number(left) ^ Number(right)
+    }
+    throw new CelEvaluationError('math.bitXor() requires integer arguments')
+  },
+
+  bitNot: (value: unknown): unknown => {
+    if (isInt(value) || isUint(value)) {
+      if (isUint(value)) {
+        // For unsigned 64-bit integers, bitwise NOT is 2^64 - 1 - value
+        return (2**64 - 1) - Number(value)
+      }
+      return ~Number(value)
+    }
+    throw new CelEvaluationError('math.bitNot() requires an integer argument')
+  },
+
+  bitShiftLeft: (left: unknown, right: unknown): unknown => {
+    if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+      const shift = Number(right)
+      if (shift < 0) {
+        throw new CelEvaluationError('Negative shift count')
+      }
+      // For large shifts (>= 64), return 0 to match CEL specification
+      if (shift >= 64) {
+        return 0
+      }
+      return Number(left) << shift
+    }
+    throw new CelEvaluationError('math.bitShiftLeft() requires integer arguments')
+  },
+
+  bitShiftRight: (left: unknown, right: unknown): unknown => {
+    if ((isInt(left) || isUint(left)) && (isInt(right) || isUint(right))) {
+      const shift = Number(right)
+      if (shift < 0) {
+        throw new CelEvaluationError('Negative shift count')
+      }
+      // For large shifts (>= 64), return 0 to match CEL specification
+      if (shift >= 64) {
+        return 0
+      }
+      let leftVal = Number(left)
+      // Handle negative values as 64-bit two's complement
+      if (leftVal < 0) {
+        // Convert to unsigned 64-bit representation
+        leftVal = leftVal + (2**64)
+      }
+      // Use bitwise operations to handle large numbers properly
+      return Math.floor(leftVal / (2**shift))
+    }
+    throw new CelEvaluationError('math.bitShiftRight() requires integer arguments')
+  },
+
+  floor: (value: unknown): number => {
+    if (isDynamic(value)) {
+      throw new CelEvaluationError('math.floor() no such overload for dyn type')
+    }
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      return Math.floor(Number(unwrapValue(value)))
+    }
+    throw new CelEvaluationError(`math.floor() requires a double argument`)
+  },
+
+  round: (value: unknown): number => {
+    if (isDynamic(value)) {
+      throw new CelEvaluationError('math.round() no such overload for dyn type')
+    }
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      const num = Number(unwrapValue(value))
+      // CEL uses "round half away from zero" semantics for negative numbers
+      if (num < 0) {
+        return Math.sign(num) * Math.round(Math.abs(num))
+      }
+      return Math.round(num)
+    }
+    throw new CelEvaluationError(`math.round() requires a double argument`)
+  },
+
+  trunc: (value: unknown): number => {
+    if (isDynamic(value)) {
+      throw new CelEvaluationError('math.trunc() no such overload for dyn type')
+    }
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      return Math.trunc(Number(unwrapValue(value)))
+    }
+    throw new CelEvaluationError(`math.trunc() requires a double argument`)
+  },
+
+  abs: (value: unknown): number => {
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      return Math.abs(Number(unwrapValue(value)))
+    }
+    throw new CelEvaluationError(`math.abs() requires a number argument`)
+  },
+
+  sign: (value: unknown): number => {
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      return Math.sign(Number(unwrapValue(value)))
+    }
+    throw new CelEvaluationError(`math.sign() requires a number argument`)
+  },
+
+  ceil: (value: unknown): number => {
+    if (isDynamic(value)) {
+      throw new CelEvaluationError('math.ceil() no such overload for dyn type')
+    }
+    if (isFloat(value) || isInt(value) || isUint(value)) {
+      return Math.ceil(Number(unwrapValue(value)))
+    }
+    throw new CelEvaluationError(`math.ceil() requires a double argument`)
+  }
+}
+
+// Optional functions
+export const optional = {
+  of: (value: unknown): CelOptional => {
+    return new CelOptionalValue(value)
+  },
+
+  none: (): CelOptional => {
+    return OPTIONAL_NONE
+  },
+
+  ofNonZeroValue: (value: unknown): CelOptional => {
+    // Return optional.none() for zero/empty values
+    if (value === null || value === undefined) {
+      return OPTIONAL_NONE
+    }
+    if (value === 0 || value === 0n || value === false || value === '') {
+      return OPTIONAL_NONE
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      return OPTIONAL_NONE
+    }
+    if (typeof value === 'object' && value !== null && Object.keys(value).length === 0) {
+      return OPTIONAL_NONE
+    }
+    return new CelOptionalValue(value)
+  }
 }
 
 /**
@@ -956,7 +1295,28 @@ export const has = (path: unknown): boolean => {
  * dyn(1) == 1.0  // Cross-type comparison enabled
  */
 export const dyn = (value: unknown): unknown => {
-  return value
+  // Handle null and undefined - return as-is since they can't be wrapped
+  if (value === null || value === undefined) {
+    return value
+  }
+  
+  // Mark the value as dynamic to enable special type handling
+  if (typeof value === 'object' && value !== null) {
+    ;(value as any).__isDynamic = true
+    return value
+  } else {
+    // For primitive values, wrap them in an object with the dynamic marker
+    const wrappedValue = new (value as any).constructor(value)
+    ;(wrappedValue as any).__isDynamic = true
+    return wrappedValue
+  }
+}
+
+/**
+ * Check if a value is marked as dynamic
+ */
+export const isDynamic = (value: unknown): boolean => {
+  return typeof value === 'object' && value !== null && (value as any).__isDynamic === true
 }
 
 /**

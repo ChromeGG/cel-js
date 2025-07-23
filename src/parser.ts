@@ -105,10 +105,10 @@ export class CelParser extends CstParser {
   private listExpression = this.RULE('listExpression', () => {
     this.CONSUME(OpenBracket)
     this.OPTION(() => {
-      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+      this.SUBRULE(this.listElement, { LABEL: 'lhs' })
       this.MANY(() => {
         this.CONSUME(Comma)
-        this.SUBRULE2(this.expr, { LABEL: 'rhs' })
+        this.SUBRULE2(this.listElement, { LABEL: 'rhs' })
       })
     })
     this.CONSUME(CloseBracket)
@@ -121,8 +121,16 @@ export class CelParser extends CstParser {
               LABEL: 'Index',
             }),
         },
+
       ])
     })
+  })
+
+  private listElement = this.RULE('listElement', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
+    this.SUBRULE(this.expr)
   })
 
   private mapExpression = this.RULE('mapExpression', () => {
@@ -145,10 +153,13 @@ export class CelParser extends CstParser {
   })
 
   private mapKeyValues = this.RULE('mapKeyValues', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.SUBRULE(this.expr, { LABEL: 'key' })
     this.CONSUME(Colon)
     this.SUBRULE2(this.expr, { LABEL: 'value' })
-    this.OPTION(() => {
+    this.OPTION2(() => {
       this.CONSUME(Comma)
     })
   })
@@ -199,13 +210,16 @@ export class CelParser extends CstParser {
 
   private identifierDotExpression = this.RULE('identifierDotExpression', () => {
     this.CONSUME(Dot)
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.OR([
       { ALT: () => this.CONSUME(Identifier) },
       { ALT: () => this.CONSUME(QuotedIdentifier) }
     ])
-    this.OPTION(() => {
+    this.OPTION2(() => {
       this.CONSUME(OpenParenthesis)
-      this.OPTION2(() => {
+      this.OPTION3(() => {
         this.SUBRULE(this.expr, { LABEL: 'arg' })
         this.MANY(() => {
           this.CONSUME(Comma)
@@ -218,6 +232,9 @@ export class CelParser extends CstParser {
 
   private indexExpression = this.RULE('indexExpression', () => {
     this.CONSUME(OpenBracket)
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.SUBRULE(this.expr)
     this.CONSUME(CloseBracket)
   })
@@ -231,13 +248,16 @@ export class CelParser extends CstParser {
   })
 
   private structKeyValues = this.RULE('structKeyValues', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.OR([
       { ALT: () => this.CONSUME(Identifier, { LABEL: 'key' }) },
       { ALT: () => this.CONSUME(QuotedIdentifier, { LABEL: 'key' }) }
     ])
     this.CONSUME(Colon)
     this.SUBRULE(this.expr, { LABEL: 'value' })
-    this.OPTION(() => {
+    this.OPTION2(() => {
       this.CONSUME(Comma)
     })
   })

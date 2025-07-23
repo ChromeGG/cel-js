@@ -22,6 +22,7 @@ import {
   MapExpressionCstChildren,
   StructExpressionCstChildren,
   StructKeyValuesCstChildren,
+  ListElementCstChildren,
 } from './cst-definitions.js'
 
 import {
@@ -51,6 +52,8 @@ import {
   int,
   uint,
   bool,
+  optional,
+  math,
 } from './helper.js'
 import { CelEvaluationError } from './index.js'
 import { reservedIdentifiers } from './tokens.js'
@@ -96,19 +99,27 @@ export class CelVisitor
   constructor(
     context?: Record<string, unknown>,
     functions?: Record<string, CallableFunction>,
+    container?: string,
   ) {
     super()
-    this.context = context || {}
+    this.context = {
+      optional,
+      math,
+      ...(context || {}),
+    }
 
     this.functions = {
       ...defaultFunctions,
       ...(functions || {}),
     }
 
+    this.container = container
+
     this.validateVisitor()
   }
 
   private context: Record<string, unknown>
+  private container?: string
 
   /**
    * Tracks the current mode of the visitor to handle special cases.
@@ -996,7 +1007,29 @@ export class CelVisitor
           throw new Error('No identifier found in dot expression')
         }
         
-        // Check if this is a method call
+        // Check if this is optional chaining
+        const isOptional = !!expression.children.optional
+        
+        if (isOptional) {
+          // Handle optional chaining
+          if (acc === null || acc === undefined) {
+            return optional.none()
+          }
+          
+          try {
+            if (expression.children.OpenParenthesis) {
+              const result = this.handleMethodCall(identifierName, expression.children, acc)
+              return optional.of(result)
+            } else {
+              const result = this.getIdentifier(acc, identifierName)
+              return optional.of(result)
+            }
+          } catch {
+            return optional.none()
+          }
+        }
+        
+        // Regular (non-optional) property access
         if (expression.children.OpenParenthesis) {
           return this.handleMethodCall(identifierName, expression.children, acc)
         }
@@ -1043,13 +1076,28 @@ export class CelVisitor
     // For now, treat struct expressions like maps
     // In a full implementation, we'd need to handle type information
     const structObj: Record<string, unknown> = {}
+    
+    // Track which fields are explicitly set for protobuf field presence tracking
+    const explicitlySetFields = new Set<string>()
+    
     if (!ctx.keyValues) {
       return structObj
     }
+    
     for (const keyValuePair of ctx.keyValues) {
       const [key, value] = this.visit(keyValuePair)
       structObj[key] = value
+      explicitlySetFields.add(key)
     }
+    
+    // Add explicit field tracking for protobuf compatibility
+    Object.defineProperty(structObj, '__explicitlySetFields', {
+      value: explicitlySetFields,
+      enumerable: false,
+      writable: false,
+      configurable: false
+    })
+    
     return structObj
   }
 
@@ -1174,9 +1222,10 @@ export class CelVisitor
       const MAX_INT64_STR = '9223372036854775807'
       const MIN_INT64_STR = '-9223372036854775808'
       
-      // Check for overflow
-      const isPositiveOverflow = literal.length > MAX_INT64_STR.length || 
-                                (literal.length === MAX_INT64_STR.length && literal > MAX_INT64_STR)
+      // Check for overflow - handle special case for min int64 
+      const isMinInt64 = literal === '9223372036854775808' // This will be negated by unary minus
+      const isPositiveOverflow = !isMinInt64 && (literal.length > MAX_INT64_STR.length || 
+                                (literal.length === MAX_INT64_STR.length && literal > MAX_INT64_STR))
       const isNegativeOverflow = literal.startsWith('-') && 
                                 (literal.length > MIN_INT64_STR.length || 
                                  (literal.length === MIN_INT64_STR.length && literal < MIN_INT64_STR))
@@ -1357,22 +1406,50 @@ export class CelVisitor
         result = this.visit(expr, result)
       } else if (type === 'index') {
         // Handle indexing
-        const index = this.visit(expr)
+        const indexResult = this.visit(expr)
         
-        // Handle array indexing
-        if (Array.isArray(result)) {
-          const indexType = getCelType(index)
-          if (indexType != CelType.int && indexType != CelType.uint) {
-            throw new CelEvaluationError('invalid_argument')
+        // Check if this is optional indexing
+        const isOptional = indexResult && typeof indexResult === 'object' && '__isOptionalIndex' in indexResult
+        const index = isOptional ? (indexResult as any).value : indexResult
+        
+        if (isOptional) {
+          // Handle optional indexing
+          if (result === null || result === undefined) {
+            result = optional.none()
+          } else if (Array.isArray(result)) {
+            const indexType = getCelType(index)
+            if (indexType != CelType.int && indexType != CelType.uint) {
+              result = optional.none()
+            } else if ((index as number) < 0 || (index as number) >= result.length) {
+              result = optional.none()
+            } else {
+              result = optional.of(result[index as number])
+            }
+          } else {
+            // For optional indexing on non-arrays, return optional.none() if key doesn't exist
+            try {
+              const value = this.getIdentifier(result, index as string)
+              result = optional.of(value)
+            } catch {
+              result = optional.none()
+            }
           }
-
-          if (index < 0 || index >= result.length) {
-            throw new CelEvaluationError('invalid_argument')
-          }
-
-          result = result[index]
         } else {
-          result = this.getIdentifier(result, index)
+          // Handle regular indexing
+          if (Array.isArray(result)) {
+            const indexType = getCelType(index)
+            if (indexType != CelType.int && indexType != CelType.uint) {
+              throw new CelEvaluationError('invalid_argument')
+            }
+
+            if (index < 0 || index >= result.length) {
+              throw new CelEvaluationError('invalid_argument')
+            }
+
+            result = result[index]
+          } else {
+            result = this.getIdentifier(result, index)
+          }
         }
       } else if (type === 'struct') {
         // Handle struct construction - the result should be the type name or constructor
@@ -1380,7 +1457,12 @@ export class CelVisitor
         
         // Check if result is a constructor function (for TestAllTypes)
         if (typeof result === 'function') {
-          result = result(structData)
+          // Pass the explicitly set fields information to the constructor
+          if (structData && typeof structData === 'object' && '__explicitlySetFields' in structData) {
+            result = result(structData, (structData as any).__explicitlySetFields)
+          } else {
+            result = result(structData)
+          }
         } else if (typeof result === 'object' && result !== null && (result as any).__constructor) {
           result = (result as any).__constructor(structData)
         } else if (typeof result === 'string') {
@@ -1564,7 +1646,19 @@ export class CelVisitor
       }
     }
 
-    const result = this.getIdentifier(data, identifierName)
+    let result: unknown
+    
+    // First try container-qualified lookup if we have a container and this is a simple identifier
+    if (this.container && !ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
+      const qualifiedName = `${this.container}.${identifierName}`
+      if (qualifiedName in data) {
+        result = data[qualifiedName]
+      } else {
+        result = this.getIdentifier(data, identifierName)
+      }
+    } else {
+      result = this.getIdentifier(data, identifierName)
+    }
 
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return result as boolean
@@ -1579,6 +1673,9 @@ export class CelVisitor
     ctx: IdentifierDotExpressionCstChildren,
     param: unknown,
   ): unknown {
+    // Check if this is optional chaining
+    const isOptional = !!ctx.optional
+    
     // Handle both regular and quoted identifiers
     let identifierName: string
     if (ctx.Identifier && ctx.Identifier.length > 0) {
@@ -1591,7 +1688,48 @@ export class CelVisitor
       throw new Error('No identifier found in dot expression')
     }
     
-    // Check if this is a method call
+    // Special handling for optional chaining
+    if (isOptional) {
+      // If the target is null/undefined, return optional.none()
+      if (param === null || param === undefined) {
+        return optional.none()
+      }
+      
+      // If the target is already a CelOptional, work with its value
+      if (param && typeof param === 'object' && 'hasValue' in param && typeof (param as any).hasValue === 'function') {
+        const optionalValue = param as any
+        if (!optionalValue.hasValue()) {
+          return optional.none()
+        }
+        const actualValue = optionalValue.value()
+        
+        // Now try to access the property on the actual value
+        try {
+          if (ctx.OpenParenthesis) {
+            return this.handleMethodCall(identifierName, ctx, actualValue)
+          } else {
+            const result = this.getIdentifier(actualValue, identifierName)
+            return optional.of(result)
+          }
+        } catch {
+          return optional.none()
+        }
+      }
+      
+      // For regular values, try to access the property
+      try {
+        if (ctx.OpenParenthesis) {
+          return this.handleMethodCall(identifierName, ctx, param)
+        } else {
+          const result = this.getIdentifier(param, identifierName)
+          return optional.of(result)
+        }
+      } catch {
+        return optional.none()
+      }
+    }
+    
+    // Regular (non-optional) property access
     if (ctx.OpenParenthesis) {
       return this.handleMethodCall(identifierName, ctx, param)
     }
@@ -1600,7 +1738,17 @@ export class CelVisitor
   }
 
   indexExpression(ctx: IndexExpressionCstChildren): unknown {
-    return this.visit(ctx.expr)
+    const index = this.visit(ctx.expr[0])
+    
+    // If this is optional indexing, we need to handle it differently
+    // But since this method just returns the index value, we'll handle 
+    // the optional logic in the calling code (atomicExpression)
+    if (ctx.optional) {
+      // Mark the index as optional for the caller
+      return { __isOptionalIndex: true, value: index }
+    }
+    
+    return index
   }
 
   getIdentifier(searchContext: unknown, identifier: string): unknown {
@@ -1857,6 +2005,7 @@ export class CelVisitor
     ctx: IdentifierDotExpressionCstChildren,
     collection: unknown,
   ): unknown {
+
     // Handle timestamp methods
     if (collection instanceof Date) {
       return this.handleTimestampMethod(methodName, ctx, collection)
@@ -1865,6 +2014,32 @@ export class CelVisitor
     // Handle duration methods  
     if (typeof collection === 'object' && collection !== null && 'seconds' in collection && 'nanoseconds' in collection) {
       return this.handleDurationMethod(methodName, collection as Duration)
+    }
+
+    // Handle optional value methods first
+    if (typeof collection === 'object' && collection !== null && ('hasValue' in collection || 'orValue' in collection || 'value' in collection)) {
+      const method = (collection as any)[methodName]
+      if (typeof method === 'function') {
+        // Extract all arguments
+        const args = [
+          ...(ctx.arg ? [this.visit(ctx.arg)] : []),
+          ...(ctx.args ? ctx.args.map(arg => this.visit(arg)) : [])
+        ]
+        return method.call(collection, ...args)
+      }
+    }
+
+    // Handle function properties (like TestAllTypes.NestedEnum)
+    if (typeof collection === 'function') {
+      const method = (collection as any)[methodName]
+      if (typeof method === 'function') {
+        // Extract all arguments
+        const args = [
+          ...(ctx.arg ? [this.visit(ctx.arg)] : []),
+          ...(ctx.args ? ctx.args.map(arg => this.visit(arg)) : [])
+        ]
+        return method(...args)
+      }
     }
 
     // Handle string methods (but not size, which is handled below)
@@ -1878,6 +2053,7 @@ export class CelVisitor
       case 'exists':
         return this.handleExistsMethod(ctx, collection)
       case 'exists_one':
+      case 'existsOne':
         return this.handleExistsOneMethod(ctx, collection)
       case 'filter':
         return this.handleFilterMethod(ctx, collection)
@@ -1887,18 +2063,28 @@ export class CelVisitor
         return this.handleSizeMethod(ctx, collection)
       case 'join':
         return this.handleJoinMethod(ctx, collection)
+      case 'transformList':
+        return this.handleTransformListMethod(ctx, collection)
+      case 'transformMap':
+        return this.handleTransformMapMethod(ctx, collection)
+      case 'optMap':
+        return this.handleOptMapMethod(ctx, collection)
+      case 'optFlatMap':
+        return this.handleOptFlatMapMethod(ctx, collection)
       default:
-        // Check if this is an enum constructor call
+        // Check if this is a generic function call
         if (typeof collection === 'object' && collection !== null) {
-          const enumConstructor = (collection as any)[methodName]
-          if (typeof enumConstructor === 'function') {
-            // This is an enum constructor call like TestAllTypes.NestedEnum(2)
-            if (ctx.arg && ctx.arg.length > 0) {
-              const arg = this.visit(ctx.arg[0])
-              return enumConstructor(arg)
-            } else {
-              return enumConstructor()
-            }
+          const method = (collection as any)[methodName]
+          
+
+          
+          if (typeof method === 'function') {
+            // Extract all arguments
+            const args = [
+              ...(ctx.arg ? ctx.arg.map(arg => this.visit(arg)) : []),
+              ...(ctx.args ? ctx.args.map(arg => this.visit(arg)) : [])
+            ]
+            return method.call(collection, ...args)
           }
         }
         
@@ -1918,29 +2104,53 @@ export class CelVisitor
       throw new CelEvaluationError('all() can only be called on lists or maps')
     }
 
-    // Validate arguments - need exactly 2 arguments: variable and predicate
-    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
-      throw new CelEvaluationError('all() requires exactly two arguments: variable and predicate')
+    // Validate arguments - need either 2 or 3 arguments
+    if (!ctx.arg || !ctx.args) {
+      throw new CelEvaluationError('all() requires at least two arguments')
     }
 
-    const variableExpr = ctx.arg
-    const predicateExpr = ctx.args[0]
+    // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
+    if (ctx.args.length === 1) {
+      // 2-parameter version: variable and predicate
+      const variableExpr = ctx.arg
+      const predicateExpr = ctx.args[0]
 
-    // Handle arrays
-    if (Array.isArray(collection)) {
-      if (collection.length === 0) {
-        return true // Empty arrays return true (vacuous truth)
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return true // Empty arrays return true (vacuous truth)
+        }
+        return this.evaluateAllForArray(collection, variableExpr, predicateExpr)
       }
-      return this.evaluateAllForArray(collection, variableExpr, predicateExpr)
-    }
 
-    // Handle maps (objects)
-    if (typeof collection === 'object') {
-      const values = Object.values(collection)
-      if (values.length === 0) {
-        return true // Empty objects return true (vacuous truth)
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        const keys = Object.keys(collection)
+        if (keys.length === 0) {
+          return true // Empty objects return true (vacuous truth)
+        }
+        return this.evaluateAllForArray(keys, variableExpr, predicateExpr)
       }
-      return this.evaluateAllForArray(values, variableExpr, predicateExpr)
+    } else if (ctx.args.length === 2) {
+      // 3-parameter version: index/key variable, value variable, and predicate
+      const indexVariableExpr = ctx.arg
+      const valueVariableExpr = ctx.args[0]
+      const predicateExpr = ctx.args[1]
+
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return true // Empty arrays return true (vacuous truth)
+        }
+        return this.evaluateAllForArrayWithIndex(collection, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        return this.evaluateAllForMapWithKey(collection as Record<string, unknown>, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+    } else {
+      throw new CelEvaluationError('all() requires exactly two or three arguments')
     }
 
     return true
@@ -2023,6 +2233,110 @@ export class CelVisitor
   }
 
   /**
+   * Evaluates the all() predicate for each element in an array with index
+   */
+  private evaluateAllForArrayWithIndex(
+    array: unknown[],
+    indexVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    // Empty arrays return true (vacuous truth)
+    if (array.length === 0) {
+      return true
+    }
+
+    const indexVariableName = this.extractVariableName(indexVariableExpr, 'all()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'all()')
+
+    // Evaluate predicate for each element with index
+    for (let i = 0; i < array.length; i++) {
+      const element = array[i]
+      
+      // Store original context values
+      const originalIndexValue = this.context[indexVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      
+      // Set loop variables
+      this.context[indexVariableName] = i
+      this.context[valueVariableName] = element
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (!result) {
+          return false
+        }
+      } finally {
+        // Restore original context
+        if (originalIndexValue !== undefined) {
+          this.context[indexVariableName] = originalIndexValue
+        } else {
+          delete this.context[indexVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return true
+  }
+
+  /**
+   * Evaluates the all() predicate for each key-value pair in a map
+   */
+  private evaluateAllForMapWithKey(
+    map: Record<string, unknown>,
+    keyVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    const entries = Object.entries(map)
+    
+    // Empty maps return true (vacuous truth)
+    if (entries.length === 0) {
+      return true
+    }
+
+    const keyVariableName = this.extractVariableName(keyVariableExpr, 'all()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'all()')
+
+    // Evaluate predicate for each key-value pair
+    for (const [key, value] of entries) {
+      // Store original context values
+      const originalKeyValue = this.context[keyVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      
+      // Set loop variables
+      this.context[keyVariableName] = key
+      this.context[valueVariableName] = value
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (!result) {
+          return false
+        }
+      } finally {
+        // Restore original context
+        if (originalKeyValue !== undefined) {
+          this.context[keyVariableName] = originalKeyValue
+        } else {
+          delete this.context[keyVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return true
+  }
+
+  /**
    * Handles the .exists(x, p) method call
    */
   private handleExistsMethod(
@@ -2034,29 +2348,53 @@ export class CelVisitor
       throw new CelEvaluationError('exists() can only be called on lists or maps')
     }
 
-    // Validate arguments - need exactly 2 arguments: variable and predicate
-    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
-      throw new CelEvaluationError('exists() requires exactly two arguments: variable and predicate')
+    // Validate arguments - need either 2 or 3 arguments
+    if (!ctx.arg || !ctx.args) {
+      throw new CelEvaluationError('exists() requires at least two arguments')
     }
 
-    const variableExpr = ctx.arg
-    const predicateExpr = ctx.args[0]
+    // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
+    if (ctx.args.length === 1) {
+      // 2-parameter version: variable and predicate
+      const variableExpr = ctx.arg
+      const predicateExpr = ctx.args[0]
 
-    // Handle arrays
-    if (Array.isArray(collection)) {
-      if (collection.length === 0) {
-        return false // Empty arrays return false (no elements to satisfy condition)
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return false // Empty arrays return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsForArray(collection, variableExpr, predicateExpr)
       }
-      return this.evaluateExistsForArray(collection, variableExpr, predicateExpr)
-    }
 
-    // Handle maps (objects)
-    if (typeof collection === 'object') {
-      const values = Object.values(collection)
-      if (values.length === 0) {
-        return false // Empty objects return false (no elements to satisfy condition)
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        const keys = Object.keys(collection)
+        if (keys.length === 0) {
+          return false // Empty objects return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsForArray(keys, variableExpr, predicateExpr)
       }
-      return this.evaluateExistsForArray(values, variableExpr, predicateExpr)
+    } else if (ctx.args.length === 2) {
+      // 3-parameter version: index/key variable, value variable, and predicate
+      const indexVariableExpr = ctx.arg
+      const valueVariableExpr = ctx.args[0]
+      const predicateExpr = ctx.args[1]
+
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return false // Empty arrays return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsForArrayWithIndex(collection, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        return this.evaluateExistsForMapWithKey(collection as Record<string, unknown>, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+    } else {
+      throw new CelEvaluationError('exists() requires exactly two or three arguments')
     }
 
     return false
@@ -2139,6 +2477,110 @@ export class CelVisitor
   }
 
   /**
+   * Evaluates the exists() predicate for each element in an array with index
+   */
+  private evaluateExistsForArrayWithIndex(
+    array: unknown[],
+    indexVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    // Empty arrays return false
+    if (array.length === 0) {
+      return false
+    }
+
+    const indexVariableName = this.extractVariableName(indexVariableExpr, 'exists()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'exists()')
+
+    // Evaluate predicate for each element with index - short-circuit on first match
+    for (let i = 0; i < array.length; i++) {
+      const element = array[i]
+      
+      // Store original context values
+      const originalIndexValue = this.context[indexVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      
+      // Set loop variables
+      this.context[indexVariableName] = i
+      this.context[valueVariableName] = element
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          return true // Short-circuit: return true as soon as one element satisfies the condition
+        }
+      } finally {
+        // Restore original context
+        if (originalIndexValue !== undefined) {
+          this.context[indexVariableName] = originalIndexValue
+        } else {
+          delete this.context[indexVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return false // No element satisfied the condition
+  }
+
+  /**
+   * Evaluates the exists() predicate for each key-value pair in a map
+   */
+  private evaluateExistsForMapWithKey(
+    map: Record<string, unknown>,
+    keyVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    const entries = Object.entries(map)
+    
+    // Empty maps return false
+    if (entries.length === 0) {
+      return false
+    }
+
+    const keyVariableName = this.extractVariableName(keyVariableExpr, 'exists()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'exists()')
+
+    // Evaluate predicate for each key-value pair - short-circuit on first match
+    for (const [key, value] of entries) {
+      // Store original context values
+      const originalKeyValue = this.context[keyVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      
+      // Set loop variables
+      this.context[keyVariableName] = key
+      this.context[valueVariableName] = value
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          return true // Short-circuit: return true as soon as one pair satisfies the condition
+        }
+      } finally {
+        // Restore original context
+        if (originalKeyValue !== undefined) {
+          this.context[keyVariableName] = originalKeyValue
+        } else {
+          delete this.context[keyVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return false // No pair satisfied the condition
+  }
+
+  /**
    * Handles the .exists_one(x, p) method call
    */
   private handleExistsOneMethod(
@@ -2150,29 +2592,53 @@ export class CelVisitor
       throw new CelEvaluationError('exists_one() can only be called on lists or maps')
     }
 
-    // Validate arguments - need exactly 2 arguments: variable and predicate
-    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
-      throw new CelEvaluationError('exists_one() requires exactly two arguments: variable and predicate')
+    // Validate arguments - need either 2 or 3 arguments
+    if (!ctx.arg || !ctx.args) {
+      throw new CelEvaluationError('exists_one() requires at least two arguments')
     }
 
-    const variableExpr = ctx.arg
-    const predicateExpr = ctx.args[0]
+    // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
+    if (ctx.args.length === 1) {
+      // 2-parameter version: variable and predicate
+      const variableExpr = ctx.arg
+      const predicateExpr = ctx.args[0]
 
-    // Handle arrays
-    if (Array.isArray(collection)) {
-      if (collection.length === 0) {
-        return false // Empty arrays return false (no elements to satisfy condition)
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return false // Empty arrays return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsOneForArrayTwoParam(collection, variableExpr, predicateExpr)
       }
-      return this.evaluateExistsOneForArray(collection, variableExpr, predicateExpr)
-    }
 
-    // Handle maps (objects)
-    if (typeof collection === 'object') {
-      const values = Object.values(collection)
-      if (values.length === 0) {
-        return false // Empty objects return false (no elements to satisfy condition)
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        const keys = Object.keys(collection)
+        if (keys.length === 0) {
+          return false // Empty objects return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsOneForArrayTwoParam(keys, variableExpr, predicateExpr)
       }
-      return this.evaluateExistsOneForArray(values, variableExpr, predicateExpr)
+    } else if (ctx.args.length === 2) {
+      // 3-parameter version: index/key variable, value variable, and predicate
+      const indexVariableExpr = ctx.arg
+      const valueVariableExpr = ctx.args[0]
+      const predicateExpr = ctx.args[1]
+
+      // Handle arrays
+      if (Array.isArray(collection)) {
+        if (collection.length === 0) {
+          return false // Empty arrays return false (no elements to satisfy condition)
+        }
+        return this.evaluateExistsOneForArray(collection, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+
+      // Handle maps (objects)
+      if (typeof collection === 'object') {
+        return this.evaluateExistsOneForMap(collection as Record<string, unknown>, indexVariableExpr, valueVariableExpr, predicateExpr)
+      }
+    } else {
+      throw new CelEvaluationError('exists_one() requires exactly two or three arguments')
     }
 
     return false
@@ -2183,6 +2649,109 @@ export class CelVisitor
    */
   private evaluateExistsOneForArray(
     array: unknown[],
+    indexVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    // Empty arrays return false
+    if (array.length === 0) {
+      return false
+    }
+
+    const indexVariableName = this.extractVariableName(indexVariableExpr, 'exists_one()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'exists_one()')
+
+    // Count how many elements satisfy the condition
+    let matchCount = 0
+    
+    for (let i = 0; i < array.length; i++) {
+      // Create a new context with the loop variables
+      const originalIndexValue = this.context[indexVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[indexVariableName] = i
+      this.context[valueVariableName] = array[i]
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          matchCount++
+          // Early exit if we already have more than one match
+          if (matchCount > 1) {
+            return false
+          }
+        }
+      } finally {
+        // Restore original context
+        if (originalIndexValue !== undefined) {
+          this.context[indexVariableName] = originalIndexValue
+        } else {
+          delete this.context[indexVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return matchCount === 1 // Return true only if exactly one element satisfied the condition
+  }
+
+  /**
+   * Evaluates the exists_one() predicate for each entry in a map
+   */
+  private evaluateExistsOneForMap(
+    map: Record<string, unknown>,
+    keyVariableExpr: any,
+    valueVariableExpr: any,
+    predicateExpr: any,
+  ): boolean {
+    const keyVariableName = this.extractVariableName(keyVariableExpr, 'exists_one()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'exists_one()')
+
+    // Count how many entries satisfy the condition
+    let matchCount = 0
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variables
+      const originalKeyValue = this.context[keyVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[keyVariableName] = key
+      this.context[valueVariableName] = value
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          matchCount++
+          // Early exit if we already have more than one match
+          if (matchCount > 1) {
+            return false
+          }
+        }
+      } finally {
+        // Restore original context
+        if (originalKeyValue !== undefined) {
+          this.context[keyVariableName] = originalKeyValue
+        } else {
+          delete this.context[keyVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return matchCount === 1 // Return true only if exactly one entry satisfied the condition
+  }
+
+  /**
+   * Evaluates the exists_one() predicate for each element in an array (2-parameter version)
+   */
+  private evaluateExistsOneForArrayTwoParam(
+    array: unknown[],
     variableExpr: any,
     predicateExpr: any,
   ): boolean {
@@ -2191,44 +2760,7 @@ export class CelVisitor
       return false
     }
 
-    // Extract variable name from the first argument
-    let variableName: string
-    
-    // Navigate through the CST structure to find the identifier
-    function extractIdentifier(node: any): string | null {
-      if (node.children) {
-        if (node.children.Identifier) {
-          return node.children.Identifier[0].image
-        }
-        // Recursively search for identifier in nested structures
-        for (const key of Object.keys(node.children)) {
-          const child = node.children[key]
-          if (Array.isArray(child)) {
-            for (const item of child) {
-              const result = extractIdentifier(item)
-              if (result) return result
-            }
-          } else {
-            const result = extractIdentifier(child)
-            if (result) return result
-          }
-        }
-      }
-      return null
-    }
-    
-    // Handle the case where variableExpr is an array
-    let nodeToSearch = variableExpr
-    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
-      nodeToSearch = variableExpr[0]
-    }
-    
-    const extractedName = extractIdentifier(nodeToSearch)
-    if (extractedName) {
-      variableName = extractedName
-    } else {
-      throw new CelEvaluationError('First argument to exists_one() must be a variable identifier')
-    }
+    const variableName = this.extractVariableName(variableExpr, 'exists_one()')
 
     // Count how many elements satisfy the condition
     let matchCount = 0
@@ -2242,7 +2774,7 @@ export class CelVisitor
         const result = this.visit(predicateExpr)
         if (result) {
           matchCount++
-          // Early exit if we already have more than one match
+          // Don't short-circuit; we need to count all matches
           if (matchCount > 1) {
             return false
           }
@@ -2418,18 +2950,18 @@ export class CelVisitor
       throw new CelEvaluationError('First argument to filter() must be a variable identifier')
     }
 
-    // Filter map entries based on predicate applied to values
-    const filteredMap: Record<string, unknown> = {}
+    // Filter map entries based on predicate applied to keys
+    const filteredKeys: string[] = []
     
     for (const [key, value] of Object.entries(map)) {
       // Create a new context with the loop variable
       const originalValue = this.context[variableName]
-      this.context[variableName] = value
+      this.context[variableName] = key
 
       try {
         const result = this.visit(predicateExpr)
         if (result) {
-          filteredMap[key] = value
+          filteredKeys.push(key)
         }
       } finally {
         // Restore original context
@@ -2441,7 +2973,7 @@ export class CelVisitor
       }
     }
 
-    return filteredMap
+    return filteredKeys
   }
 
   /**
@@ -2540,18 +3072,18 @@ export class CelVisitor
     map: Record<string, unknown>,
     variableExpr: any,
     transformExpr: any,
-  ): Record<string, unknown> {
+  ): unknown[] {
     const variableName = this.extractVariableName(variableExpr, 'map()')
-    const mappedMap: Record<string, unknown> = {}
+    const mappedKeys: unknown[] = []
     
     for (const [key, value] of Object.entries(map)) {
       // Create a new context with the loop variable
       const originalValue = this.context[variableName]
-      this.context[variableName] = value
+      this.context[variableName] = key
 
       try {
         const transformedValue = this.visit(transformExpr)
-        mappedMap[key] = transformedValue
+        mappedKeys.push(transformedValue)
       } finally {
         // Restore original context
         if (originalValue !== undefined) {
@@ -2562,7 +3094,7 @@ export class CelVisitor
       }
     }
 
-    return mappedMap
+    return mappedKeys
   }
 
   /**
@@ -2745,6 +3277,348 @@ export class CelVisitor
 
     // Convert all elements to strings and join
     return collection.map(String).join(separator)
+  }
+
+  /**
+   * Handles the .transformList(i, v, transform) or .transformList(i, v, filter, transform) method call
+   */
+  private handleTransformListMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): unknown[] {
+    // transformList() only works on arrays
+    if (!Array.isArray(collection)) {
+      throw new CelEvaluationError('transformList() can only be called on lists')
+    }
+
+    // Validate arguments - need either 3 arguments (index, value, transform) or 4 arguments (index, value, filter, transform)
+    if (!ctx.arg || !ctx.args || (ctx.args.length !== 2 && ctx.args.length !== 3)) {
+      throw new CelEvaluationError('transformList() requires either three arguments (index, value, transform) or four arguments (index, value, filter, transform)')
+    }
+
+    const indexVariableExpr = ctx.arg
+    const valueVariableExpr = ctx.args[0]
+    const isFilterPresent = ctx.args.length === 3
+    
+    if (isFilterPresent) {
+      // Four arguments: index, value, filter, transform
+      const filterExpr = ctx.args[1]
+      const transformExpr = ctx.args[2]
+      return this.transformArrayWithFilter(collection, indexVariableExpr, valueVariableExpr, filterExpr, transformExpr)
+    } else {
+      // Three arguments: index, value, transform
+      const transformExpr = ctx.args[1]
+      return this.transformArray(collection, indexVariableExpr, valueVariableExpr, transformExpr)
+    }
+  }
+
+  /**
+   * Handles the .transformMap(k, v, transform) or .transformMap(k, v, filter, transform) method call
+   */
+  private handleTransformMapMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    collection: unknown,
+  ): Record<string, unknown> {
+    // transformMap() only works on maps (objects)
+    if (typeof collection !== 'object' || collection === null || Array.isArray(collection)) {
+      throw new CelEvaluationError('transformMap() can only be called on maps')
+    }
+
+    // Validate arguments - need either 3 arguments (key, value, transform) or 4 arguments (key, value, filter, transform)
+    if (!ctx.arg || !ctx.args || (ctx.args.length !== 2 && ctx.args.length !== 3)) {
+      throw new CelEvaluationError('transformMap() requires either three arguments (key, value, transform) or four arguments (key, value, filter, transform)')
+    }
+
+    const keyVariableExpr = ctx.arg
+    const valueVariableExpr = ctx.args[0]
+    const isFilterPresent = ctx.args.length === 3
+    
+    if (isFilterPresent) {
+      // Four arguments: key, value, filter, transform
+      const filterExpr = ctx.args[1]
+      const transformExpr = ctx.args[2]
+      return this.transformMapWithFilter(collection as Record<string, unknown>, keyVariableExpr, valueVariableExpr, filterExpr, transformExpr)
+    } else {
+      // Three arguments: key, value, transform
+      const transformExpr = ctx.args[1]
+      return this.transformMapObject(collection as Record<string, unknown>, keyVariableExpr, valueVariableExpr, transformExpr)
+    }
+  }
+
+  /**
+   * Transforms an array by applying a transformation to each element with index and value
+   */
+  private transformArray(
+    array: unknown[],
+    indexVariableExpr: any,
+    valueVariableExpr: any,
+    transformExpr: any,
+  ): unknown[] {
+    // Empty arrays return empty array
+    if (array.length === 0) {
+      return []
+    }
+
+    const indexVariableName = this.extractVariableName(indexVariableExpr, 'transformList()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'transformList()')
+    const transformedArray: unknown[] = []
+    
+    for (let i = 0; i < array.length; i++) {
+      // Create a new context with the loop variables
+      const originalIndexValue = this.context[indexVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[indexVariableName] = i
+      this.context[valueVariableName] = array[i]
+
+      try {
+        const transformedValue = this.visit(transformExpr)
+        transformedArray.push(transformedValue)
+      } finally {
+        // Restore original context
+        if (originalIndexValue !== undefined) {
+          this.context[indexVariableName] = originalIndexValue
+        } else {
+          delete this.context[indexVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return transformedArray
+  }
+
+  /**
+   * Transforms an array by filtering then transforming elements with index and value
+   */
+  private transformArrayWithFilter(
+    array: unknown[],
+    indexVariableExpr: any,
+    valueVariableExpr: any,
+    filterExpr: any,
+    transformExpr: any,
+  ): unknown[] {
+    // Empty arrays return empty array
+    if (array.length === 0) {
+      return []
+    }
+
+    const indexVariableName = this.extractVariableName(indexVariableExpr, 'transformList()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'transformList()')
+    const transformedArray: unknown[] = []
+    
+    for (let i = 0; i < array.length; i++) {
+      // Create a new context with the loop variables
+      const originalIndexValue = this.context[indexVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[indexVariableName] = i
+      this.context[valueVariableName] = array[i]
+
+      try {
+        // First check if the element passes the filter
+        const filterResult = this.visit(filterExpr)
+        if (filterResult === true) {
+          const transformedValue = this.visit(transformExpr)
+          transformedArray.push(transformedValue)
+        }
+      } finally {
+        // Restore original context
+        if (originalIndexValue !== undefined) {
+          this.context[indexVariableName] = originalIndexValue
+        } else {
+          delete this.context[indexVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return transformedArray
+  }
+
+  /**
+   * Transforms a map by applying a transformation to each entry with key and value
+   */
+  private transformMapObject(
+    map: Record<string, unknown>,
+    keyVariableExpr: any,
+    valueVariableExpr: any,
+    transformExpr: any,
+  ): Record<string, unknown> {
+    const keyVariableName = this.extractVariableName(keyVariableExpr, 'transformMap()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'transformMap()')
+    const transformedMap: Record<string, unknown> = {}
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variables
+      const originalKeyValue = this.context[keyVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[keyVariableName] = key
+      this.context[valueVariableName] = value
+
+      try {
+        const transformedValue = this.visit(transformExpr)
+        transformedMap[key] = transformedValue
+      } finally {
+        // Restore original context
+        if (originalKeyValue !== undefined) {
+          this.context[keyVariableName] = originalKeyValue
+        } else {
+          delete this.context[keyVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return transformedMap
+  }
+
+  /**
+   * Transforms a map by filtering then transforming entries with key and value
+   */
+  private transformMapWithFilter(
+    map: Record<string, unknown>,
+    keyVariableExpr: any,
+    valueVariableExpr: any,
+    filterExpr: any,
+    transformExpr: any,
+  ): Record<string, unknown> {
+    const keyVariableName = this.extractVariableName(keyVariableExpr, 'transformMap()')
+    const valueVariableName = this.extractVariableName(valueVariableExpr, 'transformMap()')
+    const transformedMap: Record<string, unknown> = {}
+    
+    for (const [key, value] of Object.entries(map)) {
+      // Create a new context with the loop variables
+      const originalKeyValue = this.context[keyVariableName]
+      const originalValueValue = this.context[valueVariableName]
+      this.context[keyVariableName] = key
+      this.context[valueVariableName] = value
+
+      try {
+        // First check if the entry passes the filter
+        const filterResult = this.visit(filterExpr)
+        if (filterResult === true) {
+          const transformedValue = this.visit(transformExpr)
+          transformedMap[key] = transformedValue
+        }
+      } finally {
+        // Restore original context
+        if (originalKeyValue !== undefined) {
+          this.context[keyVariableName] = originalKeyValue
+        } else {
+          delete this.context[keyVariableName]
+        }
+        if (originalValueValue !== undefined) {
+          this.context[valueVariableName] = originalValueValue
+        } else {
+          delete this.context[valueVariableName]
+        }
+      }
+    }
+
+    return transformedMap
+  }
+
+  /**
+   * Handles the .optMap(variable, transform) method call on optional values
+   */
+  private handleOptMapMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    optional: unknown,
+  ): unknown {
+    // optMap() requires exactly 2 arguments: variable and transform
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('optMap() requires exactly two arguments: variable and transform')
+    }
+
+    const variableExpr = ctx.arg
+    const transformExpr = ctx.args[0]
+
+    // Create a lambda function that handles the CEL context properly
+    const mapFn = (value: unknown) => {
+      const variableName = this.extractVariableName(variableExpr, 'optMap()')
+      
+      // Create a new context with the lambda variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        return this.visit(transformExpr)
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    // Call the optMap method with the lambda function
+    if (typeof optional === 'object' && optional !== null && 'optMap' in optional) {
+      const method = (optional as any).optMap
+      if (typeof method === 'function') {
+        return method.call(optional, mapFn)
+      }
+    }
+    
+    throw new CelEvaluationError('optMap() can only be called on optional values')
+  }
+
+  /**
+   * Handles the .optFlatMap(variable, transform) method call on optional values
+   */
+  private handleOptFlatMapMethod(
+    ctx: IdentifierDotExpressionCstChildren,
+    optional: unknown,
+  ): unknown {
+    // optFlatMap() requires exactly 2 arguments: variable and transform
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('optFlatMap() requires exactly two arguments: variable and transform')
+    }
+
+    const variableExpr = ctx.arg
+    const transformExpr = ctx.args[0]
+
+    // Create a lambda function that handles the CEL context properly
+    const mapFn = (value: unknown) => {
+      const variableName = this.extractVariableName(variableExpr, 'optFlatMap()')
+      
+      // Create a new context with the lambda variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        return this.visit(transformExpr)
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    // Call the optFlatMap method with the lambda function
+    if (typeof optional === 'object' && optional !== null && 'optFlatMap' in optional) {
+      const method = (optional as any).optFlatMap
+      if (typeof method === 'function') {
+        return method.call(optional, mapFn)
+      }
+    }
+    
+    throw new CelEvaluationError('optFlatMap() can only be called on optional values')
   }
 
   /**
@@ -3385,6 +4259,44 @@ export class CelVisitor
       }
       return value.toString()
     }
+    // Handle dynamic types first (before other object checks)
+    if (value && typeof value === 'object' && '__isDynamic' in value && value.__isDynamic === true) {
+      // Extract the actual value from dynamic type
+      let actualValue = value.valueOf ? value.valueOf() : value
+      
+      // Handle special cases where valueOf() doesn't give us the right value
+      if (value instanceof Date || (value && typeof value === 'object' && 'toISOString' in value)) {
+        // For timestamps, use the date formatting logic directly
+        actualValue = value
+      } else if (value && typeof value === 'object' && 'seconds' in value) {
+        // For durations, use the duration formatting logic directly  
+        actualValue = value
+      } else if (Array.isArray(value)) {
+        // For arrays, use the array formatting logic directly
+        actualValue = value
+      }
+      
+      // If actualValue is still the same complex object, format it without recursing
+      if (actualValue === value) {
+        // Create a copy without the __isDynamic property and format normally
+        let temp: any
+        if (Array.isArray(value)) {
+          // For arrays, preserve the array structure
+          temp = [...value]
+        } else if (value instanceof Date) {
+          // For dates, create a new Date object
+          temp = new Date(value.getTime())
+        } else {
+          // For other objects, use object spread
+          temp = {...value}
+        }
+        delete temp.__isDynamic
+        return this.formatValueForString(temp)
+      } else {
+        // Recursively format the extracted primitive value
+        return this.formatValueForString(actualValue)
+      }
+    }
     // Handle wrapped numbers
     if (value && typeof value === 'object' && '__isFloatLiteral' in value) {
       const val = Number(value.valueOf ? value.valueOf() : value)
@@ -3749,4 +4661,20 @@ export class CelVisitor
         throw new CelEvaluationError(`Unknown duration method: ${methodName}`)
     }
   }
+
+  /**
+   * Handles list elements with optional markers
+   */
+  listElement(ctx: ListElementCstChildren): unknown {
+    if (ctx.optional) {
+      // For optional list elements, we need to handle them based on context
+      // For now, just evaluate the expression normally
+      // TODO: Implement optional semantics based on CEL specification
+    }
+    return this.visit(ctx.expr[0])
+  }
+
+
+
+
 }

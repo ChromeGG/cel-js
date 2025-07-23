@@ -57,12 +57,13 @@ export function evaluate(
   expression: string | CstNode,
   context?: Record<string, unknown>,
   functions?: Record<string, CallableFunction>,
+  container?: string,
 ): CelValue {
   const result =
     typeof expression === 'string'
       ? parse(expression)
       : <Success>{ isSuccess: true, cst: expression }
-  const toAstVisitorInstance = new CelVisitor(context, functions)
+  const toAstVisitorInstance = new CelVisitor(context, functions, container)
 
   if (!result.isSuccess) {
     throw new CelParseError(
