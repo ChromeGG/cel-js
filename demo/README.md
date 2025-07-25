@@ -6,6 +6,11 @@ This demo showcases the CEL-JS library features including:
 - **Collections**: Arrays and maps with indexing 
 - **String methods**: `contains()`, `endsWith()`, `trim()`, `split()` with chaining support
 - **Math functions**: `abs()`, `max()`, `min()`, `floor()`, `ceil()`
+- **Math extensions**: `math.greatest()`, `math.least()`, `math.isNaN()`, `math.isInf()`, `math.isFinite()`
+- **String extensions**: `strings.quote()` for CEL literal escaping
+- **Base64 encoding/decoding**: `base64.encode()` and `base64.decode()`
+- **Optional types**: `optional.of()`, `optional.none()` for handling optional values
+- **Dynamic type comparisons**: `dyn()` for cross-type comparisons
 - **Collection operations**: `filter()`, `map()` (transform and filter+transform)
 - **Collection macros**: `all()`, `exists()`, `exists_one()`, `size()`, `has()`
 - **Timestamps and durations**: RFC3339 timestamps with arithmetic operations

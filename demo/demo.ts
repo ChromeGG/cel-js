@@ -94,6 +94,27 @@ import { evaluate, parse } from '../dist/index.js'
   const chainedExpr = '["  hello  ", "  world  "].map(s, s.trim()).filter(s, s.contains("o"))'
   console.log(`${chainedExpr} => ${JSON.stringify(evaluate(chainedExpr))}`); // => ["hello","world"]
 
+  // Math extension functions
+  console.log(`math.greatest(3, 7, 2) => ${evaluate('math.greatest(3, 7, 2)')}`) // => 7
+  console.log(`math.least(3, 7, 2) => ${evaluate('math.least(3, 7, 2)')}`) // => 2
+  console.log(`math.isNaN(0.0 / 0.0) => ${evaluate('math.isNaN(0.0 / 0.0)')}`) // => true
+  console.log(`math.isInf(1.0 / 0.0) => ${evaluate('math.isInf(1.0 / 0.0)')}`) // => true
+  console.log(`math.isFinite(42.0) => ${evaluate('math.isFinite(42.0)')}`) // => true
+
+  // String extension functions
+  console.log(`strings.quote('hello "world"') => ${evaluate("strings.quote('hello \"world\"')")}`) // => "hello \"world\""
+
+  // Base64 encoding/decoding
+  console.log(`base64.encode(b'hello') => ${evaluate("base64.encode(b'hello')")}`) // => "aGVsbG8="
+  console.log(`base64.decode('aGVsbG8=') => ${JSON.stringify(evaluate("base64.decode('aGVsbG8=')"))}`) // => [104,101,108,108,111]
+
+  // Optional types
+  console.log(`optional.of(42) => ${JSON.stringify(evaluate('optional.of(42)'))}`) // => {"hasValue":true,"value":42}
+  console.log(`optional.none() => ${JSON.stringify(evaluate('optional.none()'))}`) // => {"hasValue":false}
+
+  // Dynamic type comparisons
+  console.log(`dyn('hello') == dyn('hello') => ${evaluate("dyn('hello') == dyn('hello')")}`) // => true
+
   // Custom function expressions
   const functionExpr = 'max(2, 1, 3, 7)'
   console.log(
