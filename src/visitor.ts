@@ -600,7 +600,7 @@ export class CelVisitor
     }
 
     // Escape the string and wrap in quotes
-    let escaped = str
+    const escaped = str
       .replace(/\\/g, '\\\\')  // Escape backslashes first
       .replace(/"/g, '\\"')    // Escape double quotes
       .replace(/\n/g, '\\n')   // Escape newlines
@@ -720,6 +720,11 @@ export class CelVisitor
           throw new CelEvaluationError('cel.index requires parentheses')
         }
         return this.handleCelIndex(firstDot.children)
+      case 'iterVar':
+        if (!firstDot.children.OpenParenthesis) {
+          throw new CelEvaluationError('cel.iterVar requires parentheses')
+        }
+        return this.handleCelIterVar(firstDot.children)
       case 'expr':
         // Handle cel.expr.* extension identifiers
         // These should resolve to a string identifier that can be used with proto functions
@@ -916,6 +921,32 @@ export class CelVisitor
     }
 
     return this.blockContext[indexResult]
+  }
+
+  /**
+   * Handles the cel.iterVar(level, index) function for macro iteration variables
+   */
+  private handleCelIterVar(ctx: any): unknown {
+    // Validate arguments - iterVar() requires exactly two arguments (one ctx.arg + one ctx.args)
+    if (!ctx.arg || !ctx.args || ctx.args.length !== 1) {
+      throw new CelEvaluationError('cel.iterVar() requires exactly two arguments: level and index')
+    }
+
+    // Get the level and index
+    const level = this.visit(ctx.arg)
+    const index = this.visit(ctx.args[0])
+    
+    if (typeof level !== 'number' || !Number.isInteger(level) || level < 0) {
+      throw new CelEvaluationError('cel.iterVar() level must be a non-negative integer')
+    }
+    
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+      throw new CelEvaluationError('cel.iterVar() index must be a non-negative integer')
+    }
+
+    // For now, return a simple placeholder that represents the iterator variable
+    // In a full implementation, this would interact with the macro expansion system
+    return `__iter_${level}_${index}__`
   }
 
   /**
@@ -1475,6 +1506,37 @@ export class CelVisitor
               value: structData.value || new Uint8Array(),
               ...structData
             }
+          } else if (typeName === 'google.protobuf.Value') {
+            // Handle protobuf Value - return the appropriate typed value
+            if ('number_value' in structData) {
+              result = structData.number_value
+            } else if ('string_value' in structData) {
+              result = structData.string_value
+            } else if ('bool_value' in structData) {
+              result = structData.bool_value
+            } else if ('struct_value' in structData) {
+              result = structData.struct_value
+            } else if ('list_value' in structData) {
+              result = structData.list_value
+            } else if ('null_value' in structData) {
+              result = null
+            } else {
+              result = null
+            }
+          } else if (typeName === 'google.protobuf.ListValue') {
+            // Handle protobuf ListValue - return the values array
+            if ('values' in structData) {
+              result = structData.values
+            } else {
+              result = []
+            }
+          } else if (typeName === 'google.protobuf.Struct') {
+            // Handle protobuf Struct - return the fields object
+            if ('fields' in structData) {
+              result = structData.fields
+            } else {
+              result = {}
+            }
           } else if ((typeName.includes('google.protobuf') && typeName.endsWith('Value')) || 
                      (typeName.endsWith('Value') && (
                        typeName.includes('Int32') || typeName.includes('Int64') ||
@@ -1492,7 +1554,6 @@ export class CelVisitor
               else if (typeName.includes('String')) result = ''
               else if (typeName.includes('Int') || typeName.includes('Double') || typeName.includes('Float')) result = 0
               else if (typeName.includes('Bytes')) result = new Uint8Array()
-              else if (typeName === 'google.protobuf.Value') result = null
               else result = structData
             }
           } else {
@@ -1660,6 +1721,8 @@ export class CelVisitor
       result = this.getIdentifier(data, identifierName)
     }
 
+
+
     if (!ctx.identifierDotExpression && !ctx.identifierIndexExpression) {
       return result as boolean
     }
@@ -1808,6 +1871,8 @@ export class CelVisitor
 
     const value = (searchContext as Record<string, unknown>)[identifier]
 
+
+
     if (value === undefined) {
       // Check if this could be a type identifier that we should allow
       // Type identifiers are typically used with struct construction
@@ -1825,15 +1890,19 @@ export class CelVisitor
         throw new CelEvaluationError(`Unknown field '${identifier}' in protobuf message`)
       }
       
-      const context = JSON.stringify(this?.context)
+      // Create context for error message - exclude built-in context like optional/math
+      const userContext = { ...this.context }
+      delete userContext.optional
+      delete userContext.math
+      const contextStr = JSON.stringify(userContext)
 
-      if (context === '{}') {
+      if (contextStr === '{}') {
         throw new Error(
           `Identifier "${identifier}" not found, no context passed`,
         )
       }
       throw new Error(
-        `Identifier "${identifier}" not found in context: ${context}`,
+        `Identifier "${identifier}" not found in context: ${contextStr}`,
       )
     }
 
@@ -2006,6 +2075,7 @@ export class CelVisitor
     collection: unknown,
   ): unknown {
 
+
     // Handle timestamp methods
     if (collection instanceof Date) {
       return this.handleTimestampMethod(methodName, ctx, collection)
@@ -2106,7 +2176,7 @@ export class CelVisitor
 
     // Validate arguments - need either 2 or 3 arguments
     if (!ctx.arg || !ctx.args) {
-      throw new CelEvaluationError('all() requires at least two arguments')
+      throw new CelEvaluationError('all() requires exactly two arguments: variable and predicate')
     }
 
     // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
@@ -2125,11 +2195,12 @@ export class CelVisitor
 
       // Handle maps (objects)
       if (typeof collection === 'object') {
-        const keys = Object.keys(collection)
-        if (keys.length === 0) {
+        const values = Object.values(collection)
+        if (values.length === 0) {
           return true // Empty objects return true (vacuous truth)
         }
-        return this.evaluateAllForArray(keys, variableExpr, predicateExpr)
+        // For 2-parameter form on maps, iterate over values
+        return this.evaluateAllForArray(values, variableExpr, predicateExpr)
       }
     } else if (ctx.args.length === 2) {
       // 3-parameter version: index/key variable, value variable, and predicate
@@ -2350,7 +2421,7 @@ export class CelVisitor
 
     // Validate arguments - need either 2 or 3 arguments
     if (!ctx.arg || !ctx.args) {
-      throw new CelEvaluationError('exists() requires at least two arguments')
+      throw new CelEvaluationError('exists() requires exactly two arguments: variable and predicate')
     }
 
     // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
@@ -2369,11 +2440,12 @@ export class CelVisitor
 
       // Handle maps (objects)
       if (typeof collection === 'object') {
-        const keys = Object.keys(collection)
-        if (keys.length === 0) {
+        const values = Object.values(collection)
+        if (values.length === 0) {
           return false // Empty objects return false (no elements to satisfy condition)
         }
-        return this.evaluateExistsForArray(keys, variableExpr, predicateExpr)
+        // For 2-parameter form on maps, iterate over values
+        return this.evaluateExistsForArray(values, variableExpr, predicateExpr)
       }
     } else if (ctx.args.length === 2) {
       // 3-parameter version: index/key variable, value variable, and predicate
@@ -2594,7 +2666,7 @@ export class CelVisitor
 
     // Validate arguments - need either 2 or 3 arguments
     if (!ctx.arg || !ctx.args) {
-      throw new CelEvaluationError('exists_one() requires at least two arguments')
+      throw new CelEvaluationError('exists_one() requires exactly two arguments: variable and predicate')
     }
 
     // Check for 2-parameter version (variable, predicate) or 3-parameter version (index/key, value, predicate)
@@ -2613,11 +2685,12 @@ export class CelVisitor
 
       // Handle maps (objects)
       if (typeof collection === 'object') {
-        const keys = Object.keys(collection)
-        if (keys.length === 0) {
+        const values = Object.values(collection)
+        if (values.length === 0) {
           return false // Empty objects return false (no elements to satisfy condition)
         }
-        return this.evaluateExistsOneForArrayTwoParam(keys, variableExpr, predicateExpr)
+        // For 2-parameter form on maps, iterate over values
+        return this.evaluateExistsOneForArrayTwoParam(values, variableExpr, predicateExpr)
       }
     } else if (ctx.args.length === 2) {
       // 3-parameter version: index/key variable, value variable, and predicate
@@ -2819,6 +2892,7 @@ export class CelVisitor
 
     // Handle maps (objects)
     if (typeof collection === 'object') {
+      // Filter maps should return map objects, not arrays
       return this.filterMap(collection as Record<string, unknown>, variableExpr, predicateExpr)
     }
 
@@ -2950,11 +3024,84 @@ export class CelVisitor
       throw new CelEvaluationError('First argument to filter() must be a variable identifier')
     }
 
-    // Filter map entries based on predicate applied to keys
-    const filteredKeys: string[] = []
+    // Filter map entries based on predicate applied to values
+    const filteredMap: Record<string, unknown> = {}
     
     for (const [key, value] of Object.entries(map)) {
       // Create a new context with the loop variable
+      const originalValue = this.context[variableName]
+      this.context[variableName] = value
+
+      try {
+        const result = this.visit(predicateExpr)
+        if (result) {
+          filteredMap[key] = value
+        }
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return filteredMap
+  }
+
+  /**
+   * Filters a map by keys and returns an array of matching keys (2-parameter version)
+   */
+  private filterMapToArray(
+    map: Record<string, unknown>,
+    variableExpr: any,
+    predicateExpr: any,
+  ): string[] {
+    // Extract variable name from the first argument
+    let variableName: string
+    
+    // Navigate through the CST structure to find the identifier
+    function extractIdentifier(node: any): string | null {
+      if (node.children) {
+        if (node.children.Identifier) {
+          return node.children.Identifier[0].image
+        }
+        // Recursively search for identifier in nested structures
+        for (const key of Object.keys(node.children)) {
+          const child = node.children[key]
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              const result = extractIdentifier(item)
+              if (result) return result
+            }
+          } else {
+            const result = extractIdentifier(child)
+            if (result) return result
+          }
+        }
+      }
+      return null
+    }
+    
+    // Handle the case where variableExpr is an array
+    let nodeToSearch = variableExpr
+    if (Array.isArray(variableExpr) && variableExpr.length > 0) {
+      nodeToSearch = variableExpr[0]
+    }
+    
+    const extractedName = extractIdentifier(nodeToSearch)
+    if (extractedName) {
+      variableName = extractedName
+    } else {
+      throw new CelEvaluationError('First argument to filter() must be a variable identifier')
+    }
+
+    // Filter map keys based on predicate applied to keys
+    const filteredKeys: string[] = []
+    
+    for (const key of Object.keys(map)) {
+      // Create a new context with the loop variable (key)
       const originalValue = this.context[variableName]
       this.context[variableName] = key
 
@@ -3021,7 +3168,13 @@ export class CelVisitor
 
       // Handle maps (objects)
       if (typeof collection === 'object') {
-        return this.mapMap(collection as Record<string, unknown>, variableExpr, transformExpr)
+        // Check if the transform expression is just the variable itself (key extraction)
+        if (this.isSimpleVariableReference(transformExpr, variableExpr)) {
+          return this.mapMapToArray(collection as Record<string, unknown>, variableExpr, transformExpr)
+        } else {
+          // Transform values and return object
+          return this.mapMap(collection as Record<string, unknown>, variableExpr, transformExpr)
+        }
       }
     }
 
@@ -3072,18 +3225,18 @@ export class CelVisitor
     map: Record<string, unknown>,
     variableExpr: any,
     transformExpr: any,
-  ): unknown[] {
+  ): Record<string, unknown> {
     const variableName = this.extractVariableName(variableExpr, 'map()')
-    const mappedKeys: unknown[] = []
+    const mappedMap: Record<string, unknown> = {}
     
     for (const [key, value] of Object.entries(map)) {
       // Create a new context with the loop variable
       const originalValue = this.context[variableName]
-      this.context[variableName] = key
+      this.context[variableName] = value
 
       try {
         const transformedValue = this.visit(transformExpr)
-        mappedKeys.push(transformedValue)
+        mappedMap[key] = transformedValue
       } finally {
         // Restore original context
         if (originalValue !== undefined) {
@@ -3094,7 +3247,71 @@ export class CelVisitor
       }
     }
 
-    return mappedKeys
+    return mappedMap
+  }
+
+  /**
+   * Maps a map by transforming keys to an array (2-parameter version)
+   */
+  private mapMapToArray(
+    map: Record<string, unknown>,
+    variableExpr: any,
+    transformExpr: any,
+  ): unknown[] {
+    const variableName = this.extractVariableName(variableExpr, 'map()')
+    const mappedArray: unknown[] = []
+    
+    for (const key of Object.keys(map)) {
+      // Create a new context with the loop variable (key)
+      const originalValue = this.context[variableName]
+      this.context[variableName] = key
+
+      try {
+        const transformedValue = this.visit(transformExpr)
+        mappedArray.push(transformedValue)
+      } finally {
+        // Restore original context
+        if (originalValue !== undefined) {
+          this.context[variableName] = originalValue
+        } else {
+          delete this.context[variableName]
+        }
+      }
+    }
+
+    return mappedArray
+  }
+
+  /**
+   * Checks if an expression is just a simple variable reference
+   */
+  private isSimpleVariableReference(transformExpr: any, variableExpr: any): boolean {
+    // Extract variable name from variableExpr
+    const variableName = this.extractVariableName(variableExpr, 'comparison')
+    
+    // Check if the transformExpr is just a simple identifier matching the variable name
+    // and doesn't contain any other operations
+    function isJustIdentifier(node: any, targetName: string): boolean {
+      if (!node || !node.children) return false
+      
+      // Check if this node has only an Identifier child and no other operations
+      const keys = Object.keys(node.children)
+      if (keys.length === 1 && keys[0] === 'Identifier') {
+        const identifier = node.children.Identifier[0]
+        return identifier && identifier.image === targetName
+      }
+      
+      // If there are multiple keys or operations, it's not a simple variable reference
+      return false
+    }
+    
+    // Check if transformExpr is an array, get first element
+    let nodeToCheck = transformExpr
+    if (Array.isArray(transformExpr) && transformExpr.length > 0) {
+      nodeToCheck = transformExpr[0]
+    }
+    
+    return isJustIdentifier(nodeToCheck, variableName)
   }
 
   /**

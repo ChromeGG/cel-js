@@ -1,7 +1,6 @@
 import { expect, describe, it } from 'vitest'
 
-import { CelTypeError, evaluate } from '..'
-import { Operations } from '../helper'
+import { evaluate } from '..'
 
 describe('lists expressions', () => {
   describe('has', () => {

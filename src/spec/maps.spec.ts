@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest'
-import { CelEvaluationError, evaluate } from '..'
+import { evaluate } from '..'
 
 describe('maps expressions', () => {
   describe('literal', () => {

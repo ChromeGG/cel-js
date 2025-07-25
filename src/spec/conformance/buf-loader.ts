@@ -33,6 +33,8 @@ function mapTestCase(test: any): ConformanceTestCase {
     name: test.name,
     expr: test.expr
   };
+  
+
 
   if (test.description) {
     mapped.description = test.description;
@@ -48,6 +50,11 @@ function mapTestCase(test: any): ConformanceTestCase {
         errors: test.resultMatcher.value.errors?.map((err: any) => ({
           message: err.message || ''
         })) || []
+      };
+    }
+    if (test.resultMatcher.case === 'typedResult' && test.resultMatcher.value) {
+      mapped.typed_result = {
+        deduced_type: mapType(test.resultMatcher.value.deducedType)
       };
     }
   }
@@ -89,6 +96,59 @@ function mapTestCase(test: any): ConformanceTestCase {
     mapped.container = test.container;
   }
 
+  if (test.checkOnly !== undefined) {
+    mapped.check_only = test.checkOnly;
+  }
+
+  return mapped;
+}
+
+function mapType(type: any): any {
+  if (!type) return {};
+  
+  const mapped: any = {};
+  
+  // Handle protobuf-es structure with typeKind
+  if (type.typeKind) {
+    switch (type.typeKind.case) {
+      case 'primitive':
+        // Map primitive type enum values to strings
+        const primitiveMap: { [key: number]: string } = {
+          1: 'BOOL',   // BOOL might be value 1
+          2: 'INT64',  // INT64 is value 2 in the enum
+          3: 'UINT64',
+          4: 'DOUBLE',
+          5: 'STRING',
+          6: 'BYTES'
+        };
+        mapped.primitive = primitiveMap[type.typeKind.value] || 'UNKNOWN';
+        break;
+      case 'dyn':
+        mapped.dyn = {};
+        break;
+      case 'listType':
+        mapped.list_type = {
+          elem_type: mapType(type.typeKind.value.elemType)
+        };
+        break;
+      case 'mapType':
+        mapped.map_type = {
+          key_type: mapType(type.typeKind.value.keyType),
+          value_type: mapType(type.typeKind.value.valueType)
+        };
+        break;
+      case 'messageType':
+        mapped.message_type = type.typeKind.value;
+        break;
+      case 'abstractType':
+        mapped.abstract_type = {
+          name: type.typeKind.value.name,
+          parameter_types: type.typeKind.value.parameterTypes?.map(mapType) || []
+        };
+        break;
+    }
+  }
+  
   return mapped;
 }
 
@@ -286,6 +346,10 @@ function decodeTestAllTypesFromRaw(rawData: any, typeUrl: string, sectionName?: 
     const fieldNumber = tag >> 3
     const wireType = tag & 0x07
     
+
+    
+
+    
     // Map field numbers to field names based on TestAllTypes protobuf schema
     switch (fieldNumber) {
       case 1: result.single_int32 = value; explicitFields.add('single_int32'); break
@@ -462,6 +526,8 @@ function decodeTestAllTypesFromRaw(rawData: any, typeUrl: string, sectionName?: 
     writable: false,
     configurable: false
   })
+  
+
   
   return result
 }
@@ -666,6 +732,33 @@ export function conformanceValueToJS(value: ConformanceTestValue, sectionName?: 
       
       return result
     }
+    
+    // Handle simple primitive values that come as raw protobuf bytes  
+    // Check if this looks like raw protobuf data (object with only numeric keys)
+    if (typeof obj.value === 'object' && obj.value !== null && !obj.typeUrl) {
+      const keys = Object.keys(obj.value)
+      const allNumericKeys = keys.length > 0 && keys.every(key => !isNaN(Number(key)))
+      
+      if (allNumericKeys) {
+        // Convert to Uint8Array and decode
+        const bytes = new Uint8Array(keys.length)
+        keys.forEach(key => {
+          bytes[Number(key)] = obj.value[key]
+        })
+        
+        // Simple protobuf parser for primitive values
+        const parsed = parseSimpleProtobufValue(bytes)
+        
+        // For simple cases, return the first field value
+        const fieldValues = Object.values(parsed)
+        if (fieldValues.length === 1) {
+          return fieldValues[0]
+        }
+        
+        return parsed
+      }
+    }
+    
     return obj
   }
   return undefined

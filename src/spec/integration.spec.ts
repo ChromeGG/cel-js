@@ -165,22 +165,6 @@ describe('CEL Integration Tests', () => {
     })
 
     it('should validate and transform text data', () => {
-      const expr = `
-        messages
-          .filter(msg, size(msg.content) > 0 && size(msg.content) <= 280)
-          .map(msg, {
-            "id": msg.id,
-            "author": msg.author,
-            "content": msg.content,
-            "hashtags": msg.content.contains("#") ? 
-              msg.content.split(" ").filter(word, word.startsWith("#")) : [],
-            "mentions": msg.content.contains("@") ?
-              msg.content.split(" ").filter(word, word.startsWith("@")) : [],
-            "length": size(msg.content),
-            "isLong": size(msg.content) > 140
-          })
-      `
-
       // For now, let's test a simpler version without string methods we haven't implemented
       const simpleExpr = `
         messages
@@ -489,26 +473,6 @@ describe('CEL Integration Tests', () => {
 
   describe('Real-world Scenarios', () => {
     it('should validate API request with complex rules', () => {
-      const expr = `
-        // Basic request validation
-        has(request.method) && request.method in ["GET", "POST", "PUT", "DELETE"] &&
-        has(request.path) && size(request.path) > 0 &&
-        has(request.headers) &&
-        
-        // Authentication check
-        has(request.headers.authorization) &&
-        
-        // Content validation for write operations
-        (request.method in ["POST", "PUT"] ? 
-          has(request.body) && size(request.body) > 0 : true) &&
-        
-        // Rate limiting check
-        (!has(request.metadata.rateLimitExceeded) || !request.metadata.rateLimitExceeded) &&
-        
-        // Path-specific validation
-        (request.path.startsWith("/api/v1/") || request.path.startsWith("/api/v2/"))
-      `
-
       // Simplified version without string methods we haven't implemented
       const simpleExpr = `
         has(request.method) && request.method in ["GET", "POST", "PUT", "DELETE"] &&
@@ -544,19 +508,6 @@ describe('CEL Integration Tests', () => {
     })
 
     it('should process e-commerce order validation', () => {
-      const expr = `
-        order.items.size() > 0 &&
-        order.items.all(item, 
-          has(item.productId) && 
-          has(item.quantity) && item.quantity > 0 &&
-          has(item.price) && item.price >= 0
-        ) &&
-        order.total == order.items.map(item, item.quantity * item.price).sum() &&
-        order.shippingAddress.all(field, size(field) > 0) &&
-        (order.paymentMethod == "credit_card" ? 
-          has(order.creditCard) && has(order.creditCard.last4) : true)
-      `
-
       // Simplified without sum() function
       const simpleExpr = `
         size(order.items) > 0 &&

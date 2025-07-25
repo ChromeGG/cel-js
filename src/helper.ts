@@ -656,6 +656,8 @@ const comparisonOperation = (
   left: unknown,
   right: unknown,
 ) => {
+
+  
   if (
     (isCalculable(left) && isCalculable(right)) ||
     (isString(left) && isString(right))
@@ -670,6 +672,26 @@ const comparisonOperation = (
         const leftValue = leftBigInt ? leftBigInt : BigInt(Math.trunc(Number(left)))
         const rightValue = rightBigInt ? rightBigInt : BigInt(Math.trunc(Number(right)))
         
+        // Check if precision would be lost when both values exceed MAX_SAFE_INTEGER
+        // and they would be equal when converted to regular numbers
+        const leftNum = Number(left)
+        const rightNum = Number(right)
+        
+        if ((Math.abs(leftNum) > Number.MAX_SAFE_INTEGER || Math.abs(rightNum) > Number.MAX_SAFE_INTEGER) &&
+            leftNum === rightNum) {
+          // When precision is lost and values are equal, treat as equal
+          switch (operation) {
+            case Operations.lessThan:
+              return false
+            case Operations.lessOrEqualThan:
+              return true
+            case Operations.greaterThan:
+              return false
+            case Operations.greaterOrEqualThan:
+              return true
+          }
+        }
+        
         switch (operation) {
           case Operations.lessThan:
             return leftValue < rightValue
@@ -681,6 +703,8 @@ const comparisonOperation = (
             return leftValue >= rightValue
         }
       }
+      
+
     }
     
     switch (operation) {
@@ -1210,7 +1234,12 @@ export const math = {
 
   abs: (value: unknown): number => {
     if (isFloat(value) || isInt(value) || isUint(value)) {
-      return Math.abs(Number(unwrapValue(value)))
+      const numValue = Number(unwrapValue(value))
+      // Check for int64 minimum value overflow
+      if (numValue === -9223372036854775808) {
+        throw new CelEvaluationError(`math.abs() overflow: absolute value of minimum int64 is out of range`)
+      }
+      return Math.abs(numValue)
     }
     throw new CelEvaluationError(`math.abs() requires a number argument`)
   },
