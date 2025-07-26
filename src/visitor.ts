@@ -20,6 +20,7 @@ import {
   UnaryExpressionCstChildren,
   MapKeyValuesCstChildren,
   MapExpressionCstChildren,
+  ExprCstNode,
   StructExpressionCstChildren,
   StructKeyValuesCstChildren,
   ListElementCstChildren,
@@ -134,6 +135,253 @@ export class CelVisitor
   private functions: Record<string, CallableFunction>
 
   /**
+   * Checks if the given identifier is a collection macro.
+   */
+  private isCollectionMacro(identifier: string): boolean {
+    return COLLECTION_MACROS.includes(identifier as CollectionMacro)
+  }
+
+  /**
+   * Checks if the given value is a map (object).
+   */
+  private isMap(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  }
+
+  /**
+   * Handles collection macro calls like collection.filter(item, predicate).
+   */
+  private handleCollectionMacroCall(
+    macroName: CollectionMacro,
+    collection: unknown,
+    ctx: IdentifierDotExpressionCstChildren,
+  ): unknown {
+    // Validate collection type
+    if (!Array.isArray(collection) && !this.isMap(collection)) {
+      throw new CelEvaluationError(
+        `${macroName}() can only be called on lists or maps`,
+      )
+    }
+
+    // Extract arguments
+    const expressions = [...(ctx.arg ? [ctx.arg] : []), ...(ctx.args || [])]
+
+    if (expressions.length < 2) {
+      throw new CelEvaluationError(
+        `${macroName}() requires at least 2 arguments`,
+      )
+    }
+
+    const variableExpr = Array.isArray(expressions[0])
+      ? expressions[0][0]
+      : expressions[0]
+    const predicateExpr = Array.isArray(expressions[1])
+      ? expressions[1][0]
+      : expressions[1]
+
+    // Extract variable name (should be an identifier)
+    if (
+      variableExpr.name !== 'expr' ||
+      !variableExpr.children.conditionalOr[0]
+    ) {
+      throw new CelEvaluationError(
+        `${macroName}() first argument must be a variable name`,
+      )
+    }
+
+    // Navigate to get the identifier - this is a simplified approach
+    // In a real implementation, we'd need to ensure this is specifically an identifier
+    const variableName = this.extractCollectionVariableName(variableExpr)
+
+    const isMap = this.isMap(collection)
+    const iterationItems = isMap
+      ? Object.keys(collection as Record<string, unknown>) // iterate over keys
+      : (collection as unknown[]) // iterate over values
+
+    // Handle based on macro type
+    switch (macroName) {
+      case 'filter':
+        return this.handleCollectionFilter(iterationItems, variableName, predicateExpr)
+      case 'map':
+        return this.handleCollectionMap(iterationItems, variableName, expressions)
+      case 'all':
+        return this.handleCollectionAll(iterationItems, variableName, predicateExpr)
+      case 'exists':
+        return this.handleCollectionExists(iterationItems, variableName, predicateExpr)
+      case 'exists_one':
+        return this.handleCollectionExistsOne(iterationItems, variableName, predicateExpr)
+      default:
+        throw new CelEvaluationError(`Unknown collection macro: ${macroName}`)
+    }
+  }
+
+  /**
+   * Extracts the variable name from a variable expression for collection macros.
+   */
+  private extractCollectionVariableName(variableExpr: unknown): string {
+    const expr = variableExpr as ExprCstNode
+
+    // Set extraction mode and use existing visitor traversal
+    const originalMode = this.mode
+    this.mode = Mode.extract_variable
+
+    try {
+      const result = this.visit(expr)
+      if (typeof result !== 'string') {
+        throw new CelEvaluationError(
+          'Variable name must be a simple identifier',
+        )
+      }
+      return result
+    } catch (error) {
+      if (error instanceof CelEvaluationError) {
+        throw error
+      }
+      throw new CelEvaluationError('Variable name must be a simple identifier')
+    } finally {
+      this.mode = originalMode
+    }
+  }
+
+  /**
+   * Evaluates an expression with a bound variable in the context.
+   */
+  private evaluateWithBinding(
+    expression: ExprCstNode,
+    variableName: string,
+    variableValue: unknown,
+  ): unknown {
+    // Save original context
+    const originalValue = this.context[variableName]
+    const hadOriginalValue = variableName in this.context
+
+    try {
+      // Bind loop variable
+      this.context[variableName] = variableValue
+
+      // Evaluate expression with bound variable
+      return this.visit(expression)
+    } finally {
+      // Restore original context
+      if (hadOriginalValue) {
+        this.context[variableName] = originalValue
+      } else {
+        delete this.context[variableName]
+      }
+    }
+  }
+
+  /**
+   * Handles the filter collection macro.
+   */
+  private handleCollectionFilter(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode,
+  ): unknown[] {
+    const results: unknown[] = []
+
+    for (const item of iterationItems) {
+      const shouldInclude = this.evaluateWithBinding(predicate, variable, item)
+
+      if (shouldInclude) {
+        // For both maps and lists, return the iteration item (key for maps, value for lists)
+        results.push(item)
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Handles the map collection macro (with transform or filter+transform).
+   */
+  private handleCollectionMap(
+    iterationItems: unknown[],
+    variable: string,
+    expressions: (ExprCstNode | ExprCstNode[])[],
+  ): unknown[] {
+    if (expressions.length === 2) {
+      // Simple transform: map(var, transform)
+      const transform = Array.isArray(expressions[1])
+        ? expressions[1][0]
+        : expressions[1]
+      return iterationItems.map((item) =>
+        this.evaluateWithBinding(transform, variable, item),
+      )
+    } else if (expressions.length === 3) {
+      // Filter + transform: map(var, predicate, transform)
+      const predicate = Array.isArray(expressions[1])
+        ? expressions[1][0]
+        : expressions[1]
+      const transform = Array.isArray(expressions[2])
+        ? expressions[2][0]
+        : expressions[2]
+
+      const results: unknown[] = []
+      for (const item of iterationItems) {
+        const shouldInclude = this.evaluateWithBinding(
+          predicate,
+          variable,
+          item,
+        )
+
+        if (shouldInclude) {
+          const transformed = this.evaluateWithBinding(
+            transform,
+            variable,
+            item,
+          )
+          results.push(transformed)
+        }
+      }
+      return results
+    } else {
+      throw new CelEvaluationError('map() requires 2 or 3 arguments')
+    }
+  }
+
+  /**
+   * Handles the all collection macro.
+   */
+  private handleCollectionAll(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode,
+  ): boolean {
+    return iterationItems.every((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
+    )
+  }
+
+  /**
+   * Handles the exists collection macro.
+   */
+  private handleCollectionExists(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode,
+  ): boolean {
+    return iterationItems.some((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
+    )
+  }
+
+  /**
+   * Handles the exists_one collection macro.
+   */
+  private handleCollectionExistsOne(
+    iterationItems: unknown[],
+    variable: string,
+    predicate: ExprCstNode,
+  ): boolean {
+    const matches = iterationItems.filter((item) =>
+      this.evaluateWithBinding(predicate, variable, item),
+    )
+    return matches.length === 1
+  }
+
+  /**
    * Tracks the current block context for cel.block() and cel.index() operations.
    */
   private blockContext: any[] | null = null
@@ -224,50 +472,50 @@ export class CelVisitor
       left = this.visit(ctx.lhs)
     } catch (error) {
       leftError = error instanceof Error ? error : new Error(String(error))
-    }
+      }
 
     // Short circuit if left is true. Required for proper logical OR evaluation.
-    if (left === true) {
-      return true
-    }
+      if (left === true) {
+        return true
+      }
 
     if (ctx.rhs) {
-      let result = left
+        let result = left
       let hasError = leftError !== null
 
       ctx.rhs.forEach((rhsOperand) => {
         // Short circuit - if we already have true, don't evaluate further
-        if (result === true) {
-          return
-        }
+      if (result === true) {
+        return
+      }
 
         try {
-          const right = this.visit(rhsOperand)
-          
+        const right = this.visit(rhsOperand)
+
           // If left had an error but right is true, we can short-circuit to true
-          if (hasError && right === true) {
-            result = true
-            hasError = false
-            return
-          }
-          
+      if (hasError && right === true) {
+        result = true
+      hasError = false
+      return
+      }
+
           // If we have a valid left value, use normal OR logic
-          if (!hasError) {
-            const operator = ctx.LogicalOrOperator![0]
-            result = getResult(operator, result, right)
-          } else {
-            // Left had error, right is not true, so we can't short-circuit
-            // We must propagate the left error
-            throw leftError
-          }
-        } catch (error) {
-          // If right also fails and left failed, propagate left error
-          if (hasError) {
-            throw leftError
-          }
-          // If left was ok but right fails, propagate right error
-          throw error
-        }
+      if (!hasError) {
+        const operator = ctx.LogicalOrOperator![0]
+      result = getResult(operator, result, right)
+      } else {
+        // Left had error, right is not true, so we can't short-circuit
+      // We must propagate the left error
+      throw leftError
+      }
+      } catch (error) {
+        // If right also fails and left failed, propagate left error
+      if (hasError) {
+        throw leftError
+      }
+      // If left was ok but right fails, propagate right error
+      throw error
+      }
       })
 
       // If we still have an error and no successful evaluation, throw it
@@ -276,8 +524,7 @@ export class CelVisitor
       }
 
       return result as boolean
-    }
-
+      }
     // No right operand, if left had error, throw it
     if (leftError) {
       throw leftError
@@ -1028,44 +1275,8 @@ export class CelVisitor
 
     return expressions.reduce((acc: unknown, expression) => {
       if (expression.name === 'identifierDotExpression') {
-        let identifierName: string
-        if (expression.children.Identifier && expression.children.Identifier.length > 0) {
-          identifierName = expression.children.Identifier[0].image
-        } else if (expression.children.QuotedIdentifier && expression.children.QuotedIdentifier.length > 0) {
-          const quotedImage = expression.children.QuotedIdentifier[0].image
-          identifierName = quotedImage.slice(1, -1) // Remove backticks
-        } else {
-          throw new Error('No identifier found in dot expression')
-        }
-        
-        // Check if this is optional chaining
-        const isOptional = !!expression.children.optional
-        
-        if (isOptional) {
-          // Handle optional chaining
-          if (acc === null || acc === undefined) {
-            return optional.none()
-          }
-          
-          try {
-            if (expression.children.OpenParenthesis) {
-              const result = this.handleMethodCall(identifierName, expression.children, acc)
-              return optional.of(result)
-            } else {
-              const result = this.getIdentifier(acc, identifierName)
-              return optional.of(result)
-            }
-          } catch {
-            return optional.none()
-          }
-        }
-        
-        // Regular (non-optional) property access
-        if (expression.children.OpenParenthesis) {
-          return this.handleMethodCall(identifierName, expression.children, acc)
-        }
-        
-        return this.getIdentifier(acc, identifierName)
+        // Call the visitor method to handle collection macros and optional chaining
+      return this.identifierDotExpression(expression.children, acc)
       }
 
       // Handle index expressions (both identifierIndexExpression and Index)
@@ -1592,6 +1803,17 @@ export class CelVisitor
   }
 
   identifierExpression(ctx: IdentifierExpressionCstChildren): unknown {
+    // Handle variable extraction mode
+    if (this.mode === Mode.extract_variable) {
+      // Must be a simple identifier (no dot notation or indexing)
+      if (ctx.identifierDotExpression || ctx.identifierIndexExpression) {
+        throw new CelEvaluationError(
+          'Variable name must be a simple identifier',
+        )
+      }
+      return ctx.Identifier[0].image
+    }
+
     // Note: We removed the restrictive has() validation here since
     // expressions like TestAllTypes{}.field should be allowed
     // The has() function will work properly by checking if the result is undefined
@@ -1750,10 +1972,10 @@ export class CelVisitor
     } else {
       throw new Error('No identifier found in dot expression')
     }
-    
+
     // Special handling for optional chaining
-    if (isOptional) {
-      // If the target is null/undefined, return optional.none()
+      if (isOptional) {
+        // If the target is null/undefined, return optional.none()
       if (param === null || param === undefined) {
         return optional.none()
       }
@@ -1761,42 +1983,50 @@ export class CelVisitor
       // If the target is already a CelOptional, work with its value
       if (param && typeof param === 'object' && 'hasValue' in param && typeof (param as any).hasValue === 'function') {
         const optionalValue = param as any
-        if (!optionalValue.hasValue()) {
-          return optional.none()
-        }
-        const actualValue = optionalValue.value()
-        
-        // Now try to access the property on the actual value
-        try {
-          if (ctx.OpenParenthesis) {
-            return this.handleMethodCall(identifierName, ctx, actualValue)
-          } else {
-            const result = this.getIdentifier(actualValue, identifierName)
-            return optional.of(result)
-          }
-        } catch {
-          return optional.none()
-        }
+      if (!optionalValue.hasValue()) {
+        return optional.none()
+      }
+      const actualValue = optionalValue.value()
+      
+      // Now try to access the property on the actual value
+      try {
+        if (ctx.OpenParenthesis) {
+        return this.handleMethodCall(identifierName, ctx, actualValue)
+      } else {
+        const result = this.getIdentifier(actualValue, identifierName)
+      return optional.of(result)
+      }
+      } catch {
+        return optional.none()
+      }
       }
       
       // For regular values, try to access the property
       try {
         if (ctx.OpenParenthesis) {
-          return this.handleMethodCall(identifierName, ctx, param)
-        } else {
-          const result = this.getIdentifier(param, identifierName)
-          return optional.of(result)
-        }
+        return this.handleMethodCall(identifierName, ctx, param)
+      } else {
+        const result = this.getIdentifier(param, identifierName)
+      return optional.of(result)
+      }
       } catch {
         return optional.none()
       }
-    }
-    
-    // Regular (non-optional) property access
-    if (ctx.OpenParenthesis) {
+      }
+      
+      // Regular (non-optional) property access
+      if (ctx.OpenParenthesis) {
+        // Check if this is a collection macro call first
+      if (this.isCollectionMacro(identifierName)) {
+          return this.handleCollectionMacroCall(
+          identifierName as CollectionMacro,
+          param,
+            ctx,
+        )
+        }
+
       return this.handleMethodCall(identifierName, ctx, param)
-    }
-    
+      }
     return this.getIdentifier(param, identifierName)
   }
 
