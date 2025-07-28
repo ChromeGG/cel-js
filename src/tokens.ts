@@ -47,9 +47,11 @@ export const Colon = createToken({ name: 'Colon', pattern: /:/ })
 
 export const QuestionMark = createToken({ name: 'QuestionMark', pattern: /\?/ })
 
+
+
 export const Float = createToken({
   name: 'Float',
-  pattern: /-?\d+\.\d+/,
+  pattern: /-?(?:\d+\.\d*(?:[eE][+-]?\d+)?|\d*\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)/,
 })
 
 export const HexInteger = createToken({
@@ -86,7 +88,27 @@ export const False = createToken({
   categories: BooleanLiteral,
 })
 
-export const Null = createToken({ name: 'Null', pattern: /null/ })
+export const Null = createToken({ name: 'Null', pattern: /null(?!_)/ })
+
+export const ByteStringLiteral = createToken({
+  name: 'ByteStringLiteral',
+  pattern: /b(?:"(?:[^"\n\\]|\\.)*")|b(?:'(?:[^'\n\\]|\\.)*')/,
+})
+
+export const TripleQuoteStringLiteral = createToken({
+  name: 'TripleQuoteStringLiteral',
+  pattern: /(?:"""(?:[^"\\]|\\.|"(?!""))*""")|(?:'''(?:[^'\\]|\\.|'(?!''))*''')/,
+})
+
+export const RawTripleQuoteStringLiteral = createToken({
+  name: 'RawTripleQuoteStringLiteral',
+  pattern: /r(?:"""(?:[^"])*""")|r(?:'''(?:[^'])*''')/,
+})
+
+export const RawStringLiteral = createToken({
+  name: 'RawStringLiteral',
+  pattern: /r(?:"(?:[^"])*")|r(?:'(?:[^'])*')/,
+})
 
 export const StringLiteral = createToken({
   name: 'StringLiteral',
@@ -226,6 +248,11 @@ export const Identifier = createToken({
   pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
 })
 
+export const QuotedIdentifier = createToken({
+  name: 'QuotedIdentifier',
+  pattern: /`[^`]+`/,
+})
+
 // The order of tokens is important
 export const allTokens = [
   Comment,
@@ -237,12 +264,13 @@ export const allTokens = [
   CloseBracket,
   OpenCurlyBracket,
   CloseCurlyBracket,
+
+
+  Float,
   Dot,
   Comma,
   Colon,
   QuestionMark,
-
-  Float,
   HexUnsignedInteger,
   HexInteger,
   UnsignedInteger,
@@ -250,6 +278,10 @@ export const allTokens = [
   True,
   False,
   Null,
+  ByteStringLiteral,
+  TripleQuoteStringLiteral,
+  RawTripleQuoteStringLiteral,
+  RawStringLiteral,
   StringLiteral,
 
   LogicalOrOperator,
@@ -276,6 +308,7 @@ export const allTokens = [
   Plus,
   Minus,
 
+  QuotedIdentifier,
   Identifier,
 ]
 

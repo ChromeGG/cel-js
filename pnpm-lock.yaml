@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@bufbuild/cel-spec':
+        specifier: 0.2.0
+        version: 0.2.0(@bufbuild/protobuf@2.6.0)
+      '@bufbuild/protobuf':
+        specifier: 2.6.0
+        version: 2.6.0
       chevrotain:
         specifier: 11.0.3
         version: 11.0.3
@@ -72,6 +78,14 @@ packages:
   '@babel/highlight@7.23.4':
     resolution: {integrity: sha512-acGdbYSfp2WheJoJm/EBBBLh/ID8KDc64ISZ9DYtBmC8/Q204PZJLHyzeB5qMzJ5trcOkybd78M4x2KWsUq++A==}
     engines: {node: '>=6.9.0'}
+
+  '@bufbuild/cel-spec@0.2.0':
+    resolution: {integrity: sha512-SH2rdoPeKe4Ii2XIhx5v9znDEmH8OgmDq1WRTuc1DrhuhO5A+r1juTPSO7n7I7Nn1DFmFY4+OjpdbLZEo8cWLg==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.2.5
+
+  '@bufbuild/protobuf@2.6.0':
+    resolution: {integrity: sha512-6cuonJVNOIL7lTj5zgo/Rc2bKAo4/GvN+rKCrUj7GdEHRzCk8zKOfFwUsL9nAVk5rSIsRmlgcpLzTRysopEeeg==}
 
   '@chevrotain/cst-dts-gen@11.0.3':
     resolution: {integrity: sha512-BvIKpRLeS/8UbfxXxgC33xOumsacaeCKAjAeLyOn7Pcp95HiRbrpl14S+9vaZLolnbssPIUuiUd8IvgkRyt6NQ==}
@@ -2624,6 +2638,12 @@ snapshots:
       '@babel/helper-validator-identifier': 7.22.20
       chalk: 2.4.2
       js-tokens: 4.0.0
+
+  '@bufbuild/cel-spec@0.2.0(@bufbuild/protobuf@2.6.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.6.0
+
+  '@bufbuild/protobuf@2.6.0': {}
 
   '@chevrotain/cst-dts-gen@11.0.3':
     dependencies:

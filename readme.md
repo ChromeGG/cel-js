@@ -1,7 +1,5 @@
 # cel-js
 
-> [!NOTE]  
-> There is also [a great implementation of cel-js](https://github.com/marcbachmann) made by @marcbachmann. It has full syntax support and better performance. You may consider it too 🙂
 
 `cel-js` is a powerful and efficient parser and evaluator for Google's [Common Expression Language](https://github.com/google/cel-spec) (CEL), built on the robust foundation of the [Chevrotain](https://chevrotain.io/docs/) parsing library. This library aims to provide a seamless and easy-to-use interface for working with CEL in JavaScript environments.
 
@@ -23,11 +21,11 @@ Try out `cel-js` in your browser with the [live demo](https://stackblitz.com/git
     - [x] string
       - [x] single-quote string
       - [x] double-quote string
-      - [ ] raw string
-      - [ ] triple-quote string
-      - [ ] byte string
+      - [x] raw string
+      - [x] triple-quote string
+      - [x] byte string
     - [x] hexadecimal
-    - [ ] bytes
+    - [x] bytes
     - [x] list
     - [x] map
     - [x] null

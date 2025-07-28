@@ -43,7 +43,9 @@ describe('Unary Operators', () => {
       expect(evaluate('--5')).toBe(5)
       expect(evaluate('---5')).toBe(-5)
       expect(evaluate('-0')).toBe(0)
-      expect(evaluate('-3.14')).toBe(-3.14)
+      const negativeFloat = evaluate('-3.14')
+      expect(Number(negativeFloat)).toBe(-3.14)
+      expect(negativeFloat.valueOf()).toBe(-3.14)
     })
 
     it('should throw error when used with non-numeric values', () => {

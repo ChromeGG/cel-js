@@ -30,15 +30,7 @@ describe('lists expressions', () => {
     })
 
     // Shall we throw an error if lists have different types?
-    // The original implementation does that if we put literals
-    // but no in case of context usage. So for now we will not throw an error
-    it.todo('should throw an error if lists have different types', () => {
-      const expr = '[1, true]'
 
-      const result = () => evaluate(expr)
-
-      expect(result).toThrow(new CelTypeError(Operations.logicalAnd, true, 1))
-    })
   })
 
   describe('lists', () => {
@@ -101,7 +93,7 @@ describe('lists expressions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError('invalid_argument: 0.1'))
+      expect(result).toThrow(new CelEvaluationError('invalid_argument'))
     })
 
     it('should access list a singleton', () => {
@@ -133,7 +125,7 @@ describe('lists expressions', () => {
 
       const result = () => evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError(`Index out of bounds: 5`))
+      expect(result).toThrow(new CelEvaluationError('invalid_argument'))
     })
   })
 

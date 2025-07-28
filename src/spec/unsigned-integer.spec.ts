@@ -3,15 +3,21 @@ import { evaluate } from '..'
 
 describe('unsigned integers', () => {
   it('should evaluate a simple unsigned integer', () => {
-    expect(evaluate('123u')).toBe(123)
+    const result = evaluate('123u')
+    expect(Number(result)).toBe(123)
+    expect(result.valueOf()).toBe(123)
   })
 
   it('should evaluate a uppercase U unsigned integer', () => {
-    expect(evaluate('456U')).toBe(456)
+    const result = evaluate('456U')
+    expect(Number(result)).toBe(456)
+    expect(result.valueOf()).toBe(456)
   })
 
   it('should evaluate zero as unsigned integer', () => {
-    expect(evaluate('0u')).toBe(0)
+    const result = evaluate('0u')
+    expect(Number(result)).toBe(0)
+    expect(result.valueOf()).toBe(0)
   })
 
   it('should preserve the unsigned integer type in calculations', () => {
@@ -23,6 +29,8 @@ describe('unsigned integers', () => {
   })
 
   it('should evaluate a hexadecimal unsigned integer with uppercase', () => {
-    expect(evaluate('0xABCDU')).toBe(43981)
+    const result = evaluate('0xABCDU')
+    expect(Number(result)).toBe(43981)
+    expect(result.valueOf()).toBe(43981)
   })
 })

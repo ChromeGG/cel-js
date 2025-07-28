@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest'
-import { CelEvaluationError, evaluate } from '..'
+import { evaluate } from '..'
 
 describe('maps expressions', () => {
   describe('literal', () => {
@@ -27,12 +27,12 @@ describe('maps expressions', () => {
       expect(result).toStrictEqual({ a: 1, b: 2, c: 3 })
     })
 
-    it('should throw an error if maps have different types', () => {
-      const expr = '{"a": 1, "b": true}'
+    it('should allow maps with different types (heterogeneous values)', () => {
+      const expr = '{"a": 1, "b": true, "c": "string", "d": [1, 2, 3]}'
 
-      const result = () => evaluate(expr)
+      const result = evaluate(expr)
 
-      expect(result).toThrow(new CelEvaluationError('invalid_argument: true'))
+      expect(result).toStrictEqual({ a: 1, b: true, c: 'string', d: [1, 2, 3] })
     })
   })
 
@@ -52,14 +52,6 @@ describe('maps expressions', () => {
         const result = () => evaluate(expr)
 
         expect(result).toThrow('Identifier "b" not found, no context passed')
-      })
-
-      it.todo('should throw an error if the key is not a string', () => {
-        const expr = '{"a": 1}.1'
-
-        const result = () => evaluate(expr)
-
-        expect(result).toThrow('invalid_argument: 1')
       })
     })
     describe('index expression', () => {

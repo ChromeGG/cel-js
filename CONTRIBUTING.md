@@ -50,3 +50,23 @@ Code is not the only thing you can contribute. I truly appreciate contributions 
 - Review the pull request diff after each new commit. It's better that you catch mistakes early than the maintainers pointing it out and having to go back and forth.
 - Be patient. Maintainers often have a lot of pull requests to review. Feel free to bump the pull request if you haven't received a reply in a couple of weeks.
 - And most importantly, have fun! 👌🎉
+
+## CEL Conformance Tests
+
+The CEL conformance tests ensure compatibility with the official CEL specification. The test data is automatically loaded from the `@bufbuild/cel-spec` package, which provides pre-decoded protobuf test files.
+
+### Running Conformance Tests
+
+```bash
+pnpm test src/spec/conformance/conformance.spec.ts
+```
+
+### Updating Test Data
+
+To update to the latest CEL conformance tests, simply bump the `@bufbuild/cel-spec` package version:
+
+```bash
+pnpm add @bufbuild/cel-spec@latest
+```
+
+The conformance tests are automatically synchronized with the upstream CEL specification - no manual parsing or file conversion is required.

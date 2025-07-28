@@ -8,11 +8,16 @@ import {
   AdditionOperator,
   MultiplicationOperator,
   Identifier,
+  QuotedIdentifier,
   BooleanLiteral,
   Null,
   OpenParenthesis,
   CloseParenthesis,
   StringLiteral,
+  RawStringLiteral,
+  RawTripleQuoteStringLiteral,
+  TripleQuoteStringLiteral,
+  ByteStringLiteral,
   Float,
   LogicalAndOperator,
   LogicalOrOperator,
@@ -100,16 +105,32 @@ export class CelParser extends CstParser {
   private listExpression = this.RULE('listExpression', () => {
     this.CONSUME(OpenBracket)
     this.OPTION(() => {
-      this.SUBRULE(this.expr, { LABEL: 'lhs' })
+      this.SUBRULE(this.listElement, { LABEL: 'lhs' })
       this.MANY(() => {
         this.CONSUME(Comma)
-        this.SUBRULE2(this.expr, { LABEL: 'rhs' })
+        this.SUBRULE2(this.listElement, { LABEL: 'rhs' })
       })
     })
     this.CONSUME(CloseBracket)
-    this.OPTION2(() => {
-      this.SUBRULE(this.indexExpression, { LABEL: 'Index' })
+    this.MANY2(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'Index',
+            }),
+        },
+
+      ])
     })
+  })
+
+  private listElement = this.RULE('listElement', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
+    this.SUBRULE(this.expr)
   })
 
   private mapExpression = this.RULE('mapExpression', () => {
@@ -132,10 +153,13 @@ export class CelParser extends CstParser {
   })
 
   private mapKeyValues = this.RULE('mapKeyValues', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.SUBRULE(this.expr, { LABEL: 'key' })
     this.CONSUME(Colon)
     this.SUBRULE2(this.expr, { LABEL: 'value' })
-    this.OPTION(() => {
+    this.OPTION2(() => {
       this.CONSUME(Comma)
     })
   })
@@ -168,13 +192,34 @@ export class CelParser extends CstParser {
     })
   })
 
-  private identifierDotExpression = this.RULE('identifierDotExpression', () => {
+  private absoluteIdentifierExpression = this.RULE('absoluteIdentifierExpression', () => {
     this.CONSUME(Dot)
     this.CONSUME(Identifier)
-    // Optional method call with arguments (for collection macros)
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        {
+          ALT: () =>
+            this.SUBRULE(this.indexExpression, {
+              LABEL: 'absoluteIndexExpression',
+            }),
+        },
+      ])
+    })
+  })
+
+  private identifierDotExpression = this.RULE('identifierDotExpression', () => {
+    this.CONSUME(Dot)
     this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(QuotedIdentifier) }
+    ])
+    this.OPTION2(() => {
       this.CONSUME(OpenParenthesis)
-      this.OPTION2(() => {
+      this.OPTION3(() => {
         this.SUBRULE(this.expr, { LABEL: 'arg' })
         this.MANY(() => {
           this.CONSUME(Comma)
@@ -187,15 +232,45 @@ export class CelParser extends CstParser {
 
   private indexExpression = this.RULE('indexExpression', () => {
     this.CONSUME(OpenBracket)
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
     this.SUBRULE(this.expr)
     this.CONSUME(CloseBracket)
   })
 
-  private atomicExpression = this.RULE('atomicExpression', () => {
+  private structExpression = this.RULE('structExpression', () => {
+    this.CONSUME(OpenCurlyBracket)
+    this.MANY(() => {
+      this.SUBRULE(this.structKeyValues, { LABEL: 'keyValues' })
+    })
+    this.CONSUME(CloseCurlyBracket)
+  })
+
+  private structKeyValues = this.RULE('structKeyValues', () => {
+    this.OPTION(() => {
+      this.CONSUME(QuestionMark, { LABEL: 'optional' })
+    })
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier, { LABEL: 'key' }) },
+      { ALT: () => this.CONSUME(QuotedIdentifier, { LABEL: 'key' }) }
+    ])
+    this.CONSUME(Colon)
+    this.SUBRULE(this.expr, { LABEL: 'value' })
+    this.OPTION2(() => {
+      this.CONSUME(Comma)
+    })
+  })
+
+  private primaryExpression = this.RULE('primaryExpression', () => {
     this.OR([
       { ALT: () => this.SUBRULE(this.parenthesisExpression) },
       { ALT: () => this.CONSUME(BooleanLiteral) },
       { ALT: () => this.CONSUME(Null) },
+      { ALT: () => this.CONSUME(ByteStringLiteral) },
+      { ALT: () => this.CONSUME(TripleQuoteStringLiteral) },
+      { ALT: () => this.CONSUME(RawTripleQuoteStringLiteral) },
+      { ALT: () => this.CONSUME(RawStringLiteral) },
       { ALT: () => this.CONSUME(StringLiteral) },
       { ALT: () => this.CONSUME(Float) },
       { ALT: () => this.CONSUME(HexUnsignedInteger) },
@@ -205,7 +280,19 @@ export class CelParser extends CstParser {
       { ALT: () => this.SUBRULE(this.listExpression) },
       { ALT: () => this.SUBRULE(this.mapExpression) },
       { ALT: () => this.SUBRULE(this.macrosExpression) },
+      { ALT: () => this.SUBRULE(this.absoluteIdentifierExpression) },
       { ALT: () => this.SUBRULE(this.identifierExpression) },
     ])
+  })
+
+  private atomicExpression = this.RULE('atomicExpression', () => {
+    this.SUBRULE(this.primaryExpression)
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.SUBRULE(this.identifierDotExpression) },
+        { ALT: () => this.SUBRULE(this.indexExpression, { LABEL: 'atomicIndexExpression' }) },
+        { ALT: () => this.SUBRULE(this.structExpression) },
+      ])
+    })
   })
 }
