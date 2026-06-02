@@ -24,6 +24,14 @@ export type ParseResult = Success | Failure
 
 export function parse(expression: string): ParseResult {
   const lexResult = CELLexer.tokenize(expression)
+
+  if (lexResult.errors.length > 0) {
+    return {
+      isSuccess: false,
+      errors: lexResult.errors.map((e) => e.message),
+    }
+  }
+
   parserInstance.input = lexResult.tokens
   const cst = parserInstance.expr()
 

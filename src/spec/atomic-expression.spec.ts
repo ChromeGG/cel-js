@@ -66,10 +66,9 @@ o"`
 
     const result = () => evaluate(expr)
 
+    expect(result).toThrow(CelParseError)
     expect(result).toThrow(
-      new CelParseError(
-        'Given string is not a valid CEL expression: Redundant input, expecting EOF but found: o',
-      ),
+      'Given string is not a valid CEL expression: unexpected character',
     )
   })
 
@@ -79,10 +78,9 @@ o'`
 
     const result = () => evaluate(expr)
 
+    expect(result).toThrow(CelParseError)
     expect(result).toThrow(
-      new CelParseError(
-        'Given string is not a valid CEL expression: Redundant input, expecting EOF but found: o',
-      ),
+      'Given string is not a valid CEL expression: unexpected character',
     )
   })
 
