@@ -26,6 +26,19 @@ describe('index.ts', () => {
         errors: expect.any(Array),
       })
     })
+
+    it('should return isSuccess false if the lexer finds invalid characters', () => {
+      const expr = 'value =< 42'
+
+      const result = parse(expr)
+
+      expect(result).toStrictEqual({
+        isSuccess: false,
+        errors: expect.arrayContaining([
+          expect.stringContaining('unexpected character'),
+        ]),
+      })
+    })
   })
 
   describe('evaluate', () => {
